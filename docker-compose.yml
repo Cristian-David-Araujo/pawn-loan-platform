@@ -1,0 +1,181 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_MULTIPLE_DATABASES: identity_db,customer_db,loan_db,collateral_db,finance_db,payment_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  gateway:
+    build:
+      context: ./backend/gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - IDENTITY_SERVICE_URL=http://identity-service:8001
+      - CUSTOMER_SERVICE_URL=http://customer-service:8002
+      - LOAN_SERVICE_URL=http://loan-service:8003
+      - COLLATERAL_SERVICE_URL=http://collateral-service:8004
+      - FINANCE_SERVICE_URL=http://finance-service:8005
+      - PAYMENT_SERVICE_URL=http://payment-service:8006
+      - REPORTING_SERVICE_URL=http://reporting-service:8007
+      - SECRET_KEY=${SECRET_KEY:-changeme-secret-key}
+    depends_on:
+      - identity-service
+      - customer-service
+      - loan-service
+    networks:
+      - loan_network
+
+  identity-service:
+    build:
+      context: ./backend/identity-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/identity_db
+      - SECRET_KEY=${SECRET_KEY:-changeme-secret-key}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - loan_network
+
+  customer-service:
+    build:
+      context: ./backend/customer-service
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/customer_db
+      - SECRET_KEY=${SECRET_KEY:-changeme-secret-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - loan_network
+
+  loan-service:
+    build:
+      context: ./backend/loan-service
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/loan_db
+      - SECRET_KEY=${SECRET_KEY:-changeme-secret-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - loan_network
+
+  collateral-service:
+    build:
+      context: ./backend/collateral-service
+    restart: unless-stopped
+    ports:
+      - "8004:8004"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/collateral_db
+      - SECRET_KEY=${SECRET_KEY:-changeme-secret-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - loan_network
+
+  finance-service:
+    build:
+      context: ./backend/finance-service
+    restart: unless-stopped
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/finance_db
+      - SECRET_KEY=${SECRET_KEY:-changeme-secret-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - loan_network
+
+  payment-service:
+    build:
+      context: ./backend/payment-service
+    restart: unless-stopped
+    ports:
+      - "8006:8006"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/payment_db
+      - SECRET_KEY=${SECRET_KEY:-changeme-secret-key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - loan_network
+
+  reporting-service:
+    build:
+      context: ./backend/reporting-service
+    restart: unless-stopped
+    ports:
+      - "8007:8007"
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-changeme-secret-key}
+      - LOAN_SERVICE_URL=http://loan-service:8003
+      - CUSTOMER_SERVICE_URL=http://customer-service:8002
+      - PAYMENT_SERVICE_URL=http://payment-service:8006
+      - COLLATERAL_SERVICE_URL=http://collateral-service:8004
+      - FINANCE_SERVICE_URL=http://finance-service:8005
+    depends_on:
+      - loan-service
+      - payment-service
+    networks:
+      - loan_network
+
+  frontend:
+    build:
+      context: ./frontend/web-app
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+    networks:
+      - loan_network
+
+volumes:
+  postgres_data:
+
+networks:
+  loan_network:
+    driver: bridge
