@@ -1,0 +1,137 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: loan-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../../database/local-init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: loan-redis
+    ports:
+      - "${REDIS_PORT}:6379"
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ../../../apps/gateway
+    ports:
+      - "${GATEWAY_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  identity:
+    build:
+      context: ../../../apps/services/identity
+    ports:
+      - "${IDENTITY_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  customer:
+    build:
+      context: ../../../apps/services/customer
+    ports:
+      - "${CUSTOMER_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  loan:
+    build:
+      context: ../../../apps/services/loan
+    ports:
+      - "${LOAN_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  collateral:
+    build:
+      context: ../../../apps/services/collateral
+    ports:
+      - "${COLLATERAL_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  finance:
+    build:
+      context: ../../../apps/services/finance
+    ports:
+      - "${FINANCE_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  payment:
+    build:
+      context: ../../../apps/services/payment
+    ports:
+      - "${PAYMENT_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  reporting:
+    build:
+      context: ../../../apps/services/reporting
+    ports:
+      - "${REPORTING_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+  notification:
+    build:
+      context: ../../../apps/services/notification
+    ports:
+      - "${NOTIFICATION_PORT}:8000"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../../../apps/frontend
+    ports:
+      - "${FRONTEND_PORT}:5173"
+    env_file:
+      - ../../../.env
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

@@ -1,0 +1,14 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "vite"
+  },
+  "dependencies": {
+    "vue": "^3.5.3"
+  },
+  "devDependencies": {
+    "vite": "^5.4.8"
+  }
+}
