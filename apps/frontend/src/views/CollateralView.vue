@@ -33,6 +33,24 @@ function submit() {
     error.value = err.message
   }
 }
+
+function release(id) {
+  error.value = ''
+  try {
+    store.releaseCollateral(id)
+  } catch (err) {
+    error.value = err.message
+  }
+}
+
+function liquidate(id) {
+  error.value = ''
+  try {
+    store.liquidateCollateral(id, 0)
+  } catch (err) {
+    error.value = err.message
+  }
+}
 </script>
 
 <template>
@@ -71,6 +89,7 @@ function submit() {
               <th>Description</th>
               <th>Appraised</th>
               <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -80,6 +99,24 @@ function submit() {
               <td>{{ item.description }}</td>
               <td>{{ item.appraisedValue }}</td>
               <td><StatusBadge :status="item.status" /></td>
+              <td>
+                <div class="button-row">
+                  <button
+                    class="btn"
+                    :disabled="item.status !== 'in custody'"
+                    @click="release(item.id)"
+                  >
+                    Release
+                  </button>
+                  <button
+                    class="btn btn-danger"
+                    :disabled="item.status !== 'in custody'"
+                    @click="liquidate(item.id)"
+                  >
+                    Liquidate
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>

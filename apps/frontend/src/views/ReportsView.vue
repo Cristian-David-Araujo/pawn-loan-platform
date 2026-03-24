@@ -27,6 +27,7 @@ const totals = computed(() => {
         <li>Active loans: <strong>{{ store.dashboard.active }}</strong></li>
         <li>Overdue loans: <strong>{{ store.dashboard.overdue }}</strong></li>
         <li>Collateral in custody: <strong>{{ store.dashboard.collateralInCustody }}</strong></li>
+        <li>Payments count: <strong>{{ store.dashboard.paymentsCount }}</strong></li>
       </ul>
     </article>
 
@@ -37,6 +38,13 @@ const totals = computed(() => {
         <li>31-60: {{ store.agingBuckets['31-60'] }}</li>
         <li>61-90: {{ store.agingBuckets['61-90'] }}</li>
         <li>90+: {{ store.agingBuckets['90+'] }}</li>
+      </ul>
+      <h4>Cash Summary Today</h4>
+      <ul class="plain-list">
+        <li>Total: {{ store.cashSummary.total.toFixed(2) }}</li>
+        <li>Cash: {{ store.cashSummary.cash.toFixed(2) }}</li>
+        <li>Transfer: {{ store.cashSummary.transfer.toFixed(2) }}</li>
+        <li>Operations: {{ store.cashSummary.count }}</li>
       </ul>
     </article>
   </section>

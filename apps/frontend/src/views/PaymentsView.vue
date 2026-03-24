@@ -29,6 +29,15 @@ function submit() {
     error.value = err.message
   }
 }
+
+function reverse(paymentId) {
+  error.value = ''
+  try {
+    store.reversePayment(paymentId)
+  } catch (err) {
+    error.value = err.message
+  }
+}
 </script>
 
 <template>
@@ -74,6 +83,8 @@ function submit() {
               <th>Total</th>
               <th>Interest</th>
               <th>Principal</th>
+              <th>Status</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -83,6 +94,16 @@ function submit() {
               <td>{{ payment.totalAmount }}</td>
               <td>{{ payment.allocatedToInterest }}</td>
               <td>{{ payment.allocatedToPrincipal }}</td>
+              <td>{{ payment.status }}</td>
+              <td>
+                <button
+                  class="btn btn-danger"
+                  :disabled="payment.status === 'reversed'"
+                  @click="reverse(payment.id)"
+                >
+                  Reverse
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>

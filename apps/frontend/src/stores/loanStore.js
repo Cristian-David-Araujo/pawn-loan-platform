@@ -338,6 +338,84 @@ const auditLogs = ref([
   },
 ])
 
+const roles = ref([
+  {
+    id: 'administrator',
+    permissions: [
+      'approvals',
+      'payment_reversal',
+      'collateral_release',
+      'liquidation_actions',
+      'user_admin',
+      'rate_changes',
+      'report_access',
+    ],
+  },
+  {
+    id: 'loan_officer',
+    permissions: ['approvals', 'report_access'],
+  },
+  {
+    id: 'cashier',
+    permissions: ['payment_reversal', 'report_access'],
+  },
+  {
+    id: 'collections_agent',
+    permissions: ['report_access'],
+  },
+  {
+    id: 'auditor',
+    permissions: ['report_access'],
+  },
+])
+
+const users = ref([
+  { id: 'U-001', username: 'admin', role: 'administrator', fullName: 'System Admin', status: 'active' },
+  { id: 'U-002', username: 'officer_1', role: 'loan_officer', fullName: 'Laura Officer', status: 'active' },
+  { id: 'U-003', username: 'cashier_1', role: 'cashier', fullName: 'Carlos Cashier', status: 'active' },
+  { id: 'U-004', username: 'collector_1', role: 'collections_agent', fullName: 'Martha Collector', status: 'active' },
+])
+
+const currentUser = ref(users.value[0])
+
+const notifications = ref([
+  {
+    id: 'N-001',
+    channel: 'email',
+    recipient: 'maria.torres@demo.local',
+    message: 'Reminder: your loan due date is in 5 days.',
+    status: 'sent',
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'N-002',
+    channel: 'sms',
+    recipient: '555-0103',
+    message: 'Your loan is overdue. Please contact collections.',
+    status: 'sent',
+    createdAt: new Date().toISOString(),
+  },
+])
+
+const collectionActions = ref([
+  {
+    id: 'CA-001',
+    loanId: 'LN-002',
+    action: 'First reminder call',
+    agent: 'collector_1',
+    outcome: 'No answer',
+    createdAt: addDays(isoDate(), -4),
+  },
+  {
+    id: 'CA-002',
+    loanId: 'LN-002',
+    action: 'Second reminder call',
+    agent: 'collector_1',
+    outcome: 'Promise to pay in 3 days',
+    createdAt: addDays(isoDate(), -1),
+  },
+])
+
 function addAudit(action, entityType, entityId, oldData, newData) {
     auditLogs.value.unshift({
       id: `AUD-${String(auditLogs.value.length + 1).padStart(4, '0')}`,
@@ -350,6 +428,26 @@ function addAudit(action, entityType, entityId, oldData, newData) {
       createdAt: new Date().toISOString(),
     })
   }
+
+function hasPermission(permission) {
+  const role = roles.value.find((item) => item.id === currentUser.value?.role)
+  return Boolean(role?.permissions.includes(permission))
+}
+
+function login(username) {
+  const found = users.value.find((item) => item.username === username)
+  if (!found) {
+    throw new Error('User not found')
+  }
+  currentUser.value = found
+  addAudit('auth.login', 'User', found.id, null, { username: found.username, role: found.role })
+}
+
+function logout() {
+  const oldUser = currentUser.value
+  currentUser.value = null
+  addAudit('auth.logout', 'User', oldUser?.id || 'unknown', { username: oldUser?.username }, null)
+}
 
 function getCustomerName(customerId) {
     const customer = customers.value.find((item) => item.id === customerId)
@@ -608,6 +706,123 @@ function registerPayment(payload) {
     return payment
   }
 
+function reversePayment(paymentId) {
+  if (!hasPermission('payment_reversal')) {
+    throw new Error('Current user has no permission to reverse payments')
+  }
+
+  const payment = payments.value.find((item) => item.id === paymentId)
+  if (!payment) {
+    throw new Error('Payment not found')
+  }
+  if (payment.status === 'reversed') {
+    throw new Error('Payment already reversed')
+  }
+
+  const loan = loans.value.find((item) => item.id === payment.loanId)
+  if (!loan) {
+    throw new Error('Loan not found')
+  }
+
+  const oldPayment = { ...payment }
+  payment.status = 'reversed'
+
+  loan.accruedPenalty = Number((loan.accruedPenalty + payment.allocatedToPenalty).toFixed(2))
+  loan.accruedInterest = Number((loan.accruedInterest + payment.allocatedToInterest).toFixed(2))
+  loan.accruedFees = Number((loan.accruedFees + payment.allocatedToFees).toFixed(2))
+  loan.outstandingPrincipal = Number((loan.outstandingPrincipal + payment.allocatedToPrincipal).toFixed(2))
+  if (loan.status === 'closed') loan.status = 'active'
+  loan.updatedAt = isoDate()
+
+  addAudit('payment.reversed', 'Payment', payment.id, oldPayment, { ...payment })
+}
+
+function closeLoan(loanId) {
+  const loan = loans.value.find((item) => item.id === loanId)
+  if (!loan) {
+    throw new Error('Loan not found')
+  }
+
+  const totalBalance =
+    loan.outstandingPrincipal + loan.accruedInterest + loan.accruedPenalty + loan.accruedFees
+  if (totalBalance > 0.01) {
+    throw new Error('Cannot close loan with outstanding balance')
+  }
+
+  const oldLoan = { ...loan }
+  loan.status = 'closed'
+  loan.updatedAt = isoDate()
+  addAudit('loan.closed', 'Loan', loan.id, oldLoan, { ...loan })
+}
+
+function releaseCollateral(collateralId) {
+  if (!hasPermission('collateral_release')) {
+    throw new Error('Current user has no permission to release collateral')
+  }
+
+  const item = collateralItems.value.find((entry) => entry.id === collateralId)
+  if (!item) {
+    throw new Error('Collateral item not found')
+  }
+
+  const oldItem = { ...item }
+  item.status = 'released'
+  item.updatedAt = isoDate()
+  addAudit('collateral.released', 'CollateralItem', item.id, oldItem, { ...item })
+}
+
+function liquidateCollateral(collateralId, saleAmount = 0) {
+  if (!hasPermission('liquidation_actions')) {
+    throw new Error('Current user has no permission to liquidate collateral')
+  }
+
+  const item = collateralItems.value.find((entry) => entry.id === collateralId)
+  if (!item) {
+    throw new Error('Collateral item not found')
+  }
+  const loan = loans.value.find((entry) => entry.id === item.loanId)
+  if (!loan) {
+    throw new Error('Associated loan not found')
+  }
+
+  const oldItem = { ...item }
+  item.status = 'liquidated'
+  item.updatedAt = isoDate()
+  loan.status = 'liquidated'
+  loan.updatedAt = isoDate()
+
+  addAudit('collateral.liquidated', 'CollateralItem', item.id, oldItem, {
+    ...item,
+    saleAmount: Number(saleAmount),
+  })
+}
+
+function addCollectionAction(payload) {
+  const action = {
+    id: `CA-${String(collectionActions.value.length + 1).padStart(3, '0')}`,
+    loanId: payload.loanId,
+    action: payload.action,
+    agent: payload.agent || currentUser.value?.username || 'collector_1',
+    outcome: payload.outcome || 'pending',
+    createdAt: isoDate(),
+  }
+  collectionActions.value.unshift(action)
+  addAudit('collection.action_added', 'CollectionAction', action.id, null, action)
+}
+
+function sendNotification(payload) {
+  const notification = {
+    id: `N-${String(notifications.value.length + 1).padStart(3, '0')}`,
+    channel: payload.channel,
+    recipient: payload.recipient,
+    message: payload.message,
+    status: 'sent',
+    createdAt: new Date().toISOString(),
+  }
+  notifications.value.unshift(notification)
+  addAudit('notification.sent', 'Notification', notification.id, null, notification)
+}
+
 function renewLoan(loanId) {
     const loan = loans.value.find((item) => item.id === loanId)
     if (!loan) {
@@ -709,6 +924,41 @@ const agingBuckets = computed(() => {
     return result
   })
 
+const delinquentLoans = computed(() =>
+  loansEnriched.value
+    .filter((item) => item.status === 'overdue')
+    .map((item) => {
+      const due = new Date(item.nextDueDate)
+      const today = new Date()
+      const daysOverdue = Math.max(
+        0,
+        Math.floor((today - due) / (1000 * 60 * 60 * 24)),
+      )
+      return { ...item, daysOverdue }
+    }),
+)
+
+const cashSummary = computed(() => {
+  const today = isoDate()
+  const todayPayments = payments.value.filter(
+    (item) => item.paymentDate === today && item.status === 'applied',
+  )
+  const total = todayPayments.reduce((sum, item) => sum + item.totalAmount, 0)
+  const cash = todayPayments
+    .filter((item) => item.paymentMethod === 'cash')
+    .reduce((sum, item) => sum + item.totalAmount, 0)
+  const transfer = todayPayments
+    .filter((item) => item.paymentMethod === 'bank_transfer')
+    .reduce((sum, item) => sum + item.totalAmount, 0)
+
+  return {
+    total,
+    cash,
+    transfer,
+    count: todayPayments.length,
+  }
+})
+
 export function useLoanStore() {
   return {
     customers,
@@ -718,10 +968,20 @@ export function useLoanStore() {
     interestCharges,
     payments,
     auditLogs,
+    users,
+    roles,
+    currentUser,
+    notifications,
+    collectionActions,
     applicationsEnriched,
     loansEnriched,
     dashboard,
     agingBuckets,
+    delinquentLoans,
+    cashSummary,
+    hasPermission,
+    login,
+    logout,
     createCustomer,
     createApplication,
     reviewApplication,
@@ -730,6 +990,12 @@ export function useLoanStore() {
     generateMonthlyInterest,
     applyOverdue,
     registerPayment,
+    reversePayment,
+    closeLoan,
+    releaseCollateral,
+    liquidateCollateral,
+    addCollectionAction,
+    sendNotification,
     renewLoan,
   }
 }

@@ -36,6 +36,14 @@ function runMonthlyCycle() {
       <p>Accrued Interest</p>
       <h3>{{ money(summary.accruedInterest) }}</h3>
     </article>
+    <article class="card metric">
+      <p>Today Cash Collection</p>
+      <h3>{{ money(store.cashSummary.total) }}</h3>
+    </article>
+    <article class="card metric">
+      <p>Notifications Sent</p>
+      <h3>{{ store.notifications.length }}</h3>
+    </article>
   </section>
 
   <section class="content-grid">

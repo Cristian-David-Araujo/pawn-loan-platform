@@ -38,6 +38,15 @@ function renew(id) {
     error.value = err.message
   }
 }
+
+function closeLoan(id) {
+  error.value = ''
+  try {
+    store.closeLoan(id)
+  } catch (err) {
+    error.value = err.message
+  }
+}
 </script>
 
 <template>
@@ -86,9 +95,14 @@ function renew(id) {
               <td>{{ loan.balance.toFixed(2) }}</td>
               <td><StatusBadge :status="loan.status" /></td>
               <td>
-                <button class="btn" :disabled="loan.status !== 'active' && loan.status !== 'overdue'" @click="renew(loan.id)">
-                  Renew
-                </button>
+                <div class="button-row">
+                  <button class="btn" :disabled="loan.status !== 'active' && loan.status !== 'overdue'" @click="renew(loan.id)">
+                    Renew
+                  </button>
+                  <button class="btn btn-success" :disabled="loan.status === 'closed'" @click="closeLoan(loan.id)">
+                    Close
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
