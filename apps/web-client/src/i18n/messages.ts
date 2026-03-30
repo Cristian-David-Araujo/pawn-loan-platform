@@ -1,0 +1,230 @@
+export const messages = {
+  en: {
+    app: {
+      title: 'Pawn Loan Platform',
+      subtitle: 'Loan Operations Prototype',
+      noBackendMode: 'No Backend Mode',
+      language: 'Language',
+      dashboard: 'Dashboard',
+      customers: 'Customers',
+      loans: 'Loans',
+      collateral: 'Collateral',
+      payments: 'Payments',
+      reporting: 'Reporting'
+    },
+    common: {
+      id: 'ID',
+      name: 'Name',
+      status: 'Status',
+      date: 'Date',
+      total: 'Total',
+      customer: 'Customer',
+      loan: 'Loan',
+      method: 'Method',
+      description: 'Description',
+      city: 'City',
+      phone: 'Phone',
+      principal: 'Principal',
+      interest: 'Interest',
+      fees: 'Fees',
+      actions: 'Actions',
+      type: 'Type',
+      active: 'Active',
+      overdue: 'Overdue',
+      closed: 'Closed',
+      inCustody: 'In Custody',
+      released: 'Released',
+      liquidated: 'Liquidated',
+      pawn: 'Pawn',
+      personal: 'Personal',
+      cash: 'Cash',
+      bankTransfer: 'Bank transfer',
+      other: 'Other'
+    },
+    dashboard: {
+      title: 'Dashboard',
+      subtitle: 'Operational overview of current portfolio.',
+      customers: 'Customers',
+      activeLoans: 'Active Loans',
+      overdueLoans: 'Overdue Loans',
+      collateralInCustody: 'Collateral In Custody',
+      outstandingPortfolio: 'Outstanding Portfolio',
+      cashCollected: 'Cash Collected'
+    },
+    customers: {
+      title: 'Customers',
+      subtitle: 'Create and review customer records.',
+      fullName: 'Full name',
+      documentType: 'Document type',
+      documentNumber: 'Document number',
+      createCustomer: 'Create customer',
+      document: 'Document'
+    },
+    loans: {
+      title: 'Loans',
+      subtitle: 'Register new loans and monitor portfolio status.',
+      loanType: 'Loan type',
+      principalAmount: 'Principal amount',
+      monthlyInterestRate: 'Monthly interest rate (%)',
+      dueDay: 'Due day',
+      createLoan: 'Create loan',
+      outstanding: 'Outstanding',
+      rate: 'Rate'
+    },
+    collateral: {
+      title: 'Collateral',
+      subtitle: 'Register custody items associated with pawn loans.',
+      appraisedValue: 'Appraised value',
+      storageLocation: 'Storage location',
+      custodyCode: 'Custody code',
+      location: 'Location',
+      registerCollateralItem: 'Register collateral item',
+      loanOption: 'Loan #{id} - {customer}'
+    },
+    payments: {
+      title: 'Payments',
+      subtitle: 'Register payments with configurable allocation.',
+      totalAmount: 'Total amount',
+      paymentMethod: 'Payment method',
+      penalty: 'Penalty',
+      registerPayment: 'Register payment',
+      allocationSummary: 'Allocation sum: {sum} / Total: {total}',
+      loanOption: 'Loan #{id} - {customer}'
+    },
+    reporting: {
+      title: 'Reporting',
+      subtitle: 'Basic operational reports with mock data.',
+      activeLoans: 'Active Loans',
+      overdueLoans: 'Overdue Loans',
+      collateralInCustody: 'Collateral In Custody',
+      cashSummary: 'Cash Summary',
+      totalPaymentsRegistered: 'Total payments registered: {count}',
+      totalCollected: 'Total collected: {amount}',
+      activeLoanLine: 'Loan #{id} - {customer} - {amount}',
+      overdueLoanLine: 'Loan #{id} - {customer} - Due day {day}',
+      custodyLine: '{code} - Loan #{loanId} - {description}'
+    },
+    messages: {
+      customerCreated: 'Customer created.',
+      customerDocumentExists: 'Customer document already exists.',
+      paymentRegistered: 'Payment registered.',
+      allocationMustEqualTotal: 'Allocation must equal total amount.',
+      unknownCustomer: 'Unknown customer'
+    }
+  },
+  es: {
+    app: {
+      title: 'Plataforma de Prestamos Prendarios',
+      subtitle: 'Prototipo de Operaciones de Prestamo',
+      noBackendMode: 'Modo Sin Backend',
+      language: 'Idioma',
+      dashboard: 'Panel',
+      customers: 'Clientes',
+      loans: 'Prestamos',
+      collateral: 'Garantias',
+      payments: 'Pagos',
+      reporting: 'Reportes'
+    },
+    common: {
+      id: 'ID',
+      name: 'Nombre',
+      status: 'Estado',
+      date: 'Fecha',
+      total: 'Total',
+      customer: 'Cliente',
+      loan: 'Prestamo',
+      method: 'Metodo',
+      description: 'Descripcion',
+      city: 'Ciudad',
+      phone: 'Telefono',
+      principal: 'Capital',
+      interest: 'Interes',
+      fees: 'Cargos',
+      actions: 'Acciones',
+      type: 'Tipo',
+      active: 'Activo',
+      overdue: 'Vencido',
+      closed: 'Cerrado',
+      inCustody: 'En Custodia',
+      released: 'Liberado',
+      liquidated: 'Liquidado',
+      pawn: 'Prendario',
+      personal: 'Personal',
+      cash: 'Efectivo',
+      bankTransfer: 'Transferencia bancaria',
+      other: 'Otro'
+    },
+    dashboard: {
+      title: 'Panel',
+      subtitle: 'Resumen operativo de la cartera actual.',
+      customers: 'Clientes',
+      activeLoans: 'Prestamos Activos',
+      overdueLoans: 'Prestamos Vencidos',
+      collateralInCustody: 'Garantias en Custodia',
+      outstandingPortfolio: 'Cartera Pendiente',
+      cashCollected: 'Efectivo Cobrado'
+    },
+    customers: {
+      title: 'Clientes',
+      subtitle: 'Crear y revisar registros de clientes.',
+      fullName: 'Nombre completo',
+      documentType: 'Tipo de documento',
+      documentNumber: 'Numero de documento',
+      createCustomer: 'Crear cliente',
+      document: 'Documento'
+    },
+    loans: {
+      title: 'Prestamos',
+      subtitle: 'Registrar nuevos prestamos y monitorear estado de cartera.',
+      loanType: 'Tipo de prestamo',
+      principalAmount: 'Monto de capital',
+      monthlyInterestRate: 'Tasa de interes mensual (%)',
+      dueDay: 'Dia de vencimiento',
+      createLoan: 'Crear prestamo',
+      outstanding: 'Pendiente',
+      rate: 'Tasa'
+    },
+    collateral: {
+      title: 'Garantias',
+      subtitle: 'Registrar articulos en custodia asociados a prestamos prendarios.',
+      appraisedValue: 'Valor de avaluo',
+      storageLocation: 'Ubicacion de resguardo',
+      custodyCode: 'Codigo de custodia',
+      location: 'Ubicacion',
+      registerCollateralItem: 'Registrar garantia',
+      loanOption: 'Prestamo #{id} - {customer}'
+    },
+    payments: {
+      title: 'Pagos',
+      subtitle: 'Registrar pagos con asignacion configurable.',
+      totalAmount: 'Monto total',
+      paymentMethod: 'Metodo de pago',
+      penalty: 'Mora',
+      registerPayment: 'Registrar pago',
+      allocationSummary: 'Suma de asignacion: {sum} / Total: {total}',
+      loanOption: 'Prestamo #{id} - {customer}'
+    },
+    reporting: {
+      title: 'Reportes',
+      subtitle: 'Reportes operativos basicos con datos mock.',
+      activeLoans: 'Prestamos Activos',
+      overdueLoans: 'Prestamos Vencidos',
+      collateralInCustody: 'Garantias en Custodia',
+      cashSummary: 'Resumen de Caja',
+      totalPaymentsRegistered: 'Pagos registrados totales: {count}',
+      totalCollected: 'Total cobrado: {amount}',
+      activeLoanLine: 'Prestamo #{id} - {customer} - {amount}',
+      overdueLoanLine: 'Prestamo #{id} - {customer} - Dia de vencimiento {day}',
+      custodyLine: '{code} - Prestamo #{loanId} - {description}'
+    },
+    messages: {
+      customerCreated: 'Cliente creado.',
+      customerDocumentExists: 'El documento del cliente ya existe.',
+      paymentRegistered: 'Pago registrado.',
+      allocationMustEqualTotal: 'La asignacion debe ser igual al monto total.',
+      unknownCustomer: 'Cliente desconocido'
+    }
+  }
+}
+
+export type AppLocale = keyof typeof messages

@@ -1,817 +1,340 @@
-# Loan Management System Requirements and Software Design
+# Software Requirements Specification
 
-## 1. Project Overview
+## Pawn and Personal Loan Management Platform
 
-The software is a loan management system designed to support two lending models:
-
-- Pawn-backed loans
-- Personal loans without collateral
+**FastAPI + Vue + PostgreSQL + Docker**
 
-The platform must manage the full loan lifecycle, including customer registration, loan requests, collateral registration, approval workflow, monthly interest charging, payment tracking, delinquency handling, renewals, and reporting.
+| Item | Definition |
+| --- | --- |
+| Repository Scope | Modular monorepo with web client, API server, database assets, infrastructure, and documentation. |
+| Core Business Modes | Pawn-backed loans and personal loans with monthly interest charging. |
+| Primary Stack | Python FastAPI backend, Vue web client, PostgreSQL database, Docker-based deployment. |
+| Target Architecture | Dockerized modular backend prepared for future service extraction, while remaining simple for initial delivery. |
 
-The system must be built as a microservices-based application, containerized with Docker, using the following technology stack:
+**Version 1.0**  \|  **Date: March 30, 2026**
 
-- Backend: Python + FastAPI
-- Frontend: Vue
-- Database: PostgreSQL
+## Document Overview
 
-## 2. Business Goal
-
-The goal of the software is to provide an operational platform for businesses that issue loans to individuals, especially under pawn lending and direct lending models, where interest is charged monthly.
-
-The platform should help operators:
-
-- register and manage customers
-- create and approve loans
-- control collateral items
-- calculate and charge monthly interest
-- receive and allocate payments
-- track overdue loans
-- manage renewals and closures
-- generate operational and financial reports
-
-## 3. Functional Requirements
-
-### 3.1 Customer Management
-
-The system must allow users to:
-
-- create, update, and view customer profiles
-- store personal and contact information
-- validate uniqueness by identification number
-- review customer loan history
-- add notes and observations
-- enable or disable customer accounts
-
-Customer data fields:
-
-- first name
-- last name
-- document type
-- document number
-- phone number
-- email
-- address
-- city
-- status
-- created date
-- updated date
-
-### 3.2 Loan Application Management
+This document defines the functional requirements, non-functional requirements, architecture, technology stack, repository structure, domain model, API scope, and delivery roadmap for a loan management platform that supports both pawn-backed and personal loans.
 
-The system must allow users to:
-
-- create loan applications
-- define the loan type:
-  - pawn-backed loan
-  - personal loan
-- enter requested amount
-- enter monthly interest rate
-- define initial term
-- attach observations or supporting documents
-- approve or reject applications
-- track who created, reviewed, and approved the application
-
-Loan application states:
-
-- draft
-- submitted
-- under review
-- approved
-- rejected
-- cancelled
-
-### 3.3 Pawn Collateral Management
-
-For pawn-backed loans, the system must allow users to:
-
-- register one or multiple collateral items
-- capture item description
-- save serial number or reference
-- register appraised value
-- store physical condition
-- upload item photos
-- assign an internal custody code
-- track storage location
-- manage release or liquidation of collateral
-
-Collateral item states:
-
-- received
-- in custody
-- released
-- under liquidation
-- sold
-- written off
-
-### 3.4 Loan Creation and Disbursement
-
-The system must allow users to:
-
-- generate a loan from an approved application
-- define:
-  - loan amount
-  - monthly interest rate
-  - disbursement date
-  - monthly due date
-  - loan term
-- link collateral when applicable
-- record disbursement method:
-  - cash
-  - bank transfer
-  - other
-- activate the loan and start the financial cycle
+## 1. Executive Summary
 
-Loan states:
+The platform will digitize the complete loan lifecycle for businesses that lend money to individuals. It must support customer onboarding, loan applications, collateral registration for pawn operations, monthly interest accrual, payment registration, overdue management, renewal workflows, closure, collateral release, and operational reporting.
 
-- approved
-- disbursed
-- active
-- overdue
-- renewed
-- closed
-- defaulted
-- liquidated
+The software will be delivered as a Dockerized modular platform composed of a Vue-based web client, a FastAPI-based API server, and PostgreSQL as the system of record. The initial release will use one backend deployment with strong internal domain modularity, allowing future extraction into separate services if the business or scale requires it.
 
-### 3.5 Monthly Interest Calculation
+## 2. Product Scope
 
-The system must support monthly interest charging.
+- Manage pawn-backed loans secured by one or more collateral items.
+- Manage personal loans without physical collateral.
+- Charge interest on a monthly basis according to configurable business rules.
+- Track balances, payments, penalties, renewals, closures, and audit history.
+- Provide a secure operations interface for staff members with role-based access control.
 
-It must allow:
+## 3. Objectives
 
-- configurable monthly interest rate
-- automatic monthly interest generation
-- definition of the calculation base:
-  - original principal
-  - outstanding principal
-  - current balance
-- generation of monthly charges
-- interest history per loan
-- recalculation after capital payments or renewals when business rules require it
+- Provide a reliable and auditable lending operations system.
+- Reduce manual handling errors in interest calculation and payment allocation.
+- Preserve traceability for regulated and high-risk financial operations.
+- Support future scalability without introducing unnecessary early complexity.
 
-Minimum business rule:
+## 4. Stakeholders and User Roles
 
-- Interest must be generated once per monthly cycle for active loans.
+| Role | Primary Responsibilities | Key Permissions |
+| --- | --- | --- |
+| Administrator | Configure the platform, manage users and roles, supervise operations. | Full access, configuration changes, user administration, audit access. |
+| Loan Officer | Register customers, create applications, evaluate and approve loans. | Customer management, application handling, loan creation. |
+| Cashier | Register payments, print receipts, support loan settlement. | Payment intake, receipt issuance, limited reversals if allowed. |
+| Collections Agent | Monitor overdue loans and collection actions. | Overdue portfolio view, collection notes, promise-to-pay records. |
+| Auditor | Review sensitive operations and traceability. | Read-only access to audits, logs, balances, and critical actions. |
 
-### 3.6 Payment Management
+## 5. Business Domain Definition
 
-The system must allow users to:
+### 5.1 Loan Types
 
-- register payments
-- support partial payments
-- support full settlement
-- split payments into:
-  - penalty interest
-  - regular interest
-  - principal
-  - fees
-- define payment allocation order
-- generate payment receipts
-- reverse payments with permission and audit trail
+**Pawn-backed loan:** a loan issued against one or more collateral items physically held in custody until the obligation is settled or the collateral is liquidated under the defined business rules.
 
-Recommended payment allocation order:
+**Personal loan:** a loan issued without physical collateral, managed through customer records, repayment obligations, and overdue controls.
 
-- penalties
-- accrued interest
-- fees
-- principal
+### 5.2 Core Loan Lifecycle
 
-### 3.7 Delinquency and Penalty Handling
+1. Customer registration
+2. Loan application creation
+3. Review and approval or rejection
+4. Collateral intake, when applicable
+5. Loan disbursement
+6. Monthly interest generation
+7. Payment registration and allocation
+8. Overdue and penalty processing
+9. Renewal or restructuring, if allowed
+10. Closure and collateral release or liquidation
 
-The system must allow users to:
+## 6. Functional Requirements
 
-- identify overdue loans
-- apply grace periods
-- calculate penalty interest
-- apply additional fees if needed
-- track collection actions
-- show aging buckets of overdue loans
+### 6.1 Customer Management
 
-Aging examples:
+- The system shall create, update, archive, and retrieve customer profiles.
+- The system shall prevent duplicate customers based on document type and document number.
+- The system shall keep a chronological history of the customer’s loans and major actions.
+- The system shall store contact and identification data required for operations.
 
-- 1-30 days overdue
-- 31-60 days overdue
-- 61-90 days overdue
-- 90+ days overdue
+### 6.2 Loan Application Management
 
-### 3.8 Loan Renewals
+- The system shall support the creation of loan applications for both pawn-backed and personal loans.
+- The system shall allow draft, submitted, under-review, approved, rejected, and cancelled application states.
+- The system shall record who created, reviewed, approved, or rejected an application.
+- The system shall allow notes and document attachments associated with each application.
 
-The system must allow users to renew loans based on business rules.
+### 6.3 Collateral Management
 
-Renewal features must include:
+- The system shall register one or more collateral items for pawn-backed loans.
+- The system shall store item description, condition, appraised value, serial/reference data, storage location, and item images.
+- The system shall assign an internal custody code to each collateral item.
+- The system shall prevent collateral release while a linked loan has outstanding debt unless an authorized liquidation process applies.
 
-- creating a new cycle for an existing loan
-- carrying forward the same collateral in pawn-backed loans
-- recalculating dates
-- settling required charges before renewal if applicable
-- preserving traceability between original loan and renewed loan
+### 6.4 Loan Creation and Disbursement
 
-### 3.9 Loan Closure
+- The system shall create a loan from an approved application.
+- The system shall record principal amount, monthly interest rate, disbursement date, due day, and initial term.
+- The system shall support cash, bank transfer, and other configured disbursement methods.
+- The system shall activate the financial lifecycle immediately after disbursement.
 
-The system must allow users to close loans when all balances are fully settled.
+### 6.5 Monthly Interest Accrual
 
-For pawn-backed loans, closure must also allow:
+- The system shall generate monthly interest charges for active loans.
+- The monthly interest rate shall be configurable at product level and overridable at loan level when authorized.
+- The system shall keep a historical ledger of generated interest charges.
+- The system shall support recalculation after principal reductions, renewals, or defined financial adjustments.
 
-- collateral release
-- delivery confirmation
-- release timestamp
-- responsible operator tracking
+### 6.6 Payment Management
 
-### 3.10 Collateral Liquidation
+- The system shall register partial and full payments.
+- The system shall allocate payments across penalty, accrued interest, fees, and principal according to configurable allocation rules.
+- The system shall generate a receipt or proof of payment.
+- The system shall support controlled payment reversal with audit trail and permissions.
 
-For defaulted pawn-backed loans, the system must allow:
+### 6.7 Delinquency and Collections
 
-- marking collateral as eligible for liquidation
-- registering liquidation status
-- recording sale amount if sold
-- linking liquidation to the final loan settlement outcome
-- preserving complete audit history
+- The system shall identify overdue loans automatically.
+- The system shall support grace periods, penalty interest, and administrative fees according to business policy.
+- The system shall classify delinquency by aging ranges.
+- The system shall allow collection notes, follow-up actions, and promise-to-pay records.
 
-### 3.11 Reporting
+### 6.8 Renewals and Restructuring
 
-The platform must provide reports for:
+- The system shall support loan renewal under business policy.
+- The system shall preserve traceability between the original loan and the renewed loan cycle.
+- The system shall optionally require accrued charges to be paid before renewal.
+- The system shall support refinancing scenarios when principal, rate, or term changes are authorized.
 
-- active loans
-- overdue loans
-- loans by type
-- total outstanding principal
-- total accrued interest
-- payments by date range
-- delinquent customers
-- collateral in custody
-- released collateral
-- liquidated collateral
-- operator activity
-- cash collection summary
+### 6.9 Loan Closure
 
-### 3.12 User and Role Management
+- The system shall mark a loan as closed only when principal, interest, penalties, and fees are fully settled.
+- The system shall record the closure timestamp and responsible user.
+- The system shall allow collateral release only after successful closure or through a dedicated authorized workflow.
 
-The system must support authentication and authorization with roles.
+### 6.10 Reporting
 
-Suggested roles:
+- The system shall provide operational reports for active loans, overdue loans, collateral custody, released collateral, liquidated collateral, payments, and cash collections.
+- The system shall allow filtering by date range, loan type, status, and responsible operator.
+- The system shall provide basic export support for at least CSV or spreadsheet-compatible formats.
 
-- administrator
-- loan officer
-- cashier
-- collections agent
-- auditor
+## 7. Business Rules
 
-Permissions must control access to:
+| Rule | Definition |
+| --- | --- |
+| Interest Charging Frequency | Interest is charged per monthly cycle. Each active loan must generate one interest charge per cycle according to its configured due-day or anniversary rule. |
+| Interest Base | The financial engine must support charging interest on either original principal, outstanding principal, or another approved calculation base. The selected approach must be fixed by business policy before production use. |
+| Payment Allocation | Recommended default allocation order: penalties, accrued interest, fees, then principal. |
+| Overdue Status | A loan becomes overdue when the due condition is reached and the minimum required payment has not been fulfilled after any configured grace period. |
+| Pawn Restriction | Collateral cannot be released while any linked balance remains unpaid unless an exception flow is executed by an authorized role. |
+| Renewal Policy | A renewed loan must preserve reference to its source loan and must produce a new financial cycle with updated dates and balances. |
+| Audit Requirement | Every critical financial or collateral action must generate an audit entry. |
 
-- approvals
-- payment reversal
-- collateral release
-- liquidation actions
-- user administration
-- rate changes
-- report access
+## 8. Non-Functional Requirements
 
-## 4. Non-Functional Requirements
+### Architecture
 
-### 4.1 Architecture
+- The platform shall be Dockerized and deployable in a repeatable way.
+- The initial release shall use one API server deployment with internal modular separation by domain.
+- The backend structure shall allow future extraction of modules into standalone services without rewriting business rules.
 
-The system must be built as a microservices-based platform.
+### Security
 
-Each service must:
+- The platform shall use secure authentication and role-based authorization.
+- Passwords shall be hashed using approved algorithms.
+- Tokens or session credentials shall be protected and configurable by environment.
+- Sensitive operations shall require explicit authorization checks.
 
-- have a clear bounded responsibility
-- expose REST APIs
-- run inside Docker containers
-- be independently deployable
+### Performance
 
-### 4.2 Performance
+- Operational screens and main APIs should respond quickly under normal business load.
+- The design should support indexing and query optimization for portfolio and payment operations.
 
-The system should support daily business operations with multiple concurrent users.
+### Auditability
 
-Operational pages such as:
+- Critical actions shall preserve who did what, when, and what changed.
+- Financial records shall be immutable where legally or operationally necessary, with reversals represented explicitly instead of silent overwrites.
 
-- customer lookup
-- loan details
-- payment registration
-- active loan listing
+### Maintainability
 
-should respond quickly under normal load.
+- The codebase shall follow consistent naming, separation of concerns, and documented conventions.
+- The project shall include automated tests, migrations, linting, formatting, and environment templates.
 
-### 4.3 Scalability
+### Observability
 
-The system should allow independent horizontal scaling of critical services such as:
+- The backend shall expose health endpoints.
+- The platform should support structured logs and metrics collection.
 
-- loan service
-- payment service
-- reporting service
+## 9. Recommended Technical Architecture
 
-### 4.4 Security
+The recommended implementation model is a modular monorepo with one frontend application and one backend application. The backend is not split into many deployables at the beginning; instead, it is organized by domain modules using clean boundaries and modern layering. This keeps delivery simple while preserving long-term scalability.
 
-The system must include:
+| Layer | Technology | Purpose | Notes |
+| --- | --- | --- | --- |
+| Web Client | Vue 3 + Vite + TypeScript | Operations UI for business users | Consumes the API through HTTP/JSON. |
+| API Server | Python FastAPI | Business rules, REST API, auth, domain workflows | Single deployable backend, internally modularized. |
+| Database | PostgreSQL | System of record for operational and financial data | Use migrations and explicit schema evolution. |
+| Runtime | Docker + Docker Compose | Local and server deployment consistency | Prepared for later orchestration if needed. |
 
-- secure authentication
-- role-based authorization
-- password hashing
-- token-based access control
-- data validation
-- audit logs for critical operations
-- secure document and image handling
+## 10. Professional Repository Structure
 
-### 4.5 Auditability
-
-All critical actions must be auditable, including:
-
-- loan creation
-- approval
-- disbursement
-- interest generation
-- payment registration
-- payment reversal
-- collateral release
-- collateral liquidation
-- user changes
-
-Each audit record should contain:
-
-- user
-- timestamp
-- action
-- entity type
-- entity id
-- old value
-- new value
-
-### 4.6 Availability and Reliability
-
-The platform should be resilient enough for business operations and include:
-
-- service health checks
-- structured logging
-- graceful failure handling
-- database backup strategy
-- restart policy for containers
-
-### 4.7 Maintainability
-
-The codebase should be:
-
-- modular
-- well documented
-- versioned
-- testable
-- consistent in naming and structure
-
-### 4.8 Observability
-
-The platform should support:
-
-- centralized logs
-- request tracing
-- metrics collection
-- error monitoring
-- health and readiness endpoints
-
-## 5. Recommended Microservices
-
-A practical first design would include the following services.
-
-### 5.1 API Gateway
-
-Responsible for:
-
-- single entry point
-- request routing
-- authentication forwarding
-- rate limiting if needed
-
-### 5.2 Identity Service
-
-Responsible for:
-
-- authentication
-- user accounts
-- roles
-- permissions
-- token issuance
-
-### 5.3 Customer Service
-
-Responsible for:
-
-- customer records
-- customer profile updates
-- customer history reference
-
-### 5.4 Loan Service
-
-Responsible for:
-
-- loan applications
-- approvals
-- loan creation
-- loan states
-- renewals
-- closure workflow
-
-### 5.5 Collateral Service
-
-Responsible for:
-
-- collateral item registration
-- appraisal data
-- item images
-- custody tracking
-- release and liquidation
-
-### 5.6 Finance Service
-
-Responsible for:
-
-- interest calculation
-- accrual rules
-- penalties
-- outstanding balances
-- financial ledger per loan
-
-### 5.7 Payment Service
-
-Responsible for:
-
-- payment registration
-- allocation logic
-- receipts
-- payment reversals
-- cash operation records
-
-### 5.8 Reporting Service
-
-Responsible for:
-
-- aggregated queries
-- exports
-- dashboards
-- business-level reporting
-
-### 5.9 Notification Service
-
-Responsible for:
-
-- due date reminders
-- overdue alerts
-- customer notifications by email, SMS, or messaging integrations
-
-## 6. Technology Stack
-
-### Backend
-
-- Python 3.12+
-- FastAPI
-- SQLAlchemy or SQLModel
-- Alembic for migrations
-- Pydantic for validation
-- Uvicorn / Gunicorn
-- Celery or background workers if needed
-- Redis for caching and async jobs if needed
-
-### Frontend
-
-- Vue 3
-- Vite
-- Vue Router
-- Pinia
-- Axios
-- UI framework optional:
-  - Vuetify
-  - Element Plus
-  - Naive UI
-
-### Database
-
-- PostgreSQL 16+
-
-### Infrastructure
-
-- Docker
-- Docker Compose for local development
-- Nginx or Traefik as gateway/reverse proxy
-- Optional future orchestration with Kubernetes
-
-### Messaging / Async
-
-- RabbitMQ or Redis Streams or Kafka if event-driven communication grows
-
-### Monitoring
-
-- Prometheus
-- Grafana
-- Loki or ELK
-- Sentry optional
-
-## 7. Suggested Monorepo Structure
+Recommended top-level repository layout:
 
 ```text
-loan-management-platform/
+pawn-loan-platform/
 ├── apps/
-│   ├── frontend/
-│   │   ├── src/
-│   │   ├── public/
-│   │   ├── package.json
-│   │   └── Dockerfile
-│   ├── gateway/
-│   │   ├── app/
-│   │   ├── tests/
-│   │   ├── requirements.txt
-│   │   └── Dockerfile
-│   └── services/
-│       ├── identity/
-│       │   ├── app/
-│       │   │   ├── api/
-│       │   │   ├── core/
-│       │   │   ├── models/
-│       │   │   ├── schemas/
-│       │   │   ├── services/
-│       │   │   └── repositories/
-│       │   ├── alembic/
-│       │   ├── tests/
-│       │   ├── requirements.txt
-│       │   └── Dockerfile
-│       ├── customer/
-│       ├── loan/
-│       ├── collateral/
-│       ├── finance/
-│       ├── payment/
-│       ├── reporting/
-│       └── notification/
-├── packages/
-│   ├── contracts/
-│   │   ├── openapi/
-│   │   └── events/
-│   ├── shared-python/
-│   │   ├── auth/
-│   │   ├── db/
-│   │   ├── logging/
-│   │   └── utils/
-│   └── shared-ts/
-│       ├── api-client/
-│       └── ui-types/
-├── ops/
-│   ├── docker/
-│   │   ├── compose/
-│   │   │   ├── docker-compose.local.yml
-│   │   │   └── docker-compose.prod.yml
-│   │   └── images/
-│   ├── k8s/
-│   ├── nginx/
-│   ├── monitoring/
-│   └── scripts/
+│   ├── web-client/
+│   └── api-server/
 ├── database/
-│   ├── local-init/
-│   ├── seed/
-│   └── backups/
+├── infrastructure/
 ├── docs/
-│   ├── architecture/
-│   ├── api/
-│   ├── adr/
-│   ├── runbooks/
-│   └── business-rules/
 ├── .github/
-│   ├── workflows/
-│   ├── pull_request_template.md
-│   └── CODEOWNERS
-├── .editorconfig
-├── .env.example
-├── .gitignore
+├── docker-compose.yml
 ├── Makefile
-└── README.md
+├── README.md
+├── .gitignore
+└── .editorconfig
 ```
 
-### Why this structure is simpler and still microservices-ready
+### 10.1 Web Client Structure
 
-- One single place for runnable apps: `apps/`
-- One single place for reusable code/contracts: `packages/`
-- One single place for infrastructure/operations: `ops/`
-- Every service follows the same internal template (lower learning curve)
-- Shared code is explicit and controlled, avoiding hidden coupling
-- Works for local Docker today and Kubernetes later
+```text
+apps/web-client/
+├── public/
+├── src/
+│   ├── assets/
+│   ├── components/
+│   ├── composables/
+│   ├── layouts/
+│   ├── modules/
+│   │   ├── authentication/
+│   │   ├── customers/
+│   │   ├── loans/
+│   │   ├── collateral/
+│   │   ├── payments/
+│   │   └── reporting/
+│   ├── router/
+│   ├── stores/
+│   ├── services/
+│   ├── types/
+│   ├── utils/
+│   ├── views/
+│   ├── App.vue
+│   └── main.ts
+├── package.json
+├── vite.config.ts
+└── Dockerfile
+```
 
-## 8. High-Level Architecture
+### 10.2 API Server Structure
 
-### Frontend
+```text
+apps/api-server/
+├── src/
+│   ├── api/
+│   │   └── v1/
+│   │       ├── routes/
+│   │       └── router.py
+│   ├── application/
+│   │   ├── dtos/
+│   │   ├── interfaces/
+│   │   └── use_cases/
+│   ├── domain/
+│   │   ├── entities/
+│   │   ├── enums/
+│   │   ├── exceptions/
+│   │   ├── rules/
+│   │   └── value_objects/
+│   ├── infrastructure/
+│   │   ├── config/
+│   │   ├── logging/
+│   │   ├── persistence/
+│   │   ├── security/
+│   │   └── tasks/
+│   ├── modules/
+│   │   ├── authentication/
+│   │   ├── customers/
+│   │   ├── loans/
+│   │   ├── collateral/
+│   │   ├── payments/
+│   │   ├── finance/
+│   │   └── reporting/
+│   ├── shared/
+│   │   ├── constants/
+│   │   ├── dependencies/
+│   │   ├── middleware/
+│   │   ├── schemas/
+│   │   └── utils/
+│   └── main.py
+├── tests/
+├── pyproject.toml
+├── alembic.ini
+├── Dockerfile
+└── .env.example
+```
 
-The Vue frontend is the user interface for operators and administrators.
+## 11. Backend Module Responsibilities
 
-Responsibilities:
+| Module | Responsibilities | Examples |
+| --- | --- | --- |
+| authentication | Users, login, token handling, role enforcement | login, user CRUD, role checks |
+| customers | Customer records and customer history view | create customer, update profile |
+| loans | Applications, approvals, loan lifecycle, renewals, closure | approve application, create loan |
+| collateral | Collateral intake, custody tracking, release, liquidation | register item, release item |
+| payments | Payment registration, reversal, receipt generation | register payment, reverse payment |
+| finance | Interest generation, balances, delinquency logic | monthly accrual, balance view |
+| reporting | Aggregated queries, exports, operational dashboards | overdue loans report |
 
-- login
-- dashboard
-- customer management
-- loan workflow screens
-- collateral registration
-- payment registration
-- reporting views
+## 12. Data Model - Core Entities
 
-The frontend should consume APIs through the gateway rather than calling internal services directly.
+| Entity | Main Fields |
+| --- | --- |
+| Customer | id, first_name, last_name, document_type, document_number, phone, email, address, city, status, created_at, updated_at |
+| LoanApplication | id, customer_id, loan_type, requested_amount, monthly_interest_rate, term_months, notes, status, reviewed_by, approved_by, created_at |
+| Loan | id, application_id, customer_id, loan_type, principal_amount, outstanding_principal, monthly_interest_rate, disbursement_date, due_day, status, renewal_of, created_at |
+| CollateralItem | id, loan_id, item_type, description, serial_number, appraised_value, physical_condition, custody_code, storage_location, status, created_at |
+| InterestCharge | id, loan_id, period_start, period_end, charge_date, amount, status, created_at |
+| Payment | id, loan_id, payment_date, total_amount, allocated_to_penalty, allocated_to_interest, allocated_to_fees, allocated_to_principal, payment_method, received_by |
+| AuditLog | id, user_id, action, entity_type, entity_id, old_data, new_data, created_at |
 
-### Backend
+## 13. API Scope
 
-Each FastAPI service should be responsible for one business domain.
-
-Recommended backend layers per service:
-
-- `api/` for routes
-- `schemas/` for request and response models
-- `models/` for database entities
-- `services/` for business logic
-- `repositories/` for data access
-- `core/` for config and security
-- `workers/` for async jobs if needed
-
-### Database
-
-Use PostgreSQL as the main persistence layer.
-
-Recommended approach:
-
-- one database instance for local development
-- separate database or separate schema per microservice
-- avoid tight coupling between services at database level
-
-Preferred long-term rule:
-
-- each service owns its data
-- cross-service access should occur through APIs or events, not direct table joins
-
-## 9. Core Domain Entities
-
-### Customer
-
-- id
-- first_name
-- last_name
-- document_type
-- document_number
-- phone
-- email
-- address
-- city
-- status
-- created_at
-- updated_at
-
-### LoanApplication
-
-- id
-- customer_id
-- loan_type
-- requested_amount
-- monthly_interest_rate
-- term_months
-- notes
-- status
-- reviewed_by
-- approved_by
-- created_at
-- updated_at
-
-### Loan
-
-- id
-- application_id
-- customer_id
-- loan_type
-- principal_amount
-- outstanding_principal
-- monthly_interest_rate
-- disbursement_date
-- due_day
-- status
-- renewal_of
-- created_at
-- updated_at
-
-### CollateralItem
-
-- id
-- loan_id
-- item_type
-- description
-- serial_number
-- appraised_value
-- physical_condition
-- custody_code
-- storage_location
-- status
-- created_at
-- updated_at
-
-### InterestCharge
-
-- id
-- loan_id
-- period_start
-- period_end
-- charge_date
-- amount
-- status
-- created_at
-
-### Payment
-
-- id
-- loan_id
-- payment_date
-- total_amount
-- allocated_to_penalty
-- allocated_to_interest
-- allocated_to_fees
-- allocated_to_principal
-- payment_method
-- received_by
-- status
-- created_at
-
-### AuditLog
-
-- id
-- user_id
-- action
-- entity_type
-- entity_id
-- old_data
-- new_data
-- created_at
-
-## 10. Business Rules to Define Explicitly
-
-Before development begins, these rules must be fixed clearly.
-
-### Interest rules
-
-- Is monthly interest charged on original principal or outstanding principal?
-- Is interest charged as a full month even if the customer pays early?
-- Is prorated interest allowed?
-- Is the interest generated on a fixed day or based on loan anniversary date?
-
-### Payment rules
-
-- What is the exact payment allocation order?
-- Are partial interest-only payments allowed?
-- Can customers make direct principal prepayments?
-- What happens if the payment is less than accrued interest?
-
-### Delinquency rules
-
-- When exactly does a loan become overdue?
-- Is there a grace period?
-- How is penalty interest calculated?
-- Are penalty fees fixed or percentage-based?
-
-### Renewal rules
-
-- Must all accrued interest be paid before renewal?
-- Can principal be increased during renewal?
-- Does the renewed loan keep the same collateral record or create a new linked loan cycle?
-
-### Pawn rules
-
-- Can multiple items back one loan?
-- Can one collateral item back more than one loan?
-- What documentation is required on item release?
-- After how many overdue days can liquidation begin?
-
-## 11. API Design Guidelines
-
-All services should expose versioned APIs.
-
-Example:
-
-- /api/v1/customers
-- /api/v1/loans
-- /api/v1/payments
-
-Recommended standards:
-
-- RESTful endpoints
-- JSON request/response
-- OpenAPI documentation generated by FastAPI
-- standardized error responses
-- request validation through Pydantic
-- pagination for list endpoints
-- filtering and sorting support for operational listings
-
-## 12. Example Service Endpoints
-
-### Identity Service
+### Authentication
 
 - POST /api/v1/auth/login
 - POST /api/v1/auth/refresh
 - GET /api/v1/users
 - POST /api/v1/users
-- GET /api/v1/roles
 
-### Customer Service
+### Customers
 
 - GET /api/v1/customers
 - POST /api/v1/customers
 - GET /api/v1/customers/{id}
 - PUT /api/v1/customers/{id}
 
-### Loan Service
+### Loans
 
 - POST /api/v1/loan-applications
 - GET /api/v1/loan-applications
@@ -821,285 +344,84 @@ Recommended standards:
 - POST /api/v1/loans/{id}/renew
 - POST /api/v1/loans/{id}/close
 
-### Collateral Service
+### Collateral
 
 - POST /api/v1/collateral-items
 - GET /api/v1/collateral-items/{id}
 - POST /api/v1/collateral-items/{id}/release
 - POST /api/v1/collateral-items/{id}/liquidate
 
-### Finance Service
+### Finance and Payments
 
 - POST /api/v1/interest/generate
-- GET /api/v1/loans/{id}/ledger
 - GET /api/v1/loans/{id}/balance
-
-### Payment Service
-
+- GET /api/v1/loans/{id}/ledger
 - POST /api/v1/payments
-- GET /api/v1/payments/{id}
 - POST /api/v1/payments/{id}/reverse
 
-### Reporting Service
+### Reporting
 
 - GET /api/v1/reports/active-loans
 - GET /api/v1/reports/overdue-loans
 - GET /api/v1/reports/collateral-custody
 - GET /api/v1/reports/cash-summary
 
-## 13. How to Build the Software
+## 14. Docker and Deployment Requirements
 
-### Phase 1: Requirements and Business Rules
+- Each runnable application shall have its own Dockerfile.
+- The repository shall provide a docker-compose.yml file for local development and integration testing.
+- The compose configuration shall at minimum start the web client, API server, PostgreSQL, and any optional reverse proxy.
+- Environment variables shall be externalized and documented through .env.example templates.
+- Database migrations shall be executed through controlled commands or startup scripts, not manual schema edits.
 
-Define and validate:
+## 15. Recommended Development Standards
 
-- loan types
-- monthly interest logic
-- overdue logic
-- payment allocation rules
-- collateral handling rules
-- roles and permissions
-- reporting needs
+| Area | Standard | Recommendation |
+| --- | --- | --- |
+| Backend code quality | Linting and formatting | Ruff and consistent import ordering; optional Black if the team prefers. |
+| Backend testing | Automated tests | pytest for unit and integration tests. |
+| Migrations | Schema change management | Alembic migrations with peer-reviewed migration scripts. |
+| Frontend quality | Linting and type safety | ESLint, Prettier, and TypeScript checks. |
+| Version control | Branching and reviews | Feature branches with pull requests and CI validation. |
+| Documentation | Living technical documentation | README, ADRs, API overview, business rules, setup instructions. |
 
-This phase should end with:
+## 16. MVP Scope
 
-- functional requirements
-- non-functional requirements
-- domain glossary
-- workflow diagrams
+The first release should focus on the minimum operational feature set required to run the lending business safely.
 
-### Phase 2: Architecture Design
+- Authentication and role-based access control
+- Customer management
+- Loan application workflow
+- Loan creation and activation
+- Pawn collateral registration and custody tracking
+- Monthly interest generation
+- Payment registration and receipts
+- Loan balance tracking
+- Overdue loan listing
+- Basic operational reporting
+- Audit logging for critical actions
 
-Design:
+## 17. Delivery Roadmap
 
-- service boundaries
-- API contracts
-- database ownership
-- authentication model
-- synchronous vs asynchronous communication
-- audit strategy
-- deployment topology
+| Phase | Expected Outcome |
+| --- | --- |
+| Phase 1 - Business Definition | Confirm interest logic, overdue rules, renewal policy, payment allocation policy, and collateral release policy. |
+| Phase 2 - Architecture and Repository Setup | Create the monorepo scaffold, Docker setup, coding standards, CI, and environment templates. |
+| Phase 3 - Core Backend | Implement authentication, customers, loans, collateral, finance, and payments. |
+| Phase 4 - Web Client | Build the operator interface for day-to-day workflows. |
+| Phase 5 - Reporting and Audit | Add reporting screens, export support, and audit visibility. |
+| Phase 6 - Hardening | Add monitoring, logging, backups, and production environment improvements. |
 
-Deliverables:
+## 18. Open Decisions to Resolve Before Development
 
-- architecture diagram
-- service interaction diagram
-- entity models
-- API drafts
+- Should monthly interest be charged on original principal or outstanding principal?
+- Should interest be prorated when the customer pays early?
+- What is the exact overdue trigger and grace-period policy?
+- Can customers make principal-only prepayments at any time?
+- What minimum payment is required to avoid delinquency?
+- How long can collateral remain overdue before liquidation begins?
+- Which actions require dual control or supervisor approval?
 
-### Phase 3: Repository Setup
+## 19. Final System Statement
 
-Create the monorepo with:
-
-- frontend folder
-- backend services
-- database scripts
-- shared docs
-- docker compose
-- environment config templates
-
-Set up:
-
-- linting
-- formatting
-- Git hooks
-- CI basics
-- branch strategy
-
-### Phase 4: MVP Backend Development
-
-Build the minimum viable backend services in this order:
-
-- Identity Service
-- Customer Service
-- Loan Service
-- Collateral Service
-- Finance Service
-- Payment Service
-
-Minimum backend capabilities:
-
-- authentication
-- customer CRUD
-- loan application and approval
-- loan creation
-- collateral registration
-- monthly interest generation
-- payment registration
-- loan balance view
-
-### Phase 5: MVP Frontend Development
-
-Build Vue screens for:
-
-- login
-- dashboard
-- customer list and detail
-- loan application form
-- loan detail page
-- collateral registration
-- payment registration
-- overdue loans view
-
-Recommended frontend modules:
-
-- auth
-- customers
-- loans
-- collateral
-- payments
-- reports
-
-### Phase 6: Reporting and Operational Enhancements
-
-Add:
-
-- overdue reports
-- cash summary
-- collateral inventory report
-- renewal workflows
-- payment reversal
-- audit log view
-
-### Phase 7: Observability and Hardening
-
-Add:
-
-- structured logs
-- health endpoints
-- Prometheus metrics
-- request tracing
-- error tracking
-- backups
-- environment separation:
-  - local
-  - staging
-  - production
-
-## 14. Docker Strategy
-
-Each service should have its own Dockerfile.
-
-Example runtime components:
-
-- frontend container
-- gateway container
-- identity-service container
-- customer-service container
-- loan-service container
-- collateral-service container
-- finance-service container
-- payment-service container
-- reporting-service container
-- postgres container
-- redis container optional
-- nginx or traefik container
-
-### Example Docker Compose Responsibilities
-
-docker-compose.yml should:
-
-- build all services
-- create internal network
-- mount environment variables
-- expose required ports
-- start PostgreSQL
-- manage dependencies
-- support local development
-
-## 15. Suggested Development Standards
-
-### Backend standards
-
-- FastAPI per service
-- Pydantic models for validation
-- SQLAlchemy/SQLModel for persistence
-- Alembic migrations
-- pytest for testing
-- black + ruff for formatting/linting
-- environment settings via .env
-
-### Frontend standards
-
-- Vue 3 + Vite
-- TypeScript recommended
-- Pinia store
-- Axios service layer
-- reusable UI components
-- route guards for auth
-- form validation
-
-### Database standards
-
-- migration-based schema control
-- explicit indexes
-- foreign key discipline within each service boundary
-- timestamps on operational tables
-- soft delete only where justified
-
-## 16. Recommended MVP Scope
-
-The first release should include:
-
-- authentication and user roles
-- customer management
-- loan application workflow
-- loan creation and activation
-- pawn collateral registration
-- monthly interest generation
-- payment registration
-- loan balance tracking
-- overdue loan view
-- basic reporting
-- audit log for critical actions
-
-This MVP is enough to operate the core business.
-
-## 17. Risks and Design Warnings
-
-You should be careful with these areas from the beginning:
-
-- Over-splitting microservices
-  - Too many services too early can slow development. For the first version, keep service boundaries practical.
-- Financial inconsistency
-  - Loan balances, accrued interest, and payment allocation must be deterministic and auditable.
-- Direct database coupling
-  - Do not let one service manipulate another service's tables directly.
-- Missing audit trail
-  - In financial systems, lack of traceability becomes a serious operational problem.
-- Ambiguous interest rules
-  - If the monthly interest model is not precisely defined, the system will produce disputes.
-
-## 18. Recommended Build Order
-
-This is the order I would use:
-
-1. Define business rules precisely
-2. Set up monorepo and Docker base
-3. Build Identity Service
-4. Build Customer Service
-5. Build Loan Service
-6. Build Collateral Service
-7. Build Finance Service
-8. Build Payment Service
-9. Build Vue frontend
-10. Add reporting
-11. Add monitoring and production hardening
-
-## 19. Short System Description
-
-You can use this as a formal project description:
-
-> A microservices-based loan management platform for pawn-backed and personal loans, built with FastAPI, Vue, PostgreSQL, and Docker, supporting customer management, collateral control, monthly interest charging, payment tracking, delinquency handling, and operational reporting.
-
-## 20. Recommended Next Deliverables
-
-The most useful next step is to convert this into:
-
-- User stories with acceptance criteria
-- Detailed microservice architecture
-- Database model
-- API contract draft
-- Docker Compose starter structure
-
-The best immediate next artifact would be a Software Requirements Specification (SRS) followed by the initial microservice folder structure.
+This project will deliver a professional loan management platform for pawn-backed and personal lending operations. The system will be implemented with a Vue web client, a FastAPI API server, PostgreSQL as the primary database, and Docker for consistent deployment. The repository will follow a professional modular monorepo structure and modern development practices, while keeping the initial architecture simple, maintainable, and ready for future evolution.

@@ -1,46 +1,100 @@
-# OS / Editor
-.DS_Store
-Thumbs.db
-.vscode/*
-!.vscode/extensions.json
-.idea/
-
-# Environment
+# ==============================
+# Environment and secrets
+# ==============================
 .env
 .env.*
+**/.env
+**/.env.*
 !.env.example
+!**/.env.example
 
+# Secret files and private keys
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+*.kdb
+*.kdbx
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# Secret/config backups
+*.secret
+*.secrets
+*.credentials
+*.bak
+*.backup
+*.old
+
+# ==============================
 # Python
+# ==============================
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.so
+.python-version
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
 .venv/
 venv/
+env/
 
-# Node
+# ==============================
+# Node / Frontend
+# ==============================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-
-# Build / Coverage
+.npm/
+.pnpm-store/
+.parcel-cache/
+.next/
+.nuxt/
 dist/
-build/
 coverage/
-htmlcov/
+*.tsbuildinfo
 
-# Docker
-*.pid
+# ==============================
+# IDE / OS
+# ==============================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# ==============================
+# Docker / infra / runtime
+# ==============================
 *.log
+logs/
+*.pid
+*.seed
+*.pid.lock
 
-# Database / local data
+# Local runtime and temp data
+tmp/
+temp/
+.cache/
+
+# Database local volumes/backups
+postgres_data/
+database/backups/
+*.dump
 *.sqlite3
-*.db
-database/backups/*
-!database/backups/.gitkeep
