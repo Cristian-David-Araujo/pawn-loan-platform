@@ -121,3 +121,10 @@ src/shared/middleware/__init__.py
 src/shared/schemas/__init__.py
 src/shared/utils/__init__.py
 src/shared/utils/audit.py
+tests/test_authentication.py
+tests/test_collateral.py
+tests/test_customers.py
+tests/test_finance.py
+tests/test_loans.py
+tests/test_payments.py
+tests/test_reporting.py
