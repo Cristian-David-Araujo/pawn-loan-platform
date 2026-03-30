@@ -5,6 +5,11 @@ export const messages = {
       subtitle: 'Loan Operations Prototype',
       noBackendMode: 'No Backend Mode',
       language: 'Language',
+      navigation: 'Navigation',
+      menu: 'Menu',
+      home: 'Home',
+      quickGo: 'Quick go',
+      searchPlaceholder: 'Search module...',
       dashboard: 'Dashboard',
       customers: 'Customers',
       loans: 'Loans',
@@ -27,6 +32,7 @@ export const messages = {
       principal: 'Principal',
       interest: 'Interest',
       fees: 'Fees',
+      search: 'Search',
       actions: 'Actions',
       type: 'Type',
       active: 'Active',
@@ -49,7 +55,12 @@ export const messages = {
       overdueLoans: 'Overdue Loans',
       collateralInCustody: 'Collateral In Custody',
       outstandingPortfolio: 'Outstanding Portfolio',
-      cashCollected: 'Cash Collected'
+      cashCollected: 'Cash Collected',
+      quickActions: 'Quick Actions',
+      goCustomers: 'Manage customers',
+      goLoans: 'Create or review loans',
+      goPayments: 'Register payments',
+      goReporting: 'Open reports'
     },
     customers: {
       title: 'Customers',
@@ -58,7 +69,9 @@ export const messages = {
       documentType: 'Document type',
       documentNumber: 'Document number',
       createCustomer: 'Create customer',
-      document: 'Document'
+      document: 'Document',
+      searchPlaceholder: 'Search customer by name, document, phone, city...',
+      totalRecords: 'Records: {count}'
     },
     loans: {
       title: 'Loans',
@@ -69,7 +82,10 @@ export const messages = {
       dueDay: 'Due day',
       createLoan: 'Create loan',
       outstanding: 'Outstanding',
-      rate: 'Rate'
+      rate: 'Rate',
+      searchPlaceholder: 'Search loans by customer or id...',
+      allStatuses: 'All statuses',
+      totalLoans: 'Loans: {count}'
     },
     collateral: {
       title: 'Collateral',
@@ -79,7 +95,9 @@ export const messages = {
       custodyCode: 'Custody code',
       location: 'Location',
       registerCollateralItem: 'Register collateral item',
-      loanOption: 'Loan #{id} - {customer}'
+      loanOption: 'Loan #{id} - {customer}',
+      searchPlaceholder: 'Search by code, description, location or customer...',
+      totalItems: 'Items: {count}'
     },
     payments: {
       title: 'Payments',
@@ -89,7 +107,10 @@ export const messages = {
       penalty: 'Penalty',
       registerPayment: 'Register payment',
       allocationSummary: 'Allocation sum: {sum} / Total: {total}',
-      loanOption: 'Loan #{id} - {customer}'
+      loanOption: 'Loan #{id} - {customer}',
+      searchPlaceholder: 'Search by payment id, loan id or customer...',
+      allMethods: 'All methods',
+      totalPayments: 'Payments: {count}'
     },
     reporting: {
       title: 'Reporting',
@@ -100,6 +121,9 @@ export const messages = {
       cashSummary: 'Cash Summary',
       totalPaymentsRegistered: 'Total payments registered: {count}',
       totalCollected: 'Total collected: {amount}',
+      fromDate: 'From date',
+      toDate: 'To date',
+      resetDates: 'Reset dates',
       activeLoanLine: 'Loan #{id} - {customer} - {amount}',
       overdueLoanLine: 'Loan #{id} - {customer} - Due day {day}',
       custodyLine: '{code} - Loan #{loanId} - {description}'
@@ -118,6 +142,11 @@ export const messages = {
       subtitle: 'Prototipo de Operaciones de Prestamo',
       noBackendMode: 'Modo Sin Backend',
       language: 'Idioma',
+      navigation: 'Navegacion',
+      menu: 'Menu',
+      home: 'Inicio',
+      quickGo: 'Ir rapido',
+      searchPlaceholder: 'Buscar modulo...',
       dashboard: 'Panel',
       customers: 'Clientes',
       loans: 'Prestamos',
@@ -140,6 +169,7 @@ export const messages = {
       principal: 'Capital',
       interest: 'Interes',
       fees: 'Cargos',
+      search: 'Buscar',
       actions: 'Acciones',
       type: 'Tipo',
       active: 'Activo',
@@ -162,7 +192,12 @@ export const messages = {
       overdueLoans: 'Prestamos Vencidos',
       collateralInCustody: 'Garantias en Custodia',
       outstandingPortfolio: 'Cartera Pendiente',
-      cashCollected: 'Efectivo Cobrado'
+      cashCollected: 'Efectivo Cobrado',
+      quickActions: 'Acciones Rapidas',
+      goCustomers: 'Gestionar clientes',
+      goLoans: 'Crear o revisar prestamos',
+      goPayments: 'Registrar pagos',
+      goReporting: 'Abrir reportes'
     },
     customers: {
       title: 'Clientes',
@@ -171,7 +206,9 @@ export const messages = {
       documentType: 'Tipo de documento',
       documentNumber: 'Numero de documento',
       createCustomer: 'Crear cliente',
-      document: 'Documento'
+      document: 'Documento',
+      searchPlaceholder: 'Buscar cliente por nombre, documento, telefono, ciudad...',
+      totalRecords: 'Registros: {count}'
     },
     loans: {
       title: 'Prestamos',
@@ -182,7 +219,10 @@ export const messages = {
       dueDay: 'Dia de vencimiento',
       createLoan: 'Crear prestamo',
       outstanding: 'Pendiente',
-      rate: 'Tasa'
+      rate: 'Tasa',
+      searchPlaceholder: 'Buscar prestamos por cliente o id...',
+      allStatuses: 'Todos los estados',
+      totalLoans: 'Prestamos: {count}'
     },
     collateral: {
       title: 'Garantias',
@@ -192,7 +232,9 @@ export const messages = {
       custodyCode: 'Codigo de custodia',
       location: 'Ubicacion',
       registerCollateralItem: 'Registrar garantia',
-      loanOption: 'Prestamo #{id} - {customer}'
+      loanOption: 'Prestamo #{id} - {customer}',
+      searchPlaceholder: 'Buscar por codigo, descripcion, ubicacion o cliente...',
+      totalItems: 'Articulos: {count}'
     },
     payments: {
       title: 'Pagos',
@@ -202,7 +244,10 @@ export const messages = {
       penalty: 'Mora',
       registerPayment: 'Registrar pago',
       allocationSummary: 'Suma de asignacion: {sum} / Total: {total}',
-      loanOption: 'Prestamo #{id} - {customer}'
+      loanOption: 'Prestamo #{id} - {customer}',
+      searchPlaceholder: 'Buscar por id de pago, prestamo o cliente...',
+      allMethods: 'Todos los metodos',
+      totalPayments: 'Pagos: {count}'
     },
     reporting: {
       title: 'Reportes',
@@ -213,6 +258,9 @@ export const messages = {
       cashSummary: 'Resumen de Caja',
       totalPaymentsRegistered: 'Pagos registrados totales: {count}',
       totalCollected: 'Total cobrado: {amount}',
+      fromDate: 'Desde',
+      toDate: 'Hasta',
+      resetDates: 'Reiniciar fechas',
       activeLoanLine: 'Prestamo #{id} - {customer} - {amount}',
       overdueLoanLine: 'Prestamo #{id} - {customer} - Dia de vencimiento {day}',
       custodyLine: '{code} - Prestamo #{loanId} - {description}'

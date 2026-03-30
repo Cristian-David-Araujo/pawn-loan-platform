@@ -9,7 +9,7 @@
           {{ t('common.loan') }}
           <select v-model.number="form.loanId" required>
             <option v-for="loan in pawnLoans" :key="loan.id" :value="loan.id">
-              {{ t('collateral.loanOption', { id: loan.id, customer: getCustomerName(loan.customerId) }) }}
+              {{ t('collateral.loanOption', { id: loan.id, customer: getCustomerLabel(loan.customerId) }) }}
             </option>
           </select>
         </label>
@@ -30,6 +30,10 @@
     </form>
 
     <div class="card mt-16">
+      <div class="table-toolbar">
+        <input v-model="search" class="table-search" type="text" :placeholder="t('collateral.searchPlaceholder')" />
+        <span class="table-count">{{ t('collateral.totalItems', { count: filteredCollateral.length }) }}</span>
+      </div>
       <table>
         <thead>
           <tr>
@@ -43,7 +47,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in state.collateralItems" :key="item.id">
+          <tr v-for="item in filteredCollateral" :key="item.id">
             <td>{{ item.id }}</td>
             <td>#{{ item.loanId }}</td>
             <td>{{ item.description }}</td>
@@ -59,12 +63,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, createCollateral, getCustomerName } = useMockPlatformStore()
 const { t, locale } = useI18n()
+const search = ref('')
 
 const pawnLoans = computed(() => state.loans.filter((loan) => loan.loanType === 'pawn'))
 
@@ -87,4 +92,22 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
     amount
   )
+
+const getCustomerLabel = (customerId: number) => {
+  const value = getCustomerName(customerId)
+  return value === '__UNKNOWN_CUSTOMER__' ? t('messages.unknownCustomer') : value
+}
+
+const filteredCollateral = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) {
+    return state.collateralItems
+  }
+
+  return state.collateralItems.filter((item) => {
+    const customer = getCustomerLabel(state.loans.find((loan) => loan.id === item.loanId)?.customerId ?? 0).toLowerCase()
+    const text = `${item.id} ${item.description} ${item.custodyCode} ${item.storageLocation} ${customer}`.toLowerCase()
+    return text.includes(query)
+  })
+})
 </script>

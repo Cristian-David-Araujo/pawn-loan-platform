@@ -37,6 +37,16 @@
     </form>
 
     <div class="card mt-16">
+      <div class="table-toolbar">
+        <input v-model="search" class="table-search" type="text" :placeholder="t('loans.searchPlaceholder')" />
+        <select v-model="statusFilter" class="table-select">
+          <option value="all">{{ t('loans.allStatuses') }}</option>
+          <option value="active">{{ t('common.active') }}</option>
+          <option value="overdue">{{ t('common.overdue') }}</option>
+          <option value="closed">{{ t('common.closed') }}</option>
+        </select>
+        <span class="table-count">{{ t('loans.totalLoans', { count: filteredLoans.length }) }}</span>
+      </div>
       <table>
         <thead>
           <tr>
@@ -50,9 +60,9 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="loan in state.loans" :key="loan.id">
+          <tr v-for="loan in filteredLoans" :key="loan.id">
             <td>{{ loan.id }}</td>
-            <td>{{ getCustomerName(loan.customerId) }}</td>
+            <td>{{ getCustomerLabel(loan.customerId) }}</td>
             <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
             <td>{{ formatCurrency(loan.principalAmount) }}</td>
             <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
@@ -66,12 +76,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, createLoan, getCustomerName } = useMockPlatformStore()
 const { t, locale } = useI18n()
+const search = ref('')
+const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 
 const form = reactive({
   customerId: state.customers[0]?.id ?? 1,
@@ -89,4 +101,20 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
     amount
   )
+
+const getCustomerLabel = (customerId: number) => {
+  const value = getCustomerName(customerId)
+  return value === '__UNKNOWN_CUSTOMER__' ? t('messages.unknownCustomer') : value
+}
+
+const filteredLoans = computed(() => {
+  const query = search.value.trim().toLowerCase()
+
+  return state.loans.filter((loan) => {
+    const statusMatches = statusFilter.value === 'all' || loan.status === statusFilter.value
+    const customer = getCustomerLabel(loan.customerId).toLowerCase()
+    const textMatches = !query || `${loan.id} ${customer}`.includes(query)
+    return statusMatches && textMatches
+  })
+})
 </script>

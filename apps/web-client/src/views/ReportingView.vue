@@ -1,56 +1,104 @@
 <template>
   <section>
-    <h2>Reporting</h2>
-    <p class="muted">Basic operational reports with mock data.</p>
+    <h2>{{ t('reporting.title') }}</h2>
+    <p class="muted">{{ t('reporting.subtitle') }}</p>
+
+    <div class="card mt-16 form-inline">
+      <label>
+        {{ t('reporting.fromDate') }}
+        <input v-model="fromDate" type="date" />
+      </label>
+      <label>
+        {{ t('reporting.toDate') }}
+        <input v-model="toDate" type="date" />
+      </label>
+      <button class="btn btn-secondary" type="button" @click="resetDates">{{ t('reporting.resetDates') }}</button>
+    </div>
+
+    <div class="stats-inline mt-16">
+      <span class="pill">{{ t('reporting.totalPaymentsRegistered', { count: filteredPayments.length }) }}</span>
+      <span class="pill">{{ t('reporting.totalCollected', { amount: formatCurrency(totalCollected) }) }}</span>
+    </div>
 
     <div class="grid grid-2 mt-16">
       <article class="card">
-        <h3>Active Loans</h3>
+        <h3>{{ t('reporting.activeLoans') }}</h3>
         <ul>
           <li v-for="loan in activeLoans" :key="loan.id">
-            Loan #{{ loan.id }} - {{ getCustomerName(loan.customerId) }} - {{ formatCurrency(loan.outstandingPrincipal) }}
+            {{
+              t('reporting.activeLoanLine', {
+                id: loan.id,
+                customer: getCustomerLabel(loan.customerId),
+                amount: formatCurrency(loan.outstandingPrincipal)
+              })
+            }}
           </li>
         </ul>
       </article>
 
       <article class="card">
-        <h3>Overdue Loans</h3>
+        <h3>{{ t('reporting.overdueLoans') }}</h3>
         <ul>
           <li v-for="loan in overdueLoans" :key="loan.id">
-            Loan #{{ loan.id }} - {{ getCustomerName(loan.customerId) }} - Due day {{ loan.dueDay }}
+            {{ t('reporting.overdueLoanLine', { id: loan.id, customer: getCustomerLabel(loan.customerId), day: loan.dueDay }) }}
           </li>
         </ul>
       </article>
 
       <article class="card">
-        <h3>Collateral In Custody</h3>
+        <h3>{{ t('reporting.collateralInCustody') }}</h3>
         <ul>
           <li v-for="item in custodyItems" :key="item.id">
-            {{ item.custodyCode }} - Loan #{{ item.loanId }} - {{ item.description }}
+            {{ t('reporting.custodyLine', { code: item.custodyCode, loanId: item.loanId, description: item.description }) }}
           </li>
         </ul>
       </article>
 
       <article class="card">
-        <h3>Cash Summary</h3>
-        <p>Total payments registered: {{ state.payments.length }}</p>
-        <p>Total collected: {{ formatCurrency(totalCollected) }}</p>
+        <h3>{{ t('reporting.cashSummary') }}</h3>
+        <p>{{ t('reporting.totalPaymentsRegistered', { count: filteredPayments.length }) }}</p>
+        <p>{{ t('reporting.totalCollected', { amount: formatCurrency(totalCollected) }) }}</p>
       </article>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, getCustomerName } = useMockPlatformStore()
+const { t, locale } = useI18n()
+const today = new Date().toISOString().slice(0, 10)
+const fromDate = ref('')
+const toDate = ref(today)
 
 const activeLoans = computed(() => state.loans.filter((loan) => loan.status === 'active'))
 const overdueLoans = computed(() => state.loans.filter((loan) => loan.status === 'overdue'))
 const custodyItems = computed(() => state.collateralItems.filter((item) => item.status === 'in-custody'))
-const totalCollected = computed(() => state.payments.reduce((sum, payment) => sum + payment.totalAmount, 0))
+const filteredPayments = computed(() => {
+  return state.payments.filter((payment) => {
+    const afterFrom = !fromDate.value || payment.paymentDate >= fromDate.value
+    const beforeTo = !toDate.value || payment.paymentDate <= toDate.value
+    return afterFrom && beforeTo
+  })
+})
+
+const totalCollected = computed(() => filteredPayments.value.reduce((sum, payment) => sum + payment.totalAmount, 0))
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+    amount
+  )
+
+const getCustomerLabel = (customerId: number) => {
+  const value = getCustomerName(customerId)
+  return value === '__UNKNOWN_CUSTOMER__' ? t('messages.unknownCustomer') : value
+}
+
+const resetDates = () => {
+  fromDate.value = ''
+  toDate.value = today
+}
 </script>

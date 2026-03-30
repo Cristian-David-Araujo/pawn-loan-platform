@@ -15,12 +15,12 @@ const router = createRouter({
       component: AppLayout,
       children: [
         { path: '', redirect: '/dashboard' },
-        { path: 'dashboard', name: 'dashboard', component: DashboardView },
-        { path: 'customers', name: 'customers', component: CustomersView },
-        { path: 'loans', name: 'loans', component: LoansView },
-        { path: 'collateral', name: 'collateral', component: CollateralView },
-        { path: 'payments', name: 'payments', component: PaymentsView },
-        { path: 'reporting', name: 'reporting', component: ReportingView }
+        { path: 'dashboard', name: 'dashboard', component: DashboardView, meta: { labelKey: 'app.dashboard' } },
+        { path: 'customers', name: 'customers', component: CustomersView, meta: { labelKey: 'app.customers' } },
+        { path: 'loans', name: 'loans', component: LoansView, meta: { labelKey: 'app.loans' } },
+        { path: 'collateral', name: 'collateral', component: CollateralView, meta: { labelKey: 'app.collateral' } },
+        { path: 'payments', name: 'payments', component: PaymentsView, meta: { labelKey: 'app.payments' } },
+        { path: 'reporting', name: 'reporting', component: ReportingView, meta: { labelKey: 'app.reporting' } }
       ]
     }
   ]

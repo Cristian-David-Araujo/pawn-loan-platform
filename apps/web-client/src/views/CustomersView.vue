@@ -31,6 +31,10 @@
     </form>
 
     <div class="card mt-16">
+      <div class="table-toolbar">
+        <input v-model="search" class="table-search" type="text" :placeholder="t('customers.searchPlaceholder')" />
+        <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
+      </div>
       <table>
         <thead>
           <tr>
@@ -43,7 +47,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="customer in state.customers" :key="customer.id">
+          <tr v-for="customer in filteredCustomers" :key="customer.id">
             <td>{{ customer.id }}</td>
             <td>{{ customer.fullName }}</td>
             <td>{{ customer.documentType }} / {{ customer.documentNumber }}</td>
@@ -58,13 +62,14 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, createCustomer } = useMockPlatformStore()
 const { t } = useI18n()
 const message = ref('')
+const search = ref('')
 
 const form = reactive({
   fullName: '',
@@ -86,4 +91,17 @@ const handleCreateCustomer = () => {
     form.city = ''
   }
 }
+
+const filteredCustomers = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  if (!query) {
+    return state.customers
+  }
+
+  return state.customers.filter((customer) =>
+    [customer.fullName, customer.documentNumber, customer.phone, customer.city].some((value) =>
+      value.toLowerCase().includes(query)
+    )
+  )
+})
 </script>
