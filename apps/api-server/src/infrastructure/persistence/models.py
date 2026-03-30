@@ -1,10 +1,14 @@
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 
 from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.domain.enums.loan import LoanStatus, LoanType
 from src.infrastructure.persistence.database import Base
+
+
+def now_utc() -> datetime:
+    return datetime.now(UTC)
 
 
 class User(Base):
@@ -15,7 +19,7 @@ class User(Base):
     hashed_password: Mapped[str] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(50), default="loan_officer")
     is_active: Mapped[bool] = mapped_column(default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 
 class Customer(Base):
@@ -31,8 +35,8 @@ class Customer(Base):
     address: Mapped[str] = mapped_column(String(200), default="")
     city: Mapped[str] = mapped_column(String(80), default="")
     status: Mapped[str] = mapped_column(String(20), default="active")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)
 
 
 class LoanApplication(Base):
@@ -48,7 +52,7 @@ class LoanApplication(Base):
     status: Mapped[str] = mapped_column(String(20), default="submitted")
     reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     approved_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 
 class Loan(Base):
@@ -65,7 +69,7 @@ class Loan(Base):
     due_day: Mapped[int] = mapped_column(Integer)
     status: Mapped[LoanStatus] = mapped_column(Enum(LoanStatus), default=LoanStatus.active)
     renewal_of: Mapped[int | None] = mapped_column(ForeignKey("loans.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 
 class CollateralItem(Base):
@@ -81,7 +85,7 @@ class CollateralItem(Base):
     custody_code: Mapped[str] = mapped_column(String(40), unique=True)
     storage_location: Mapped[str] = mapped_column(String(120), default="")
     status: Mapped[str] = mapped_column(String(20), default="in_custody")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 
 class InterestCharge(Base):
@@ -94,7 +98,7 @@ class InterestCharge(Base):
     charge_date: Mapped[date] = mapped_column(Date)
     amount: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(20), default="generated")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 
 class Payment(Base):
@@ -123,4 +127,4 @@ class AuditLog(Base):
     entity_id: Mapped[str] = mapped_column(String(80))
     old_data: Mapped[str] = mapped_column(Text, default="")
     new_data: Mapped[str] = mapped_column(Text, default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
