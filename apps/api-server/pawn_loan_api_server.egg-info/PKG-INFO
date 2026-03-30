@@ -1,0 +1,30 @@
+Metadata-Version: 2.4
+Name: pawn-loan-api-server
+Version: 0.1.0
+Summary: Pawn and personal loan management backend
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: fastapi<1.0.0,>=0.115.0
+Requires-Dist: uvicorn[standard]<1.0.0,>=0.32.0
+Requires-Dist: sqlalchemy<3.0.0,>=2.0.35
+Requires-Dist: psycopg[binary]<4.0.0,>=3.2.3
+Requires-Dist: pydantic-settings<3.0.0,>=2.6.0
+Requires-Dist: python-jose[cryptography]<4.0.0,>=3.3.0
+Requires-Dist: passlib[bcrypt]<2.0.0,>=1.7.4
+Requires-Dist: python-multipart<1.0.0,>=0.0.12
+Provides-Extra: dev
+Requires-Dist: pytest<9.0.0,>=8.3.0; extra == "dev"
+Requires-Dist: httpx<1.0.0,>=0.27.0; extra == "dev"
+Requires-Dist: ruff<1.0.0,>=0.7.0; extra == "dev"
+
+# Pawn Loan API Server
+
+FastAPI backend for pawn and personal loan management.
+
+## Run
+
+Use repository root docker compose:
+
+```bash
+docker compose up --build api-server
+```

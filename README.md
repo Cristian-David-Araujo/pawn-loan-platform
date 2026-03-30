@@ -67,6 +67,12 @@ Run only frontend prototype (no backend dependency required for UI navigation):
 docker compose up --build web-client
 ```
 
+Run or rebuild only backend service:
+
+```bash
+docker compose up --build api-server
+```
+
 To stop:
 
 ```bash
@@ -81,3 +87,30 @@ docker compose down
 - `.gitignore` is configured to avoid committing secrets. Only `.env.example` files should be committed.
 - If those files are still missing, containers stay running in idle mode to keep the scaffold ready.
 - Current frontend prototype uses local mock state and does not require backend APIs.
+
+## Backend Quick Start
+
+- FastAPI docs: `http://localhost:8000/docs`
+- Health endpoint: `http://localhost:8000/health`
+- Default bootstrap admin (if not overridden by env):
+	- Username: `admin`
+	- Password: `admin123`
+
+Example login payload:
+
+```json
+{
+	"username": "admin",
+	"password": "admin123"
+}
+```
+
+Important API groups currently implemented:
+
+- Authentication: `/api/v1/auth/*`, `/api/v1/users`
+- Customers: `/api/v1/customers`
+- Loans and applications: `/api/v1/loan-applications`, `/api/v1/loans`
+- Collateral: `/api/v1/collateral-items`
+- Payments: `/api/v1/payments`
+- Finance: `/api/v1/interest/generate`, `/api/v1/loans/{id}/balance`, `/api/v1/loans/{id}/ledger`
+- Reporting: `/api/v1/reports/*`
