@@ -63,13 +63,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
-const { state, createCollateral, getCustomerName } = useMockPlatformStore()
+const { state, createCollateral, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const search = ref('')
+
+onMounted(async () => {
+  await ensureInitialized()
+  if (pawnLoans.value.length) {
+    form.loanId = pawnLoans.value[0].id
+  }
+})
 
 const pawnLoans = computed(() => state.loans.filter((loan) => loan.loanType === 'pawn'))
 
@@ -80,11 +87,11 @@ const form = reactive({
   storageLocation: 'Vault A-01'
 })
 
-const handleCreateCollateral = () => {
+const handleCreateCollateral = async () => {
   if (!pawnLoans.value.length) {
     return
   }
-  createCollateral({ ...form })
+  await createCollateral({ ...form })
   form.description = ''
 }
 

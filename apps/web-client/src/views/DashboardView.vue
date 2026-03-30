@@ -25,14 +25,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import StatCard from '../components/StatCard.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
-const { dashboardStats } = useMockPlatformStore()
+const { dashboardStats, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const stats = computed(() => dashboardStats.value)
+
+onMounted(async () => {
+  await ensureInitialized()
+})
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(

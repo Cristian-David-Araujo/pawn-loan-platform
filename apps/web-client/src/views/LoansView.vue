@@ -76,14 +76,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
-const { state, createLoan, getCustomerName } = useMockPlatformStore()
+const { state, createLoan, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const search = ref('')
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
+
+onMounted(async () => {
+  await ensureInitialized()
+  if (state.customers.length) {
+    form.customerId = state.customers[0].id
+  }
+})
 
 const form = reactive({
   customerId: state.customers[0]?.id ?? 1,
@@ -93,8 +100,8 @@ const form = reactive({
   dueDay: 5
 })
 
-const handleCreateLoan = () => {
-  createLoan({ ...form })
+const handleCreateLoan = async () => {
+  await createLoan({ ...form })
 }
 
 const formatCurrency = (amount: number) =>

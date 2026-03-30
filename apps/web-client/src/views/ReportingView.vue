@@ -64,15 +64,19 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
-const { state, getCustomerName } = useMockPlatformStore()
+const { state, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const today = new Date().toISOString().slice(0, 10)
 const fromDate = ref('')
 const toDate = ref(today)
+
+onMounted(async () => {
+  await ensureInitialized()
+})
 
 const activeLoans = computed(() => state.loans.filter((loan) => loan.status === 'active'))
 const overdueLoans = computed(() => state.loans.filter((loan) => loan.status === 'overdue'))

@@ -58,6 +58,14 @@ def get_collateral_item(
     return item
 
 
+@router.get("", response_model=list[CollateralRead])
+def list_collateral_items(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> list[CollateralItem]:
+    return list(db.query(CollateralItem).order_by(CollateralItem.id.desc()).all())
+
+
 @router.post("/{item_id}/release", response_model=CollateralRead)
 def release_collateral(
     item_id: int,

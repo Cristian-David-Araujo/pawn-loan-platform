@@ -95,11 +95,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
-const { state, createPayment, getCustomerName } = useMockPlatformStore()
+const { state, createPayment, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const message = ref('')
 const search = ref('')
@@ -117,12 +117,19 @@ const form = reactive({
   paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other'
 })
 
+onMounted(async () => {
+  await ensureInitialized()
+  if (payableLoans.value.length) {
+    form.loanId = payableLoans.value[0].id
+  }
+})
+
 const allocationSum = computed(
   () => form.allocatedToPenalty + form.allocatedToInterest + form.allocatedToFees + form.allocatedToPrincipal
 )
 
-const handleCreatePayment = () => {
-  const result = createPayment({ ...form })
+const handleCreatePayment = async () => {
+  const result = await createPayment({ ...form })
   message.value = t(result.messageKey)
 }
 

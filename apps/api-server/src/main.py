@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.v1.router import api_router
 from src.infrastructure.config.settings import get_settings
@@ -13,10 +14,19 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.on_event("startup")
 def startup_event() -> None:
-    init_database()
+    if settings.db_init_on_startup:
+        init_database()
 
 
 @app.get("/health", tags=["system"])

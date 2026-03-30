@@ -22,10 +22,12 @@ pyproject.toml
 ./src/infrastructure/persistence/database.py
 ./src/infrastructure/persistence/init_db.py
 ./src/infrastructure/persistence/models.py
+./src/infrastructure/persistence/seed.py
 ./src/infrastructure/security/__init__.py
 ./src/infrastructure/security/jwt.py
 ./src/infrastructure/security/password.py
 ./src/infrastructure/tasks/__init__.py
+./src/infrastructure/tasks/bootstrap_db.py
 ./src/modules/__init__.py
 ./src/modules/authentication/__init__.py
 ./src/modules/authentication/router.py
@@ -83,10 +85,12 @@ src/infrastructure/persistence/__init__.py
 src/infrastructure/persistence/database.py
 src/infrastructure/persistence/init_db.py
 src/infrastructure/persistence/models.py
+src/infrastructure/persistence/seed.py
 src/infrastructure/security/__init__.py
 src/infrastructure/security/jwt.py
 src/infrastructure/security/password.py
 src/infrastructure/tasks/__init__.py
+src/infrastructure/tasks/bootstrap_db.py
 src/modules/__init__.py
 src/modules/authentication/__init__.py
 src/modules/authentication/router.py

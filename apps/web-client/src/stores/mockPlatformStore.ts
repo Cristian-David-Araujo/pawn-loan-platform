@@ -1,5 +1,52 @@
 import { computed, reactive } from 'vue'
+
+import { apiClient } from '../services/api'
 import type { CollateralItem, Customer, Loan, LoanType, Payment } from '../types/domain'
+
+interface BackendCustomer {
+  id: number
+  first_name: string
+  last_name: string
+  document_type: string
+  document_number: string
+  phone: string
+  city: string
+  status: string
+}
+
+interface BackendLoan {
+  id: number
+  customer_id: number
+  loan_type: LoanType
+  principal_amount: number
+  outstanding_principal: number
+  monthly_interest_rate: number
+  disbursement_date: string
+  due_day: number
+  status: Loan['status']
+}
+
+interface BackendCollateral {
+  id: number
+  loan_id: number
+  description: string
+  appraised_value: number
+  custody_code: string
+  storage_location: string
+  status: 'in_custody' | 'released' | 'liquidated'
+}
+
+interface BackendPayment {
+  id: number
+  loan_id: number
+  payment_date: string
+  total_amount: number
+  allocated_to_penalty: number
+  allocated_to_interest: number
+  allocated_to_fees: number
+  allocated_to_principal: number
+  payment_method: Payment['paymentMethod']
+}
 
 interface CreateCustomerPayload {
   fullName: string
@@ -35,84 +82,101 @@ interface CreatePaymentPayload {
 }
 
 const state = reactive({
-  customers: [
-    {
-      id: 1,
-      fullName: 'Ana Torres',
-      documentType: 'ID',
-      documentNumber: 'AT-1001',
-      phone: '555-1001',
-      city: 'Monterrey',
-      status: 'active'
-    },
-    {
-      id: 2,
-      fullName: 'Luis Medina',
-      documentType: 'ID',
-      documentNumber: 'LM-2001',
-      phone: '555-2001',
-      city: 'Guadalajara',
-      status: 'active'
-    }
-  ] as Customer[],
-  loans: [
-    {
-      id: 1,
-      customerId: 1,
-      loanType: 'pawn',
-      principalAmount: 1200,
-      outstandingPrincipal: 1000,
-      monthlyInterestRate: 8,
-      disbursementDate: '2026-03-05',
-      dueDay: 5,
-      status: 'active'
-    },
-    {
-      id: 2,
-      customerId: 2,
-      loanType: 'personal',
-      principalAmount: 900,
-      outstandingPrincipal: 900,
-      monthlyInterestRate: 7,
-      disbursementDate: '2026-02-20',
-      dueDay: 20,
-      status: 'overdue'
-    }
-  ] as Loan[],
-  collateralItems: [
-    {
-      id: 1,
-      loanId: 1,
-      description: 'Gold chain 14k',
-      appraisedValue: 1800,
-      custodyCode: 'CUST-1001',
-      storageLocation: 'Vault A-01',
-      status: 'in-custody'
-    }
-  ] as CollateralItem[],
-  payments: [
-    {
-      id: 1,
-      loanId: 1,
-      paymentDate: '2026-03-20',
-      totalAmount: 250,
-      allocatedToPenalty: 0,
-      allocatedToInterest: 80,
-      allocatedToFees: 20,
-      allocatedToPrincipal: 150,
-      paymentMethod: 'cash'
-    }
-  ] as Payment[]
+  customers: [] as Customer[],
+  loans: [] as Loan[],
+  collateralItems: [] as CollateralItem[],
+  payments: [] as Payment[],
+  initialized: false,
+  loading: false
 })
 
-const nextId = (items: { id: number }[]) => (items.length ? Math.max(...items.map((item) => item.id)) + 1 : 1)
+const mapCustomer = (item: BackendCustomer): Customer => ({
+  id: item.id,
+  fullName: `${item.first_name} ${item.last_name}`,
+  documentType: item.document_type,
+  documentNumber: item.document_number,
+  phone: item.phone,
+  city: item.city,
+  status: item.status === 'active' ? 'active' : 'archived'
+})
+
+const mapLoan = (item: BackendLoan): Loan => ({
+  id: item.id,
+  customerId: item.customer_id,
+  loanType: item.loan_type,
+  principalAmount: item.principal_amount,
+  outstandingPrincipal: item.outstanding_principal,
+  monthlyInterestRate: item.monthly_interest_rate,
+  disbursementDate: item.disbursement_date,
+  dueDay: item.due_day,
+  status: item.status
+})
+
+const mapCollateral = (item: BackendCollateral): CollateralItem => ({
+  id: item.id,
+  loanId: item.loan_id,
+  description: item.description,
+  appraisedValue: item.appraised_value,
+  custodyCode: item.custody_code,
+  storageLocation: item.storage_location,
+  status: item.status === 'in_custody' ? 'in-custody' : item.status
+})
+
+const mapPayment = (item: BackendPayment): Payment => ({
+  id: item.id,
+  loanId: item.loan_id,
+  paymentDate: item.payment_date,
+  totalAmount: item.total_amount,
+  allocatedToPenalty: item.allocated_to_penalty,
+  allocatedToInterest: item.allocated_to_interest,
+  allocatedToFees: item.allocated_to_fees,
+  allocatedToPrincipal: item.allocated_to_principal,
+  paymentMethod: item.payment_method
+})
+
+const splitName = (fullName: string) => {
+  const parts = fullName.trim().split(/\s+/)
+  if (parts.length <= 1) {
+    return { first_name: parts[0] ?? fullName, last_name: '-' }
+  }
+  return {
+    first_name: parts.slice(0, -1).join(' '),
+    last_name: parts.at(-1) ?? '-'
+  }
+}
+
+const refreshAll = async () => {
+  state.loading = true
+  try {
+    const [customers, loans, collateralItems, payments] = await Promise.all([
+      apiClient.request<BackendCustomer[]>('/customers'),
+      apiClient.request<BackendLoan[]>('/loans'),
+      apiClient.request<BackendCollateral[]>('/collateral-items'),
+      apiClient.request<BackendPayment[]>('/payments')
+    ])
+
+    state.customers = customers.map(mapCustomer)
+    state.loans = loans.map(mapLoan)
+    state.collateralItems = collateralItems.map(mapCollateral)
+    state.payments = payments.map(mapPayment)
+    state.initialized = true
+  } finally {
+    state.loading = false
+  }
+}
+
+const ensureInitialized = async () => {
+  if (!state.initialized && !state.loading) {
+    await refreshAll()
+  }
+}
 
 const getCustomerName = (customerId: number) => {
   const customer = state.customers.find((item) => item.id === customerId)
   return customer?.fullName ?? '__UNKNOWN_CUSTOMER__'
 }
 
-const createCustomer = (payload: CreateCustomerPayload) => {
+const createCustomer = async (payload: CreateCustomerPayload) => {
   const duplicate = state.customers.some(
     (item) => item.documentType === payload.documentType && item.documentNumber === payload.documentNumber
   )
@@ -121,72 +185,79 @@ const createCustomer = (payload: CreateCustomerPayload) => {
     return { ok: false, messageKey: 'messages.customerDocumentExists' }
   }
 
-  state.customers.unshift({
-    id: nextId(state.customers),
-    ...payload,
-    status: 'active'
+  const nameParts = splitName(payload.fullName)
+
+  await apiClient.request<BackendCustomer>('/customers', {
+    method: 'POST',
+    body: JSON.stringify({
+      ...nameParts,
+      document_type: payload.documentType,
+      document_number: payload.documentNumber,
+      phone: payload.phone,
+      city: payload.city
+    })
   })
 
+  await refreshAll()
   return { ok: true, messageKey: 'messages.customerCreated' }
 }
 
-const createLoan = (payload: CreateLoanPayload) => {
-  state.loans.unshift({
-    id: nextId(state.loans),
-    customerId: payload.customerId,
-    loanType: payload.loanType,
-    principalAmount: payload.principalAmount,
-    outstandingPrincipal: payload.principalAmount,
-    monthlyInterestRate: payload.monthlyInterestRate,
-    disbursementDate: new Date().toISOString().slice(0, 10),
-    dueDay: payload.dueDay,
-    status: 'active'
+const createLoan = async (payload: CreateLoanPayload) => {
+  await apiClient.request<BackendLoan>('/loans', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer_id: payload.customerId,
+      loan_type: payload.loanType,
+      principal_amount: payload.principalAmount,
+      monthly_interest_rate: payload.monthlyInterestRate,
+      disbursement_date: new Date().toISOString().slice(0, 10),
+      due_day: payload.dueDay
+    })
   })
+
+  await refreshAll()
 }
 
-const createCollateral = (payload: CreateCollateralPayload) => {
-  state.collateralItems.unshift({
-    id: nextId(state.collateralItems),
-    loanId: payload.loanId,
-    description: payload.description,
-    appraisedValue: payload.appraisedValue,
-    custodyCode: `CUST-${String(nextId(state.collateralItems)).padStart(4, '0')}`,
-    storageLocation: payload.storageLocation,
-    status: 'in-custody'
+const createCollateral = async (payload: CreateCollateralPayload) => {
+  await apiClient.request<BackendCollateral>('/collateral-items', {
+    method: 'POST',
+    body: JSON.stringify({
+      loan_id: payload.loanId,
+      description: payload.description,
+      appraised_value: payload.appraisedValue,
+      storage_location: payload.storageLocation
+    })
   })
+
+  await refreshAll()
 }
 
-const createPayment = (payload: CreatePaymentPayload) => {
+const createPayment = async (payload: CreatePaymentPayload) => {
   const allocationSum =
     payload.allocatedToPenalty +
     payload.allocatedToInterest +
     payload.allocatedToFees +
     payload.allocatedToPrincipal
 
-  if (allocationSum !== payload.totalAmount) {
+  if (Math.round(allocationSum * 100) !== Math.round(payload.totalAmount * 100)) {
     return { ok: false, messageKey: 'messages.allocationMustEqualTotal' }
   }
 
-  state.payments.unshift({
-    id: nextId(state.payments),
-    loanId: payload.loanId,
-    paymentDate: new Date().toISOString().slice(0, 10),
-    totalAmount: payload.totalAmount,
-    allocatedToPenalty: payload.allocatedToPenalty,
-    allocatedToInterest: payload.allocatedToInterest,
-    allocatedToFees: payload.allocatedToFees,
-    allocatedToPrincipal: payload.allocatedToPrincipal,
-    paymentMethod: payload.paymentMethod
+  await apiClient.request<BackendPayment>('/payments', {
+    method: 'POST',
+    body: JSON.stringify({
+      loan_id: payload.loanId,
+      payment_date: new Date().toISOString().slice(0, 10),
+      total_amount: payload.totalAmount,
+      allocated_to_penalty: payload.allocatedToPenalty,
+      allocated_to_interest: payload.allocatedToInterest,
+      allocated_to_fees: payload.allocatedToFees,
+      allocated_to_principal: payload.allocatedToPrincipal,
+      payment_method: payload.paymentMethod
+    })
   })
 
-  const loan = state.loans.find((item) => item.id === payload.loanId)
-  if (loan) {
-    loan.outstandingPrincipal = Math.max(0, loan.outstandingPrincipal - payload.allocatedToPrincipal)
-    if (loan.outstandingPrincipal === 0) {
-      loan.status = 'closed'
-    }
-  }
-
+  await refreshAll()
   return { ok: true, messageKey: 'messages.paymentRegistered' }
 }
 
@@ -210,6 +281,8 @@ export const useMockPlatformStore = () => ({
   state,
   dashboardStats,
   getCustomerName,
+  ensureInitialized,
+  refreshAll,
   createCustomer,
   createLoan,
   createCollateral,

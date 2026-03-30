@@ -120,6 +120,14 @@ def create_loan(
     return loan
 
 
+@router.get("/loans", response_model=list[LoanRead])
+def list_loans(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> list[Loan]:
+    return list(db.scalars(select(Loan).order_by(Loan.id.desc())).all())
+
+
 @router.get("/loans/{loan_id}", response_model=LoanRead)
 def get_loan(
     loan_id: int,

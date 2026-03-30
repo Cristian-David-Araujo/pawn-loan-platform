@@ -114,3 +114,29 @@ Important API groups currently implemented:
 - Payments: `/api/v1/payments`
 - Finance: `/api/v1/interest/generate`, `/api/v1/loans/{id}/balance`, `/api/v1/loans/{id}/ledger`
 - Reporting: `/api/v1/reports/*`
+
+## Database Init and Seed (Development Best Practice)
+
+The backend uses an idempotent startup bootstrap:
+
+- Creates tables from SQLAlchemy metadata.
+- Ensures admin user exists.
+- Seeds demo data only when enabled.
+
+Environment flags:
+
+- `DB_INIT_ON_STARTUP=true`
+- `DB_SEED_ON_STARTUP=true`
+- `DB_SEED_FORCE=false`
+
+Manual bootstrap command inside container:
+
+```bash
+docker compose exec api-server python -m src.infrastructure.tasks.bootstrap_db --seed
+```
+
+Force reseed (clears sample business data and recreates it):
+
+```bash
+docker compose exec api-server python -m src.infrastructure.tasks.bootstrap_db --seed --force-seed
+```

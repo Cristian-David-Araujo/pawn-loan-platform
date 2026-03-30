@@ -11,6 +11,14 @@ from src.shared.utils.audit import write_audit
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
+@router.get("", response_model=list[PaymentRead])
+def list_payments(
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> list[Payment]:
+    return list(db.query(Payment).order_by(Payment.id.desc()).all())
+
+
 @router.post("", response_model=PaymentRead, status_code=status.HTTP_201_CREATED)
 def create_payment(
     payload: PaymentCreate,

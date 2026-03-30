@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     admin_password: str = "admin123"
     admin_role: str = "administrator"
 
+    db_init_on_startup: bool = True
+    db_seed_on_startup: bool = True
+    db_seed_force: bool = False
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 

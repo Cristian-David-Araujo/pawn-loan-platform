@@ -62,14 +62,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
-const { state, createCustomer } = useMockPlatformStore()
+const { state, createCustomer, ensureInitialized } = useMockPlatformStore()
 const { t } = useI18n()
 const message = ref('')
 const search = ref('')
+
+onMounted(async () => {
+  await ensureInitialized()
+})
 
 const form = reactive({
   fullName: '',
@@ -79,8 +83,8 @@ const form = reactive({
   city: ''
 })
 
-const handleCreateCustomer = () => {
-  const result = createCustomer({ ...form })
+const handleCreateCustomer = async () => {
+  const result = await createCustomer({ ...form })
   message.value = t(result.messageKey)
 
   if (result.ok) {
