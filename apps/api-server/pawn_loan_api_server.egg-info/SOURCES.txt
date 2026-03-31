@@ -127,4 +127,5 @@ tests/test_customers.py
 tests/test_finance.py
 tests/test_loans.py
 tests/test_payments.py
+tests/test_payments_advanced.py
 tests/test_reporting.py
