@@ -4,42 +4,19 @@
       <template #icon>
         <Users :size="18" />
       </template>
+      <template #actions>
+        <button class="btn" type="button" @click="openCreateModal">
+          <UserPlus :size="16" />
+          {{ t('customers.createCustomer') }}
+        </button>
+      </template>
     </PageHeader>
 
-    <form class="card form mt-16" @submit.prevent="handleCreateCustomer">
-      <div class="grid grid-3">
-        <label>
-          {{ t('customers.fullName') }}
-          <input v-model="form.fullName" required />
-        </label>
-        <label>
-          {{ t('customers.documentType') }}
-          <input v-model="form.documentType" required />
-        </label>
-        <label>
-          {{ t('customers.documentNumber') }}
-          <input v-model="form.documentNumber" required />
-        </label>
-        <label>
-          {{ t('common.phone') }}
-          <input v-model="form.phone" required />
-        </label>
-        <label>
-          {{ t('common.city') }}
-          <input v-model="form.city" required />
-        </label>
-      </div>
-      <button class="btn" type="submit">
-        <UserPlus :size="16" />
-        {{ t('customers.createCustomer') }}
-      </button>
-      <p v-if="message" class="notice">{{ message }}</p>
-    </form>
+    <p v-if="message" class="notice mt-16">{{ message }}</p>
 
     <div class="card mt-16">
       <div class="table-toolbar">
         <input v-model="search" class="table-search" type="text" :placeholder="t('customers.searchPlaceholder')" />
-        <span class="muted">{{ t('customers.clickCustomerHint') }}</span>
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>
       <table>
@@ -51,279 +28,310 @@
             <th>{{ t('common.phone') }}</th>
             <th>{{ t('common.city') }}</th>
             <th>{{ t('common.status') }}</th>
-            <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="customer in filteredCustomers"
-            :key="customer.id"
-            class="clickable-row"
-            :class="{ 'selected-row': customer.id === selectedCustomerId }"
-            @click="selectCustomer(customer.id)"
-          >
+          <tr v-for="customer in filteredCustomers" :key="customer.id" class="clickable-row" @click="openCustomerDetail(customer.id)">
             <td>{{ customer.id }}</td>
             <td>{{ customer.fullName }}</td>
             <td>{{ customer.documentType }} / {{ customer.documentNumber }}</td>
             <td>{{ customer.phone }}</td>
             <td>{{ customer.city }}</td>
             <td>{{ customer.status === 'active' ? t('common.active') : customer.status }}</td>
-            <td>
-              <button class="btn btn-secondary" type="button" @click.stop="selectCustomer(customer.id)">
-                {{ t('customers.editCustomer') }}
-              </button>
-            </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <div class="card mt-16 customer-detail-shell">
-      <h3>{{ t('customers.customerDetail') }}</h3>
-      <p v-if="selectedCustomer" class="muted">{{ t('customers.selectedCustomer', { id: selectedCustomer.id }) }}</p>
-      <p v-else class="muted">{{ t('customers.noCustomerSelected') }}</p>
-
-      <div v-if="selectedCustomer" class="customer-header mt-16">
-        <div>
-          <h3 class="customer-title">{{ selectedCustomer.fullName }}</h3>
-          <p class="muted">{{ selectedCustomer.documentType }} / {{ selectedCustomer.documentNumber }}</p>
+    <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
+      <div class="modal-panel card">
+        <div class="modal-header">
+          <h3>{{ t('customers.createCustomer') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeCreateModal">{{ t('common.close') }}</button>
         </div>
-        <span class="pill" :class="selectedCustomer.status === 'active' ? 'pill-current' : 'pill-overdue'">
-          {{ selectedCustomer.status === 'active' ? t('common.active') : selectedCustomer.status }}
-        </span>
-      </div>
 
-      <div v-if="selectedCustomer" class="grid grid-4 mt-16">
-        <div class="card stat-card stat-accent-blue">
-          <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
-          <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
+        <form class="form mt-16" @submit.prevent="handleCreateCustomer">
+          <div class="grid grid-2">
+            <label>
+              {{ t('customers.fullName') }}
+              <input v-model="form.fullName" required />
+            </label>
+            <label>
+              {{ t('customers.documentType') }}
+              <input v-model="form.documentType" required />
+            </label>
+            <label>
+              {{ t('customers.documentNumber') }}
+              <input v-model="form.documentNumber" required />
+            </label>
+            <label>
+              {{ t('common.phone') }}
+              <input v-model="form.phone" required />
+            </label>
+            <label>
+              {{ t('common.city') }}
+              <input v-model="form.city" required />
+            </label>
+          </div>
+          <button class="btn" type="submit">
+            <UserPlus :size="16" />
+            {{ t('customers.createCustomer') }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="showDetailModal && selectedCustomer" class="modal-backdrop" @click.self="closeDetailModal">
+      <div class="modal-panel card modal-panel-lg customer-detail-shell">
+        <div class="modal-header">
+          <h3>{{ t('customers.customerDetail') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeDetailModal">{{ t('common.close') }}</button>
         </div>
-        <div class="card stat-card stat-accent-amber">
-          <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
-          <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
+
+        <p class="muted mt-16">{{ t('customers.selectedCustomer', { id: selectedCustomer.id }) }}</p>
+
+        <div class="customer-header mt-16">
+          <div>
+            <h3 class="customer-title">{{ selectedCustomer.fullName }}</h3>
+            <p class="muted">{{ selectedCustomer.documentType }} / {{ selectedCustomer.documentNumber }}</p>
+          </div>
+          <span class="pill" :class="selectedCustomer.status === 'active' ? 'pill-current' : 'pill-overdue'">
+            {{ selectedCustomer.status === 'active' ? t('common.active') : selectedCustomer.status }}
+          </span>
         </div>
-        <div class="card stat-card stat-accent-green">
-          <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
-          <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
+
+        <div class="grid grid-4 mt-16">
+          <div class="card stat-card stat-accent-blue">
+            <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-amber">
+            <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-green">
+            <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
+            <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-indigo">
+            <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
+          </div>
         </div>
-        <div class="card stat-card stat-accent-indigo">
-          <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
-          <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
+
+        <div class="stats-inline mt-16">
+          <span class="pill">{{ t('customers.pendingInterestOnly', { amount: formatCurrency(totalPendingInterest) }) }}</span>
+          <span class="pill">{{ t('customers.pendingPenaltyOnly', { amount: formatCurrency(totalPendingPenalty) }) }}</span>
+          <span class="pill">{{ t('customers.unpaidAccruedInterest', { amount: formatCurrency(totalAccruedUnpaidInterest) }) }}</span>
         </div>
-      </div>
 
-      <div v-if="selectedCustomer" class="stats-inline mt-16">
-        <span class="pill">{{ t('customers.pendingInterestOnly', { amount: formatCurrency(totalPendingInterest) }) }}</span>
-        <span class="pill">{{ t('customers.pendingPenaltyOnly', { amount: formatCurrency(totalPendingPenalty) }) }}</span>
-        <span class="pill">{{ t('customers.unpaidAccruedInterest', { amount: formatCurrency(totalAccruedUnpaidInterest) }) }}</span>
-      </div>
+        <form class="form mt-16" @submit.prevent="handleUpdateCustomer">
+          <div class="grid grid-3">
+            <label>
+              {{ t('customers.fullName') }}
+              <input v-model="editForm.fullName" required />
+            </label>
+            <label>
+              {{ t('customers.document') }}
+              <input :value="`${selectedCustomer.documentType} / ${selectedCustomer.documentNumber}`" disabled />
+            </label>
+            <label>
+              {{ t('common.status') }}
+              <select v-model="editForm.status" required>
+                <option value="active">{{ t('common.active') }}</option>
+                <option value="archived">archived</option>
+              </select>
+            </label>
+            <label>
+              {{ t('common.phone') }}
+              <input v-model="editForm.phone" required />
+            </label>
+            <label>
+              {{ t('customers.email') }}
+              <input v-model="editForm.email" type="email" />
+            </label>
+            <label>
+              {{ t('customers.address') }}
+              <input v-model="editForm.address" />
+            </label>
+            <label>
+              {{ t('common.city') }}
+              <input v-model="editForm.city" required />
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="isSaving">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
 
-      <form v-if="selectedCustomer" class="form mt-16" @submit.prevent="handleUpdateCustomer">
-        <div class="grid grid-3">
-          <label>
-            {{ t('customers.fullName') }}
-            <input v-model="editForm.fullName" required />
-          </label>
-          <label>
-            {{ t('customers.document') }}
-            <input :value="`${selectedCustomer.documentType} / ${selectedCustomer.documentNumber}`" disabled />
-          </label>
-          <label>
-            {{ t('common.status') }}
-            <select v-model="editForm.status" required>
-              <option value="active">{{ t('common.active') }}</option>
-              <option value="archived">archived</option>
-            </select>
-          </label>
-          <label>
-            {{ t('common.phone') }}
-            <input v-model="editForm.phone" required />
-          </label>
-          <label>
-            {{ t('customers.email') }}
-            <input v-model="editForm.email" type="email" />
-          </label>
-          <label>
-            {{ t('customers.address') }}
-            <input v-model="editForm.address" />
-          </label>
-          <label>
-            {{ t('common.city') }}
-            <input v-model="editForm.city" required />
-          </label>
+        <div class="mt-16">
+          <h3>{{ t('customers.paymentBehavior') }}</h3>
+          <p class="muted">{{ t('customers.paymentBehaviorHint') }}</p>
+          <p v-if="financialDataLoading" class="muted mt-16">{{ t('customers.loadingFinancialData') }}</p>
+          <p v-else-if="financialDataError" class="muted mt-16">{{ t('customers.financialDataUnavailable') }}</p>
+
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.loan') }}</th>
+                <th>{{ t('payments.period') }}</th>
+                <th>{{ t('payments.dueDate') }}</th>
+                <th>{{ t('payments.pendingInterest') }}</th>
+                <th>{{ t('payments.penalty') }}</th>
+                <th>{{ t('payments.outstandingPeriod') }}</th>
+                <th>{{ t('common.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in pendingInterestItems" :key="item.interest_charge_id">
+                <td>#{{ item.loan_id }}</td>
+                <td>{{ item.billing_period }}</td>
+                <td>{{ item.due_date }}</td>
+                <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
+                <td>{{ formatCurrency(item.penalty_amount) }}</td>
+                <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
+                <td>
+                  <span class="pill" :class="item.overdue ? 'pill-overdue' : 'pill-current'">
+                    {{ item.overdue ? t('common.overdue') : t('payments.currentOrUpcoming') }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="!pendingInterestItems.length">
+                <td colspan="7">{{ t('customers.noPendingInterestDetail') }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <button class="btn" type="submit" :disabled="isSaving">
-          <Save :size="16" />
-          {{ t('customers.saveChanges') }}
-        </button>
-      </form>
 
-      <div v-if="selectedCustomer" class="mt-16">
-        <h3>{{ t('customers.paymentBehavior') }}</h3>
-        <p class="muted">{{ t('customers.paymentBehaviorHint') }}</p>
-        <p v-if="financialDataLoading" class="muted mt-16">{{ t('customers.loadingFinancialData') }}</p>
-        <p v-else-if="financialDataError" class="muted mt-16">{{ t('customers.financialDataUnavailable') }}</p>
+        <div class="mt-16">
+          <h3>{{ t('customers.customerPaymentTraceability') }}</h3>
+          <p class="muted" v-if="!paymentEvents.length">{{ t('customers.noPaymentEvents') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.date') }}</th>
+                <th>{{ t('payments.paymentType') }}</th>
+                <th>{{ t('common.loan') }}</th>
+                <th>{{ t('payments.period') }}</th>
+                <th>{{ t('common.total') }}</th>
+                <th>{{ t('common.interest') }}</th>
+                <th>{{ t('payments.penalty') }}</th>
+                <th>{{ t('common.principal') }}</th>
+                <th>{{ t('common.method') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="event in paymentEvents" :key="event.id">
+                <td>{{ event.payment_date }}</td>
+                <td>{{ paymentTypeLabel(event.payment_type) }}</td>
+                <td>#{{ event.loan_id }}</td>
+                <td>{{ event.billing_period || '-' }}</td>
+                <td>{{ formatCurrency(event.total_entered_amount) }}</td>
+                <td>{{ formatCurrency(event.allocated_to_interest) }}</td>
+                <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
+                <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
+                <td>{{ paymentMethodLabel(event.payment_method) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-        <table v-else>
-          <thead>
-            <tr>
-              <th>{{ t('common.loan') }}</th>
-              <th>{{ t('payments.period') }}</th>
-              <th>{{ t('payments.dueDate') }}</th>
-              <th>{{ t('payments.pendingInterest') }}</th>
-              <th>{{ t('payments.penalty') }}</th>
-              <th>{{ t('payments.outstandingPeriod') }}</th>
-              <th>{{ t('common.status') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in pendingInterestItems" :key="item.interest_charge_id">
-              <td>#{{ item.loan_id }}</td>
-              <td>{{ item.billing_period }}</td>
-              <td>{{ item.due_date }}</td>
-              <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
-              <td>{{ formatCurrency(item.penalty_amount) }}</td>
-              <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
-              <td>
-                <span class="pill" :class="item.overdue ? 'pill-overdue' : 'pill-current'">
-                  {{ item.overdue ? t('common.overdue') : t('payments.currentOrUpcoming') }}
-                </span>
-              </td>
-            </tr>
-            <tr v-if="!pendingInterestItems.length">
-              <td colspan="7">{{ t('customers.noPendingInterestDetail') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <div class="mt-16">
+          <h3>{{ t('customers.customerLoans') }}</h3>
+          <p class="muted" v-if="!selectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.type') }}</th>
+                <th>{{ t('common.principal') }}</th>
+                <th>{{ t('loans.outstanding') }}</th>
+                <th>{{ t('loans.rate') }}</th>
+                <th>{{ t('common.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="loan in selectedCustomerLoans" :key="loan.id">
+                <td>#{{ loan.id }}</td>
+                <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+                <td>{{ formatCurrency(loan.principalAmount) }}</td>
+                <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
+                <td>{{ loan.monthlyInterestRate }}%</td>
+                <td>{{ t(`common.${loan.status}`) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div v-if="selectedCustomer" class="mt-16">
-        <h3>{{ t('customers.customerPaymentTraceability') }}</h3>
-        <p class="muted" v-if="!paymentEvents.length">{{ t('customers.noPaymentEvents') }}</p>
-        <table v-else>
-          <thead>
-            <tr>
-              <th>{{ t('common.date') }}</th>
-              <th>{{ t('payments.paymentType') }}</th>
-              <th>{{ t('common.loan') }}</th>
-              <th>{{ t('payments.period') }}</th>
-              <th>{{ t('common.total') }}</th>
-              <th>{{ t('common.interest') }}</th>
-              <th>{{ t('payments.penalty') }}</th>
-              <th>{{ t('common.principal') }}</th>
-              <th>{{ t('common.method') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="event in paymentEvents" :key="event.id">
-              <td>{{ event.payment_date }}</td>
-              <td>{{ paymentTypeLabel(event.payment_type) }}</td>
-              <td>#{{ event.loan_id }}</td>
-              <td>{{ event.billing_period || '-' }}</td>
-              <td>{{ formatCurrency(event.total_entered_amount) }}</td>
-              <td>{{ formatCurrency(event.allocated_to_interest) }}</td>
-              <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
-              <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
-              <td>{{ paymentMethodLabel(event.payment_method) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <div class="mt-16">
+          <h3>{{ t('customers.customerPayments') }}</h3>
+          <p class="muted">{{ t('customers.totalPaid', { amount: formatCurrency(totalCustomerPaid) }) }}</p>
+          <p class="muted" v-if="!selectedCustomerPayments.length">{{ t('customers.noPayments') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.loan') }}</th>
+                <th>{{ t('common.date') }}</th>
+                <th>{{ t('common.total') }}</th>
+                <th>{{ t('payments.penalty') }}</th>
+                <th>{{ t('common.interest') }}</th>
+                <th>{{ t('common.fees') }}</th>
+                <th>{{ t('common.principal') }}</th>
+                <th>{{ t('common.method') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="payment in selectedCustomerPayments" :key="payment.id">
+                <td>#{{ payment.id }}</td>
+                <td>#{{ payment.loanId }}</td>
+                <td>{{ payment.paymentDate }}</td>
+                <td>{{ formatCurrency(payment.totalAmount) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                <td>
+                  {{
+                    payment.paymentMethod === 'cash'
+                      ? t('common.cash')
+                      : payment.paymentMethod === 'bank-transfer'
+                        ? t('common.bankTransfer')
+                        : t('common.other')
+                  }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <div v-if="selectedCustomer" class="mt-16">
-        <h3>{{ t('customers.customerLoans') }}</h3>
-        <p class="muted" v-if="!selectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
-        <table v-else>
-          <thead>
-            <tr>
-              <th>{{ t('common.id') }}</th>
-              <th>{{ t('common.type') }}</th>
-              <th>{{ t('common.principal') }}</th>
-              <th>{{ t('loans.outstanding') }}</th>
-              <th>{{ t('loans.rate') }}</th>
-              <th>{{ t('common.status') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="loan in selectedCustomerLoans" :key="loan.id">
-              <td>#{{ loan.id }}</td>
-              <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-              <td>{{ formatCurrency(loan.principalAmount) }}</td>
-              <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
-              <td>{{ loan.monthlyInterestRate }}%</td>
-              <td>{{ t(`common.${loan.status}`) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="selectedCustomer" class="mt-16">
-        <h3>{{ t('customers.customerPayments') }}</h3>
-        <p class="muted">{{ t('customers.totalPaid', { amount: formatCurrency(totalCustomerPaid) }) }}</p>
-        <p class="muted" v-if="!selectedCustomerPayments.length">{{ t('customers.noPayments') }}</p>
-        <table v-else>
-          <thead>
-            <tr>
-              <th>{{ t('common.id') }}</th>
-              <th>{{ t('common.loan') }}</th>
-              <th>{{ t('common.date') }}</th>
-              <th>{{ t('common.total') }}</th>
-              <th>{{ t('payments.penalty') }}</th>
-              <th>{{ t('common.interest') }}</th>
-              <th>{{ t('common.fees') }}</th>
-              <th>{{ t('common.principal') }}</th>
-              <th>{{ t('common.method') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="payment in selectedCustomerPayments" :key="payment.id">
-              <td>#{{ payment.id }}</td>
-              <td>#{{ payment.loanId }}</td>
-              <td>{{ payment.paymentDate }}</td>
-              <td>{{ formatCurrency(payment.totalAmount) }}</td>
-              <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-              <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
-              <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
-              <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-              <td>
-                {{
-                  payment.paymentMethod === 'cash'
-                    ? t('common.cash')
-                    : payment.paymentMethod === 'bank-transfer'
-                      ? t('common.bankTransfer')
-                      : t('common.other')
-                }}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="selectedCustomer" class="mt-16">
-        <h3>{{ t('customers.customerCollateral') }}</h3>
-        <p class="muted" v-if="!selectedCustomerCollateral.length">{{ t('customers.noCollateral') }}</p>
-        <table v-else>
-          <thead>
-            <tr>
-              <th>{{ t('common.id') }}</th>
-              <th>{{ t('common.loan') }}</th>
-              <th>{{ t('common.description') }}</th>
-              <th>{{ t('collateral.appraisedValue') }}</th>
-              <th>{{ t('collateral.custodyCode') }}</th>
-              <th>{{ t('common.status') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in selectedCustomerCollateral" :key="item.id">
-              <td>#{{ item.id }}</td>
-              <td>#{{ item.loanId }}</td>
-              <td>{{ item.description }}</td>
-              <td>{{ formatCurrency(item.appraisedValue) }}</td>
-              <td>{{ item.custodyCode }}</td>
-              <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <div class="mt-16">
+          <h3>{{ t('customers.customerCollateral') }}</h3>
+          <p class="muted" v-if="!selectedCustomerCollateral.length">{{ t('customers.noCollateral') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.loan') }}</th>
+                <th>{{ t('common.description') }}</th>
+                <th>{{ t('collateral.appraisedValue') }}</th>
+                <th>{{ t('collateral.custodyCode') }}</th>
+                <th>{{ t('common.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in selectedCustomerCollateral" :key="item.id">
+                <td>#{{ item.id }}</td>
+                <td>#{{ item.loanId }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ formatCurrency(item.appraisedValue) }}</td>
+                <td>{{ item.custodyCode }}</td>
+                <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
@@ -388,6 +396,8 @@ const { t, locale } = useI18n()
 const message = ref('')
 const search = ref('')
 const selectedCustomerId = ref<number | null>(null)
+const showCreateModal = ref(false)
+const showDetailModal = ref(false)
 const isSaving = ref(false)
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
@@ -480,6 +490,23 @@ const selectCustomer = (customerId: number) => {
   void loadCustomerFinancialData(customerId)
 }
 
+const openCreateModal = () => {
+  showCreateModal.value = true
+}
+
+const closeCreateModal = () => {
+  showCreateModal.value = false
+}
+
+const openCustomerDetail = (customerId: number) => {
+  selectCustomer(customerId)
+  showDetailModal.value = true
+}
+
+const closeDetailModal = () => {
+  showDetailModal.value = false
+}
+
 const loadCustomerFinancialData = async (customerId: number) => {
   financialDataLoading.value = true
   financialDataError.value = false
@@ -515,6 +542,7 @@ const handleCreateCustomer = async () => {
       form.documentNumber = ''
       form.phone = ''
       form.city = ''
+      closeCreateModal()
     }
   } catch {
     message.value = t('messages.operationFailed')

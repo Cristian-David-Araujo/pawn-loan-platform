@@ -44,7 +44,8 @@ export const messages = {
       personal: 'Personal',
       cash: 'Cash',
       bankTransfer: 'Bank transfer',
-      other: 'Other'
+      other: 'Other',
+      close: 'Close'
     },
     dashboard: {
       title: 'Dashboard',
@@ -240,7 +241,8 @@ export const messages = {
       personal: 'Personal',
       cash: 'Efectivo',
       bankTransfer: 'Transferencia bancaria',
-      other: 'Otro'
+      other: 'Otro',
+      close: 'Cerrar'
     },
     dashboard: {
       title: 'Panel',
