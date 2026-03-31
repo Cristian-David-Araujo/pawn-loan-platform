@@ -8,7 +8,6 @@ export const messages = {
       navigation: 'Navigation',
       menu: 'Menu',
       home: 'Home',
-      quickGo: 'Quick go',
       searchPlaceholder: 'Search module...',
       dashboard: 'Dashboard',
       customers: 'Customers',
@@ -55,12 +54,7 @@ export const messages = {
       overdueLoans: 'Overdue Loans',
       collateralInCustody: 'Collateral In Custody',
       outstandingPortfolio: 'Outstanding Portfolio',
-      cashCollected: 'Cash Collected',
-      quickActions: 'Quick Actions',
-      goCustomers: 'Manage customers',
-      goLoans: 'Create or review loans',
-      goPayments: 'Register payments',
-      goReporting: 'Open reports'
+      cashCollected: 'Cash Collected'
     },
     customers: {
       title: 'Customers',
@@ -210,7 +204,6 @@ export const messages = {
       navigation: 'Navegacion',
       menu: 'Menu',
       home: 'Inicio',
-      quickGo: 'Ir rapido',
       searchPlaceholder: 'Buscar modulo...',
       dashboard: 'Panel',
       customers: 'Clientes',
@@ -257,12 +250,7 @@ export const messages = {
       overdueLoans: 'Prestamos Vencidos',
       collateralInCustody: 'Garantias en Custodia',
       outstandingPortfolio: 'Cartera Pendiente',
-      cashCollected: 'Efectivo Cobrado',
-      quickActions: 'Acciones Rapidas',
-      goCustomers: 'Gestionar clientes',
-      goLoans: 'Crear o revisar prestamos',
-      goPayments: 'Registrar pagos',
-      goReporting: 'Abrir reportes'
+      cashCollected: 'Efectivo Cobrado'
     },
     customers: {
       title: 'Clientes',

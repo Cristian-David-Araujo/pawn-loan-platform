@@ -44,10 +44,6 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <label class="locale-label" for="quick-nav">{{ t('app.quickGo') }}</label>
-          <select id="quick-nav" v-model="quickNav" class="locale-select" @change="onQuickNavigate">
-            <option v-for="item in navItems" :key="item.to" :value="item.to">{{ t(item.labelKey) }}</option>
-          </select>
           <label class="locale-label" for="nav-filter">{{ t('common.search') }}</label>
           <input
             id="nav-filter"
@@ -71,9 +67,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import {
   BarChart3,
   Gem,
@@ -88,7 +84,6 @@ import { persistLocale, type AppLocale } from '../i18n'
 
 const { t, locale } = useI18n()
 const route = useRoute()
-const router = useRouter()
 
 const navItems = [
   { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
@@ -100,7 +95,6 @@ const navItems = [
 ]
 
 const selectedLocale = ref(locale.value as AppLocale)
-const quickNav = ref(route.path)
 const navFilter = ref('')
 const mobileMenuOpen = ref(false)
 
@@ -118,19 +112,8 @@ const filteredNavItems = computed(() => {
   return navItems.filter((item) => t(item.labelKey).toLowerCase().includes(query))
 })
 
-watch(
-  () => route.path,
-  (value) => {
-    quickNav.value = value
-  }
-)
-
 const onLocaleChange = () => {
   locale.value = selectedLocale.value
   persistLocale(selectedLocale.value)
-}
-
-const onQuickNavigate = () => {
-  router.push(quickNav.value)
 }
 </script>

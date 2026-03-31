@@ -19,28 +19,6 @@
       />
       <StatCard :label="t('dashboard.cashCollected')" :value="formatCurrency(stats.cashCollected)" :icon="Wallet" tone="green" />
     </div>
-
-    <div class="card mt-16">
-      <h3>{{ t('dashboard.quickActions') }}</h3>
-      <div class="quick-actions mt-16">
-        <RouterLink class="btn" to="/customers">
-          <Users :size="16" />
-          {{ t('dashboard.goCustomers') }}
-        </RouterLink>
-        <RouterLink class="btn" to="/loans">
-          <HandCoins :size="16" />
-          {{ t('dashboard.goLoans') }}
-        </RouterLink>
-        <RouterLink class="btn" to="/payments">
-          <ReceiptText :size="16" />
-          {{ t('dashboard.goPayments') }}
-        </RouterLink>
-        <RouterLink class="btn" to="/reporting">
-          <BarChart3 :size="16" />
-          {{ t('dashboard.goReporting') }}
-        </RouterLink>
-      </div>
-    </div>
   </section>
 </template>
 
@@ -49,11 +27,9 @@ import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
   BadgeDollarSign,
-  BarChart3,
   ClockAlert,
   HandCoins,
   LayoutDashboard,
-  ReceiptText,
   ShieldCheck,
   Users,
   Wallet
