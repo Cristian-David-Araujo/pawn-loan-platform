@@ -100,6 +100,14 @@
           </span>
         </div>
 
+        <div class="stats-inline mt-16">
+          <span class="pill">{{ t('customers.customerSince', { date: formatDate(selectedCustomer.createdAt) }) }}</span>
+          <span class="pill">{{ t('customers.lastUpdate', { date: formatDate(selectedCustomer.updatedAt) }) }}</span>
+          <span v-if="firstLoanDisbursementDate" class="pill">
+            {{ t('customers.firstLoanDate', { date: formatDate(firstLoanDisbursementDate) }) }}
+          </span>
+        </div>
+
         <div class="grid grid-4 mt-16">
           <div class="card stat-card stat-accent-blue">
             <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
@@ -245,6 +253,8 @@
               <tr>
                 <th>{{ t('common.id') }}</th>
                 <th>{{ t('common.type') }}</th>
+                <th>{{ t('customers.loanDisbursementDate') }}</th>
+                <th>{{ t('loans.dueDay') }}</th>
                 <th>{{ t('common.principal') }}</th>
                 <th>{{ t('loans.outstanding') }}</th>
                 <th>{{ t('loans.rate') }}</th>
@@ -255,6 +265,8 @@
               <tr v-for="loan in selectedCustomerLoans" :key="loan.id">
                 <td>#{{ loan.id }}</td>
                 <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+                <td>{{ formatDate(loan.disbursementDate) }}</td>
+                <td>{{ loan.dueDay }}</td>
                 <td>{{ formatCurrency(loan.principalAmount) }}</td>
                 <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
                 <td>{{ loan.monthlyInterestRate }}%</td>
@@ -434,7 +446,10 @@ const selectedCustomerLoans = computed(() => {
   if (!selectedCustomer.value) {
     return []
   }
-  return state.loans.filter((loan: Loan) => loan.customerId === selectedCustomer.value?.id)
+
+  return state.loans
+    .filter((loan: Loan) => loan.customerId === selectedCustomer.value?.id)
+    .sort((a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime())
 })
 
 const selectedCustomerLoanIds = computed(() => new Set(selectedCustomerLoans.value.map((loan: Loan) => loan.id)))
@@ -466,10 +481,27 @@ const totalCustomerPaid = computed(() =>
   selectedCustomerPayments.value.reduce((sum: number, payment: Payment) => sum + payment.totalAmount, 0)
 )
 
+const firstLoanDisbursementDate = computed(() => {
+  if (!selectedCustomerLoans.value.length) {
+    return ''
+  }
+
+  return [...selectedCustomerLoans.value]
+    .sort((a, b) => new Date(a.disbursementDate).getTime() - new Date(b.disbursementDate).getTime())[0]
+    .disbursementDate
+})
+
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
     amount
   )
+
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit'
+  }).format(new Date(value))
 
 const syncEditForm = () => {
   if (!selectedCustomer.value) {
