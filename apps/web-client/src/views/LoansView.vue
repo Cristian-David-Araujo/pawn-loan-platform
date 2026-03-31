@@ -1,7 +1,10 @@
 <template>
   <section>
-    <h2>{{ t('loans.title') }}</h2>
-    <p class="muted">{{ t('loans.subtitle') }}</p>
+    <PageHeader :title="t('loans.title')" :subtitle="t('loans.subtitle')">
+      <template #icon>
+        <HandCoins :size="18" />
+      </template>
+    </PageHeader>
 
     <form class="card form mt-16" @submit.prevent="handleCreateLoan">
       <div class="grid grid-3">
@@ -33,7 +36,10 @@
           <input v-model.number="form.dueDay" type="number" min="1" max="28" required />
         </label>
       </div>
-      <button class="btn" type="submit">{{ t('loans.createLoan') }}</button>
+      <button class="btn" type="submit">
+        <FilePlus2 :size="16" />
+        {{ t('loans.createLoan') }}
+      </button>
     </form>
 
     <div class="card mt-16">
@@ -78,6 +84,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { FilePlus2, HandCoins } from 'lucide-vue-next'
+import PageHeader from '../components/PageHeader.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, createLoan, getCustomerName, ensureInitialized } = useMockPlatformStore()

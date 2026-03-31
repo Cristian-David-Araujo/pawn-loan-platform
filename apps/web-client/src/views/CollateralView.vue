@@ -1,7 +1,10 @@
 <template>
   <section>
-    <h2>{{ t('collateral.title') }}</h2>
-    <p class="muted">{{ t('collateral.subtitle') }}</p>
+    <PageHeader :title="t('collateral.title')" :subtitle="t('collateral.subtitle')">
+      <template #icon>
+        <Gem :size="18" />
+      </template>
+    </PageHeader>
 
     <form class="card form mt-16" @submit.prevent="handleCreateCollateral">
       <div class="grid grid-3">
@@ -26,7 +29,10 @@
           <input v-model="form.storageLocation" required />
         </label>
       </div>
-      <button class="btn" type="submit">{{ t('collateral.registerCollateralItem') }}</button>
+      <button class="btn" type="submit">
+        <PackagePlus :size="16" />
+        {{ t('collateral.registerCollateralItem') }}
+      </button>
     </form>
 
     <div class="card mt-16">
@@ -65,6 +71,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Gem, PackagePlus } from 'lucide-vue-next'
+import PageHeader from '../components/PageHeader.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, createCollateral, getCustomerName, ensureInitialized } = useMockPlatformStore()

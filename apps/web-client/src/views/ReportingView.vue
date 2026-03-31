@@ -1,7 +1,10 @@
 <template>
   <section>
-    <h2>{{ t('reporting.title') }}</h2>
-    <p class="muted">{{ t('reporting.subtitle') }}</p>
+    <PageHeader :title="t('reporting.title')" :subtitle="t('reporting.subtitle')">
+      <template #icon>
+        <ChartNoAxesCombined :size="18" />
+      </template>
+    </PageHeader>
 
     <div class="card mt-16 form-inline">
       <label>
@@ -12,7 +15,10 @@
         {{ t('reporting.toDate') }}
         <input v-model="toDate" type="date" />
       </label>
-      <button class="btn btn-secondary" type="button" @click="resetDates">{{ t('reporting.resetDates') }}</button>
+      <button class="btn btn-secondary" type="button" @click="resetDates">
+        <RotateCcw :size="16" />
+        {{ t('reporting.resetDates') }}
+      </button>
     </div>
 
     <div class="stats-inline mt-16">
@@ -66,6 +72,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ChartNoAxesCombined, RotateCcw } from 'lucide-vue-next'
+import PageHeader from '../components/PageHeader.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, getCustomerName, ensureInitialized } = useMockPlatformStore()

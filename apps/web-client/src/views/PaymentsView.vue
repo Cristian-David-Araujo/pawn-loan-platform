@@ -1,7 +1,10 @@
 <template>
   <section>
-    <h2>{{ t('payments.title') }}</h2>
-    <p class="muted">{{ t('payments.subtitle') }}</p>
+    <PageHeader :title="t('payments.title')" :subtitle="t('payments.subtitle')">
+      <template #icon>
+        <ReceiptText :size="18" />
+      </template>
+    </PageHeader>
 
     <div class="card mt-16 form-inline">
       <label>
@@ -37,24 +40,15 @@
           </select>
         </label>
         <label>
-          {{ t('payments.operationType') }}
-          <select v-model="interestMode">
-            <option value="selected">{{ t('payments.paySelected') }}</option>
-            <option value="all">{{ t('payments.payAllPending') }}</option>
-          </select>
-        </label>
-        <label v-if="interestMode === 'all'">
           {{ t('payments.totalAmount') }}
-          <input v-model.number="interestAllAmount" type="number" min="0.01" step="0.01" />
+          <input v-model.number="interestEnteredAmount" type="number" min="0.01" step="0.01" @input="interestAmountTouched = true" />
         </label>
-        <label v-else>
-          {{ t('payments.extraAdvanceAmount') }}
-          <input v-model.number="interestExtraAdvanceAmount" type="number" min="0" step="0.01" />
-        </label>
+        <button class="btn btn-secondary" type="button" @click="useSuggestedAmount">{{ t('payments.useSuggested') }}</button>
       </div>
 
       <div class="table-toolbar mt-16">
         <span class="table-count">{{ t('payments.totalPending', { amount: formatCurrency(totalPendingOutstanding) }) }}</span>
+        <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedSelectedAmount) }) }}</span>
       </div>
 
       <table>
@@ -69,7 +63,6 @@
             <th>{{ t('payments.pendingInterest') }}</th>
             <th>{{ t('payments.penalty') }}</th>
             <th>{{ t('payments.outstandingPeriod') }}</th>
-            <th>{{ t('payments.partialPayAmount') }}</th>
             <th>{{ t('common.status') }}</th>
           </tr>
         </thead>
@@ -80,27 +73,16 @@
                 type="checkbox"
                 :checked="selectedChargeIds.has(item.interest_charge_id)"
                 @change="toggleCharge(item.interest_charge_id)"
-                :disabled="interestMode === 'all'"
               />
             </td>
             <td>#{{ item.loan_id }}</td>
             <td>{{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
             <td>{{ item.billing_period }}</td>
-            <td>{{ item.due_date }}</td>
+            <td>{{ formatDateDMY(item.due_date) }}</td>
             <td>{{ formatCurrency(item.original_interest_amount) }}</td>
             <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
             <td>{{ formatCurrency(item.penalty_amount) }}</td>
             <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
-            <td>
-              <input
-                v-model.number="partialAmounts[item.interest_charge_id]"
-                type="number"
-                min="0"
-                step="0.01"
-                :max="item.current_outstanding_balance"
-                :disabled="interestMode === 'all' || !selectedChargeIds.has(item.interest_charge_id)"
-              />
-            </td>
             <td>
               <span class="pill" :class="item.overdue ? 'pill-overdue' : 'pill-current'">
                 {{ item.overdue ? t('common.overdue') : t('payments.currentOrUpcoming') }}
@@ -108,7 +90,7 @@
             </td>
           </tr>
           <tr v-if="!flatPendingItems.length">
-            <td colspan="11">{{ t('payments.noPendingInterest') }}</td>
+            <td colspan="10">{{ t('payments.noPendingInterest') }}</td>
           </tr>
         </tbody>
       </table>
@@ -117,11 +99,14 @@
         <p>{{ t('payments.selectedItems', { count: selectedChargeIds.size }) }}</p>
         <p>{{ t('payments.amountEntered', { amount: formatCurrency(interestAmountToPay) }) }}</p>
         <p>{{ t('payments.remainingAfterPayment', { amount: formatCurrency(remainingAfterInterestPayment) }) }}</p>
+        <p>{{ t('payments.partialDetected', { amount: formatCurrency(partialAmount) }) }}</p>
+        <p>{{ t('payments.advanceDetected', { amount: formatCurrency(advanceAmount) }) }}</p>
         <label class="mt-16">
           {{ t('payments.notes') }}
           <input v-model="interestNotes" />
         </label>
         <button class="btn mt-16" type="button" @click="submitInterestPayment" :disabled="interestAmountToPay <= 0 || processing">
+          <CircleDollarSign :size="16" />
           {{ t('payments.registerInterestPayment') }}
         </button>
       </div>
@@ -162,7 +147,7 @@
         </div>
         <div class="card">
           <p>{{ t('payments.nextDueDate') }}</p>
-          <strong>{{ selectedPrincipalLoan.next_due_date }}</strong>
+          <strong>{{ formatDateDMY(selectedPrincipalLoan.next_due_date) }}</strong>
         </div>
       </div>
 
@@ -189,6 +174,7 @@
         </label>
 
         <button class="btn" type="button" @click="submitPrincipalPayment" :disabled="!selectedPrincipalLoan || principalAmount <= 0 || processing">
+          <WalletCards :size="16" />
           {{ t('payments.registerPrincipalPayment') }}
         </button>
       </div>
@@ -212,7 +198,7 @@
         </thead>
         <tbody>
           <tr v-for="event in paymentHistory" :key="event.id">
-            <td>{{ event.payment_date }}</td>
+            <td>{{ formatDateDMY(event.payment_date) }}</td>
             <td>{{ event.payment_type }}</td>
             <td>#{{ event.loan_id }}</td>
             <td>{{ event.billing_period || '-' }}</td>
@@ -236,8 +222,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { CircleDollarSign, ReceiptText, WalletCards } from 'lucide-vue-next'
+import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { formatDateDMY } from '../utils/date'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -310,13 +299,11 @@ const principalPaymentMethod = ref<'cash' | 'bank-transfer' | 'other'>('cash')
 const allowPrincipalWithUnpaidInterest = ref(false)
 const principalNotes = ref('')
 
-const interestMode = ref<'selected' | 'all'>('selected')
 const interestPaymentMethod = ref<'cash' | 'bank-transfer' | 'other'>('cash')
 const interestNotes = ref('')
-const interestAllAmount = ref(0)
-const interestExtraAdvanceAmount = ref(0)
+const interestEnteredAmount = ref(0)
+const interestAmountTouched = ref(false)
 const selectedChargeIds = ref(new Set<number>())
-const partialAmounts = ref<Record<number, number>>({})
 
 const pendingInterest = ref<InterestPendingResponse | null>(null)
 const principalContext = ref<PrincipalContextResponse | null>(null)
@@ -340,33 +327,28 @@ const totalPendingOutstanding = computed(() =>
   flatPendingItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0)
 )
 
-const interestAmountToPay = computed(() => {
-  if (interestMode.value === 'all') {
-    return Math.max(0, interestAllAmount.value)
-  }
+const selectedPendingItems = computed(() =>
+  flatPendingItems.value.filter((item) => selectedChargeIds.value.has(item.interest_charge_id))
+)
 
-  const selectedTotal = [...selectedChargeIds.value].reduce((sum, chargeId) => {
-    const value = partialAmounts.value[chargeId] ?? 0
-    return sum + Math.max(0, value)
-  }, 0)
+const suggestedSelectedAmount = computed(() =>
+  selectedPendingItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0)
+)
 
-  return selectedTotal + Math.max(0, interestExtraAdvanceAmount.value)
-})
+const interestAmountToPay = computed(() => Math.max(0, interestEnteredAmount.value || 0))
 
 const remainingAfterInterestPayment = computed(() => Math.max(0, totalPendingOutstanding.value - interestAmountToPay.value))
+const partialAmount = computed(() => Math.max(0, suggestedSelectedAmount.value - interestAmountToPay.value))
+const advanceAmount = computed(() => Math.max(0, interestAmountToPay.value - suggestedSelectedAmount.value))
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
     amount
   )
 
-const initializePartialAmounts = () => {
-  const next: Record<number, number> = {}
-  for (const item of flatPendingItems.value) {
-    next[item.interest_charge_id] = item.current_outstanding_balance
-  }
-  partialAmounts.value = next
-  interestAllAmount.value = totalPendingOutstanding.value
+const useSuggestedAmount = () => {
+  interestEnteredAmount.value = suggestedSelectedAmount.value
+  interestAmountTouched.value = false
 }
 
 const toggleCharge = (chargeId: number) => {
@@ -377,6 +359,10 @@ const toggleCharge = (chargeId: number) => {
     next.add(chargeId)
   }
   selectedChargeIds.value = next
+
+  if (!interestAmountTouched.value) {
+    useSuggestedAmount()
+  }
 }
 
 const loadCustomerPaymentData = async () => {
@@ -394,7 +380,7 @@ const loadCustomerPaymentData = async () => {
   principalContext.value = principal
   paymentHistory.value = history
   selectedChargeIds.value = new Set(flatPendingItems.value.map((item) => item.interest_charge_id))
-  initializePartialAmounts()
+  useSuggestedAmount()
   selectedPrincipalLoanId.value = principal.items[0]?.loan_id ?? null
   principalAmount.value = selectedPrincipalLoan.value?.outstanding_principal ?? 0
 }
@@ -406,57 +392,50 @@ const submitInterestPayment = async () => {
 
   processing.value = true
   try {
-    if (interestMode.value === 'all') {
+    let remaining = interestAmountToPay.value
+
+    for (const item of selectedPendingItems.value) {
+      if (remaining <= 0) {
+        break
+      }
+
+      const amount = Math.min(remaining, item.current_outstanding_balance)
+      if (amount <= 0) {
+        continue
+      }
+
       await apiClient.request('/payments/interest', {
         method: 'POST',
         body: JSON.stringify({
           customer_id: selectedCustomerId.value,
-          pay_all_pending: true,
-          selected_charge_ids: [],
-          total_amount: interestAmountToPay.value,
+          pay_all_pending: false,
+          selected_charge_ids: [item.interest_charge_id],
+          total_amount: amount,
           payment_method: interestPaymentMethod.value,
           notes: interestNotes.value
         })
       })
-    } else {
-      const selectedIds = [...selectedChargeIds.value]
-      for (const chargeId of selectedIds) {
-        const amount = Math.max(0, partialAmounts.value[chargeId] ?? 0)
-        if (!amount) {
-          continue
-        }
 
-        await apiClient.request('/payments/interest', {
-          method: 'POST',
-          body: JSON.stringify({
-            customer_id: selectedCustomerId.value,
-            pay_all_pending: false,
-            selected_charge_ids: [chargeId],
-            total_amount: amount,
-            payment_method: interestPaymentMethod.value,
-            notes: interestNotes.value
-          })
-        })
-      }
+      remaining -= amount
+    }
 
-      const extraAdvance = Math.max(0, interestExtraAdvanceAmount.value)
-      if (extraAdvance > 0) {
-        await apiClient.request('/payments/interest', {
-          method: 'POST',
-          body: JSON.stringify({
-            customer_id: selectedCustomerId.value,
-            selected_charge_ids: [],
-            pay_all_pending: false,
-            total_amount: extraAdvance,
-            payment_method: interestPaymentMethod.value,
-            notes: interestNotes.value
-          })
+    if (remaining > 0) {
+      await apiClient.request('/payments/interest', {
+        method: 'POST',
+        body: JSON.stringify({
+          customer_id: selectedCustomerId.value,
+          selected_charge_ids: [],
+          pay_all_pending: false,
+          total_amount: remaining,
+          payment_method: interestPaymentMethod.value,
+          notes: interestNotes.value
         })
-      }
+      })
     }
 
     await refreshAll()
     await loadCustomerPaymentData()
+    interestNotes.value = ''
     message.value = t('messages.paymentRegistered')
   } catch {
     message.value = t('messages.operationFailed')
