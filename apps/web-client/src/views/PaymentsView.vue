@@ -1,7 +1,10 @@
 <template>
   <section>
-    <h2>{{ t('payments.title') }}</h2>
-    <p class="muted">{{ t('payments.subtitle') }}</p>
+    <PageHeader :title="t('payments.title')" :subtitle="t('payments.subtitle')">
+      <template #icon>
+        <ReceiptText :size="18" />
+      </template>
+    </PageHeader>
 
     <div class="card mt-16 form-inline">
       <label>
@@ -122,6 +125,7 @@
           <input v-model="interestNotes" />
         </label>
         <button class="btn mt-16" type="button" @click="submitInterestPayment" :disabled="interestAmountToPay <= 0 || processing">
+          <CircleDollarSign :size="16" />
           {{ t('payments.registerInterestPayment') }}
         </button>
       </div>
@@ -189,6 +193,7 @@
         </label>
 
         <button class="btn" type="button" @click="submitPrincipalPayment" :disabled="!selectedPrincipalLoan || principalAmount <= 0 || processing">
+          <WalletCards :size="16" />
           {{ t('payments.registerPrincipalPayment') }}
         </button>
       </div>
@@ -236,6 +241,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { CircleDollarSign, ReceiptText, WalletCards } from 'lucide-vue-next'
+import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 

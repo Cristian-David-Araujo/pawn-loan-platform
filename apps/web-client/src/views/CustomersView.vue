@@ -1,7 +1,10 @@
 <template>
   <section>
-    <h2>{{ t('customers.title') }}</h2>
-    <p class="muted">{{ t('customers.subtitle') }}</p>
+    <PageHeader :title="t('customers.title')" :subtitle="t('customers.subtitle')">
+      <template #icon>
+        <Users :size="18" />
+      </template>
+    </PageHeader>
 
     <form class="card form mt-16" @submit.prevent="handleCreateCustomer">
       <div class="grid grid-3">
@@ -26,7 +29,10 @@
           <input v-model="form.city" required />
         </label>
       </div>
-      <button class="btn" type="submit">{{ t('customers.createCustomer') }}</button>
+      <button class="btn" type="submit">
+        <UserPlus :size="16" />
+        {{ t('customers.createCustomer') }}
+      </button>
       <p v-if="message" class="notice">{{ message }}</p>
     </form>
 
@@ -146,7 +152,10 @@
             <input v-model="editForm.city" required />
           </label>
         </div>
-        <button class="btn" type="submit" :disabled="isSaving">{{ t('customers.saveChanges') }}</button>
+        <button class="btn" type="submit" :disabled="isSaving">
+          <Save :size="16" />
+          {{ t('customers.saveChanges') }}
+        </button>
       </form>
 
       <div v-if="selectedCustomer" class="mt-16">
@@ -323,6 +332,8 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Save, UserPlus, Users } from 'lucide-vue-next'
+import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'

@@ -1,24 +1,44 @@
 <template>
   <section>
-    <h2>{{ t('dashboard.title') }}</h2>
-    <p class="muted">{{ t('dashboard.subtitle') }}</p>
+    <PageHeader :title="t('dashboard.title')" :subtitle="t('dashboard.subtitle')">
+      <template #icon>
+        <LayoutDashboard :size="18" />
+      </template>
+    </PageHeader>
 
     <div class="grid grid-3 mt-16">
-      <StatCard :label="t('dashboard.customers')" :value="stats.customers" />
-      <StatCard :label="t('dashboard.activeLoans')" :value="stats.activeLoans" />
-      <StatCard :label="t('dashboard.overdueLoans')" :value="stats.overdueLoans" />
-      <StatCard :label="t('dashboard.collateralInCustody')" :value="stats.collateralInCustody" />
-      <StatCard :label="t('dashboard.outstandingPortfolio')" :value="formatCurrency(stats.portfolioOutstanding)" />
-      <StatCard :label="t('dashboard.cashCollected')" :value="formatCurrency(stats.cashCollected)" />
+      <StatCard :label="t('dashboard.customers')" :value="stats.customers" :icon="Users" tone="indigo" />
+      <StatCard :label="t('dashboard.activeLoans')" :value="stats.activeLoans" :icon="BadgeDollarSign" tone="green" />
+      <StatCard :label="t('dashboard.overdueLoans')" :value="stats.overdueLoans" :icon="ClockAlert" tone="amber" />
+      <StatCard :label="t('dashboard.collateralInCustody')" :value="stats.collateralInCustody" :icon="ShieldCheck" tone="blue" />
+      <StatCard
+        :label="t('dashboard.outstandingPortfolio')"
+        :value="formatCurrency(stats.portfolioOutstanding)"
+        :icon="HandCoins"
+        tone="amber"
+      />
+      <StatCard :label="t('dashboard.cashCollected')" :value="formatCurrency(stats.cashCollected)" :icon="Wallet" tone="green" />
     </div>
 
     <div class="card mt-16">
       <h3>{{ t('dashboard.quickActions') }}</h3>
       <div class="quick-actions mt-16">
-        <RouterLink class="btn" to="/customers">{{ t('dashboard.goCustomers') }}</RouterLink>
-        <RouterLink class="btn" to="/loans">{{ t('dashboard.goLoans') }}</RouterLink>
-        <RouterLink class="btn" to="/payments">{{ t('dashboard.goPayments') }}</RouterLink>
-        <RouterLink class="btn" to="/reporting">{{ t('dashboard.goReporting') }}</RouterLink>
+        <RouterLink class="btn" to="/customers">
+          <Users :size="16" />
+          {{ t('dashboard.goCustomers') }}
+        </RouterLink>
+        <RouterLink class="btn" to="/loans">
+          <HandCoins :size="16" />
+          {{ t('dashboard.goLoans') }}
+        </RouterLink>
+        <RouterLink class="btn" to="/payments">
+          <ReceiptText :size="16" />
+          {{ t('dashboard.goPayments') }}
+        </RouterLink>
+        <RouterLink class="btn" to="/reporting">
+          <BarChart3 :size="16" />
+          {{ t('dashboard.goReporting') }}
+        </RouterLink>
       </div>
     </div>
   </section>
@@ -27,6 +47,18 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import {
+  BadgeDollarSign,
+  BarChart3,
+  ClockAlert,
+  HandCoins,
+  LayoutDashboard,
+  ReceiptText,
+  ShieldCheck,
+  Users,
+  Wallet
+} from 'lucide-vue-next'
+import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
