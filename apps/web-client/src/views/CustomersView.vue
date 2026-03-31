@@ -113,6 +113,102 @@
         </div>
         <button class="btn" type="submit">{{ t('customers.saveChanges') }}</button>
       </form>
+
+      <div v-if="selectedCustomer" class="mt-16">
+        <h3>{{ t('customers.customerLoans') }}</h3>
+        <p class="muted" v-if="!selectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
+        <table v-else>
+          <thead>
+            <tr>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('common.type') }}</th>
+              <th>{{ t('common.principal') }}</th>
+              <th>{{ t('loans.outstanding') }}</th>
+              <th>{{ t('loans.rate') }}</th>
+              <th>{{ t('common.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="loan in selectedCustomerLoans" :key="loan.id">
+              <td>#{{ loan.id }}</td>
+              <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+              <td>{{ formatCurrency(loan.principalAmount) }}</td>
+              <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
+              <td>{{ loan.monthlyInterestRate }}%</td>
+              <td>{{ t(`common.${loan.status}`) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="selectedCustomer" class="mt-16">
+        <h3>{{ t('customers.customerPayments') }}</h3>
+        <p class="muted">{{ t('customers.totalPaid', { amount: formatCurrency(totalCustomerPaid) }) }}</p>
+        <p class="muted" v-if="!selectedCustomerPayments.length">{{ t('customers.noPayments') }}</p>
+        <table v-else>
+          <thead>
+            <tr>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('common.loan') }}</th>
+              <th>{{ t('common.date') }}</th>
+              <th>{{ t('common.total') }}</th>
+              <th>{{ t('payments.penalty') }}</th>
+              <th>{{ t('common.interest') }}</th>
+              <th>{{ t('common.fees') }}</th>
+              <th>{{ t('common.principal') }}</th>
+              <th>{{ t('common.method') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="payment in selectedCustomerPayments" :key="payment.id">
+              <td>#{{ payment.id }}</td>
+              <td>#{{ payment.loanId }}</td>
+              <td>{{ payment.paymentDate }}</td>
+              <td>{{ formatCurrency(payment.totalAmount) }}</td>
+              <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+              <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
+              <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
+              <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+              <td>
+                {{
+                  payment.paymentMethod === 'cash'
+                    ? t('common.cash')
+                    : payment.paymentMethod === 'bank-transfer'
+                      ? t('common.bankTransfer')
+                      : t('common.other')
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="selectedCustomer" class="mt-16">
+        <h3>{{ t('customers.customerCollateral') }}</h3>
+        <p class="muted" v-if="!selectedCustomerCollateral.length">{{ t('customers.noCollateral') }}</p>
+        <table v-else>
+          <thead>
+            <tr>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('common.loan') }}</th>
+              <th>{{ t('common.description') }}</th>
+              <th>{{ t('collateral.appraisedValue') }}</th>
+              <th>{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in selectedCustomerCollateral" :key="item.id">
+              <td>#{{ item.id }}</td>
+              <td>#{{ item.loanId }}</td>
+              <td>{{ item.description }}</td>
+              <td>{{ formatCurrency(item.appraisedValue) }}</td>
+              <td>{{ item.custodyCode }}</td>
+              <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 </template>
@@ -123,7 +219,7 @@ import { useI18n } from 'vue-i18n'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, createCustomer, updateCustomer, getCustomerById, ensureInitialized } = useMockPlatformStore()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const message = ref('')
 const search = ref('')
 const selectedCustomerId = ref<number | null>(null)
@@ -153,6 +249,32 @@ const editForm = reactive({
 const selectedCustomer = computed(() =>
   selectedCustomerId.value === null ? null : getCustomerById(selectedCustomerId.value)
 )
+
+const selectedCustomerLoans = computed(() => {
+  if (!selectedCustomer.value) {
+    return []
+  }
+  return state.loans.filter((loan) => loan.customerId === selectedCustomer.value?.id)
+})
+
+const selectedCustomerLoanIds = computed(() => new Set(selectedCustomerLoans.value.map((loan) => loan.id)))
+
+const selectedCustomerPayments = computed(() =>
+  state.payments.filter((payment) => selectedCustomerLoanIds.value.has(payment.loanId))
+)
+
+const selectedCustomerCollateral = computed(() =>
+  state.collateralItems.filter((item) => selectedCustomerLoanIds.value.has(item.loanId))
+)
+
+const totalCustomerPaid = computed(() =>
+  selectedCustomerPayments.value.reduce((sum, payment) => sum + payment.totalAmount, 0)
+)
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+    amount
+  )
 
 const syncEditForm = () => {
   if (!selectedCustomer.value) {
