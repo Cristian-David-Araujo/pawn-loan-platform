@@ -47,6 +47,10 @@
           {{ t('payments.totalAmount') }}
           <input v-model.number="interestAllAmount" type="number" min="0.01" step="0.01" />
         </label>
+        <label v-else>
+          {{ t('payments.extraAdvanceAmount') }}
+          <input v-model.number="interestExtraAdvanceAmount" type="number" min="0" step="0.01" />
+        </label>
       </div>
 
       <div class="table-toolbar mt-16">
@@ -310,6 +314,7 @@ const interestMode = ref<'selected' | 'all'>('selected')
 const interestPaymentMethod = ref<'cash' | 'bank-transfer' | 'other'>('cash')
 const interestNotes = ref('')
 const interestAllAmount = ref(0)
+const interestExtraAdvanceAmount = ref(0)
 const selectedChargeIds = ref(new Set<number>())
 const partialAmounts = ref<Record<number, number>>({})
 
@@ -340,10 +345,12 @@ const interestAmountToPay = computed(() => {
     return Math.max(0, interestAllAmount.value)
   }
 
-  return [...selectedChargeIds.value].reduce((sum, chargeId) => {
+  const selectedTotal = [...selectedChargeIds.value].reduce((sum, chargeId) => {
     const value = partialAmounts.value[chargeId] ?? 0
     return sum + Math.max(0, value)
   }, 0)
+
+  return selectedTotal + Math.max(0, interestExtraAdvanceAmount.value)
 })
 
 const remainingAfterInterestPayment = computed(() => Math.max(0, totalPendingOutstanding.value - interestAmountToPay.value))

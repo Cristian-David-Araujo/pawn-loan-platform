@@ -133,7 +133,73 @@ def pay_interest(
 
     items = _pending_interest_items_for_customer(db, payload.customer_id, payload.payment_date)
     if not items:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No pending interest found for customer")
+        loan = db.scalar(
+            select(Loan)
+            .where(Loan.customer_id == payload.customer_id, Loan.status != LoanStatus.closed)
+            .order_by(Loan.id.asc())
+        )
+        if loan is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer has no active loans")
+
+        advance_amount = round(payload.total_amount, 2)
+        payment = Payment(
+            loan_id=loan.id,
+            payment_date=payload.payment_date,
+            total_amount=advance_amount,
+            allocated_to_penalty=0,
+            allocated_to_interest=advance_amount,
+            allocated_to_fees=0,
+            allocated_to_principal=0,
+            payment_method=payload.payment_method,
+            received_by=current_user.id,
+        )
+        db.add(payment)
+
+        event = PaymentEvent(
+            payment_type="interest_advance_payment",
+            loan_id=loan.id,
+            interest_charge_id=None,
+            billing_period=payload.payment_date.strftime("%Y-%m"),
+            total_entered_amount=advance_amount,
+            allocated_to_interest=advance_amount,
+            allocated_to_penalty=0,
+            allocated_to_principal=0,
+            payment_date=payload.payment_date,
+            operator_user_id=current_user.id,
+            payment_method=payload.payment_method,
+            notes=payload.notes,
+        )
+        db.add(event)
+        db.commit()
+        db.refresh(event)
+
+        write_audit(
+            db,
+            action="interest_advance_payment",
+            entity_type="PaymentEvent",
+            entity_id=str(event.id),
+            user=current_user,
+            new_data=f"customer={payload.customer_id},amount={advance_amount}",
+        )
+
+        return InterestPaymentResponse(
+            customer_id=payload.customer_id,
+            total_entered_amount=advance_amount,
+            total_allocated_amount=advance_amount,
+            unallocated_amount=0,
+            allocations=[
+                InterestPaymentAllocation(
+                    payment_event_id=event.id,
+                    loan_id=loan.id,
+                    interest_charge_id=None,
+                    payment_type="interest_advance_payment",
+                    billing_period=event.billing_period,
+                    allocated_to_interest=advance_amount,
+                    allocated_to_penalty=0,
+                    allocated_total=advance_amount,
+                )
+            ],
+        )
 
     if payload.pay_all_pending:
         selected_items = items
@@ -226,6 +292,55 @@ def pay_interest(
         )
 
         remaining = round(remaining - allocated_total, 2)
+
+    if remaining > 0:
+        target_loan_id = selected_items[0].loan_id
+        advance_amount = remaining
+
+        payment = Payment(
+            loan_id=target_loan_id,
+            payment_date=payload.payment_date,
+            total_amount=advance_amount,
+            allocated_to_penalty=0,
+            allocated_to_interest=advance_amount,
+            allocated_to_fees=0,
+            allocated_to_principal=0,
+            payment_method=payload.payment_method,
+            received_by=current_user.id,
+        )
+        db.add(payment)
+
+        event = PaymentEvent(
+            payment_type="interest_advance_payment",
+            loan_id=target_loan_id,
+            interest_charge_id=None,
+            billing_period=payload.payment_date.strftime("%Y-%m"),
+            total_entered_amount=advance_amount,
+            allocated_to_interest=advance_amount,
+            allocated_to_penalty=0,
+            allocated_to_principal=0,
+            payment_date=payload.payment_date,
+            operator_user_id=current_user.id,
+            payment_method=payload.payment_method,
+            notes=payload.notes,
+        )
+        db.add(event)
+        db.flush()
+
+        allocations.append(
+            InterestPaymentAllocation(
+                payment_event_id=event.id,
+                loan_id=target_loan_id,
+                interest_charge_id=None,
+                payment_type="interest_advance_payment",
+                billing_period=event.billing_period,
+                allocated_to_interest=advance_amount,
+                allocated_to_penalty=0,
+                allocated_total=advance_amount,
+            )
+        )
+
+        remaining = 0
 
     total_allocated = round(sum(item.allocated_total for item in allocations), 2)
     if total_allocated <= 0:

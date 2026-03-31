@@ -129,7 +129,17 @@ def seed_database(db: Session, force: bool = False) -> bool:
         due_day=10,
         status=LoanStatus.closed,
     )
-    db.add_all([loan_1, loan_2, loan_3])
+    loan_4 = Loan(
+        customer_id=customer_3.id,
+        loan_type=LoanType.personal,
+        principal_amount=900,
+        outstanding_principal=900,
+        monthly_interest_rate=6.5,
+        disbursement_date=today - timedelta(days=15),
+        due_day=12,
+        status=LoanStatus.active,
+    )
+    db.add_all([loan_1, loan_2, loan_3, loan_4])
     db.flush()
 
     collateral = CollateralItem(
@@ -175,6 +185,14 @@ def seed_database(db: Session, force: bool = False) -> bool:
         amount=96,
         status="generated",
     )
+    interest_1_previous = InterestCharge(
+        loan_id=loan_1.id,
+        period_start=today - timedelta(days=60),
+        period_end=today - timedelta(days=30),
+        charge_date=today - timedelta(days=30),
+        amount=96,
+        status="generated",
+    )
     interest_2 = InterestCharge(
         loan_id=loan_2.id,
         period_start=today - timedelta(days=30),
@@ -183,8 +201,35 @@ def seed_database(db: Session, force: bool = False) -> bool:
         amount=66.5,
         status="generated",
     )
+    interest_2_previous = InterestCharge(
+        loan_id=loan_2.id,
+        period_start=today - timedelta(days=60),
+        period_end=today - timedelta(days=30),
+        charge_date=today - timedelta(days=30),
+        amount=66.5,
+        status="generated",
+    )
+    interest_2_upcoming = InterestCharge(
+        loan_id=loan_2.id,
+        period_start=today,
+        period_end=today + timedelta(days=30),
+        charge_date=today,
+        amount=66.5,
+        status="generated",
+    )
 
-    db.add_all([collateral, payment_1, payment_2, interest_1, interest_2])
+    db.add_all(
+        [
+            collateral,
+            payment_1,
+            payment_2,
+            interest_1,
+            interest_1_previous,
+            interest_2,
+            interest_2_previous,
+            interest_2_upcoming,
+        ]
+    )
     db.commit()
     return True
 
