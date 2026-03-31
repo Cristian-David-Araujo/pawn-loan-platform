@@ -11,6 +11,7 @@ from src.infrastructure.persistence.models import (
     Loan,
     LoanApplication,
     Payment,
+    PaymentEvent,
     User,
 )
 from src.infrastructure.security.password import get_password_hash
@@ -23,6 +24,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
         return False
 
     if force:
+        db.query(PaymentEvent).delete()
         db.query(InterestCharge).delete()
         db.query(Payment).delete()
         db.query(CollateralItem).delete()
