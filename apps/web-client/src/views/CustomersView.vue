@@ -72,10 +72,45 @@
       </table>
     </div>
 
-    <div class="card mt-16">
+    <div class="card mt-16 customer-detail-shell">
       <h3>{{ t('customers.customerDetail') }}</h3>
       <p v-if="selectedCustomer" class="muted">{{ t('customers.selectedCustomer', { id: selectedCustomer.id }) }}</p>
       <p v-else class="muted">{{ t('customers.noCustomerSelected') }}</p>
+
+      <div v-if="selectedCustomer" class="customer-header mt-16">
+        <div>
+          <h3 class="customer-title">{{ selectedCustomer.fullName }}</h3>
+          <p class="muted">{{ selectedCustomer.documentType }} / {{ selectedCustomer.documentNumber }}</p>
+        </div>
+        <span class="pill" :class="selectedCustomer.status === 'active' ? 'pill-current' : 'pill-overdue'">
+          {{ selectedCustomer.status === 'active' ? t('common.active') : selectedCustomer.status }}
+        </span>
+      </div>
+
+      <div v-if="selectedCustomer" class="grid grid-4 mt-16">
+        <div class="card stat-card stat-accent-blue">
+          <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
+          <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
+        </div>
+        <div class="card stat-card stat-accent-amber">
+          <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
+          <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
+        </div>
+        <div class="card stat-card stat-accent-green">
+          <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
+          <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
+        </div>
+        <div class="card stat-card stat-accent-indigo">
+          <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
+          <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
+        </div>
+      </div>
+
+      <div v-if="selectedCustomer" class="stats-inline mt-16">
+        <span class="pill">{{ t('customers.pendingInterestOnly', { amount: formatCurrency(totalPendingInterest) }) }}</span>
+        <span class="pill">{{ t('customers.pendingPenaltyOnly', { amount: formatCurrency(totalPendingPenalty) }) }}</span>
+        <span class="pill">{{ t('customers.unpaidAccruedInterest', { amount: formatCurrency(totalAccruedUnpaidInterest) }) }}</span>
+      </div>
 
       <form v-if="selectedCustomer" class="form mt-16" @submit.prevent="handleUpdateCustomer">
         <div class="grid grid-3">
@@ -111,8 +146,80 @@
             <input v-model="editForm.city" required />
           </label>
         </div>
-        <button class="btn" type="submit">{{ t('customers.saveChanges') }}</button>
+        <button class="btn" type="submit" :disabled="isSaving">{{ t('customers.saveChanges') }}</button>
       </form>
+
+      <div v-if="selectedCustomer" class="mt-16">
+        <h3>{{ t('customers.paymentBehavior') }}</h3>
+        <p class="muted">{{ t('customers.paymentBehaviorHint') }}</p>
+        <p v-if="financialDataLoading" class="muted mt-16">{{ t('customers.loadingFinancialData') }}</p>
+        <p v-else-if="financialDataError" class="muted mt-16">{{ t('customers.financialDataUnavailable') }}</p>
+
+        <table v-else>
+          <thead>
+            <tr>
+              <th>{{ t('common.loan') }}</th>
+              <th>{{ t('payments.period') }}</th>
+              <th>{{ t('payments.dueDate') }}</th>
+              <th>{{ t('payments.pendingInterest') }}</th>
+              <th>{{ t('payments.penalty') }}</th>
+              <th>{{ t('payments.outstandingPeriod') }}</th>
+              <th>{{ t('common.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in pendingInterestItems" :key="item.interest_charge_id">
+              <td>#{{ item.loan_id }}</td>
+              <td>{{ item.billing_period }}</td>
+              <td>{{ item.due_date }}</td>
+              <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
+              <td>{{ formatCurrency(item.penalty_amount) }}</td>
+              <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
+              <td>
+                <span class="pill" :class="item.overdue ? 'pill-overdue' : 'pill-current'">
+                  {{ item.overdue ? t('common.overdue') : t('payments.currentOrUpcoming') }}
+                </span>
+              </td>
+            </tr>
+            <tr v-if="!pendingInterestItems.length">
+              <td colspan="7">{{ t('customers.noPendingInterestDetail') }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="selectedCustomer" class="mt-16">
+        <h3>{{ t('customers.customerPaymentTraceability') }}</h3>
+        <p class="muted" v-if="!paymentEvents.length">{{ t('customers.noPaymentEvents') }}</p>
+        <table v-else>
+          <thead>
+            <tr>
+              <th>{{ t('common.date') }}</th>
+              <th>{{ t('payments.paymentType') }}</th>
+              <th>{{ t('common.loan') }}</th>
+              <th>{{ t('payments.period') }}</th>
+              <th>{{ t('common.total') }}</th>
+              <th>{{ t('common.interest') }}</th>
+              <th>{{ t('payments.penalty') }}</th>
+              <th>{{ t('common.principal') }}</th>
+              <th>{{ t('common.method') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="event in paymentEvents" :key="event.id">
+              <td>{{ event.payment_date }}</td>
+              <td>{{ paymentTypeLabel(event.payment_type) }}</td>
+              <td>#{{ event.loan_id }}</td>
+              <td>{{ event.billing_period || '-' }}</td>
+              <td>{{ formatCurrency(event.total_entered_amount) }}</td>
+              <td>{{ formatCurrency(event.allocated_to_interest) }}</td>
+              <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
+              <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
+              <td>{{ paymentMethodLabel(event.payment_method) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       <div v-if="selectedCustomer" class="mt-16">
         <h3>{{ t('customers.customerLoans') }}</h3>
@@ -216,7 +323,54 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { apiClient } from '../services/api'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
+
+interface InterestPendingItem {
+  interest_charge_id: number
+  loan_id: number
+  billing_period: string
+  due_date: string
+  remaining_pending_amount: number
+  penalty_amount: number
+  current_outstanding_balance: number
+  overdue: boolean
+}
+
+interface InterestPendingGroup {
+  items: InterestPendingItem[]
+}
+
+interface InterestPendingResponse {
+  groups: InterestPendingGroup[]
+  total_pending_interest: number
+  total_pending_penalty: number
+  total_outstanding: number
+  available_advance_balance: number
+}
+
+interface PrincipalContextItem {
+  outstanding_principal: number
+  accrued_unpaid_interest: number
+}
+
+interface PrincipalContextResponse {
+  items: PrincipalContextItem[]
+}
+
+interface PaymentEvent {
+  id: number
+  payment_type: string
+  loan_id: number
+  billing_period: string
+  total_entered_amount: number
+  allocated_to_interest: number
+  allocated_to_penalty: number
+  allocated_to_principal: number
+  payment_date: string
+  payment_method: string
+}
 
 const { state, createCustomer, updateCustomer, getCustomerById, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
@@ -224,6 +378,11 @@ const message = ref('')
 const search = ref('')
 const selectedCustomerId = ref<number | null>(null)
 const isSaving = ref(false)
+const financialDataLoading = ref(false)
+const financialDataError = ref(false)
+const pendingInterestData = ref<InterestPendingResponse | null>(null)
+const principalContextData = ref<PrincipalContextResponse | null>(null)
+const paymentEvents = ref<PaymentEvent[]>([])
 
 onMounted(async () => {
   await ensureInitialized()
@@ -254,21 +413,36 @@ const selectedCustomerLoans = computed(() => {
   if (!selectedCustomer.value) {
     return []
   }
-  return state.loans.filter((loan) => loan.customerId === selectedCustomer.value?.id)
+  return state.loans.filter((loan: Loan) => loan.customerId === selectedCustomer.value?.id)
 })
 
-const selectedCustomerLoanIds = computed(() => new Set(selectedCustomerLoans.value.map((loan) => loan.id)))
+const selectedCustomerLoanIds = computed(() => new Set(selectedCustomerLoans.value.map((loan: Loan) => loan.id)))
 
 const selectedCustomerPayments = computed(() =>
-  state.payments.filter((payment) => selectedCustomerLoanIds.value.has(payment.loanId))
+  state.payments.filter((payment: Payment) => selectedCustomerLoanIds.value.has(payment.loanId))
 )
 
 const selectedCustomerCollateral = computed(() =>
-  state.collateralItems.filter((item) => selectedCustomerLoanIds.value.has(item.loanId))
+  state.collateralItems.filter((item: CollateralItem) => selectedCustomerLoanIds.value.has(item.loanId))
+)
+
+const pendingInterestItems = computed(() => pendingInterestData.value?.groups.flatMap((group) => group.items) ?? [])
+
+const totalPendingInterest = computed(() => pendingInterestData.value?.total_pending_interest ?? 0)
+const totalPendingPenalty = computed(() => pendingInterestData.value?.total_pending_penalty ?? 0)
+const totalPendingOutstanding = computed(() => pendingInterestData.value?.total_outstanding ?? 0)
+const availableAdvanceBalance = computed(() => pendingInterestData.value?.available_advance_balance ?? 0)
+
+const totalOutstandingPrincipal = computed(() =>
+  (principalContextData.value?.items ?? []).reduce((sum, loan) => sum + loan.outstanding_principal, 0)
+)
+
+const totalAccruedUnpaidInterest = computed(() =>
+  (principalContextData.value?.items ?? []).reduce((sum, loan) => sum + loan.accrued_unpaid_interest, 0)
 )
 
 const totalCustomerPaid = computed(() =>
-  selectedCustomerPayments.value.reduce((sum, payment) => sum + payment.totalAmount, 0)
+  selectedCustomerPayments.value.reduce((sum: number, payment: Payment) => sum + payment.totalAmount, 0)
 )
 
 const formatCurrency = (amount: number) =>
@@ -292,6 +466,31 @@ const syncEditForm = () => {
 const selectCustomer = (customerId: number) => {
   selectedCustomerId.value = customerId
   syncEditForm()
+  void loadCustomerFinancialData(customerId)
+}
+
+const loadCustomerFinancialData = async (customerId: number) => {
+  financialDataLoading.value = true
+  financialDataError.value = false
+
+  try {
+    const [pending, principal, history] = await Promise.all([
+      apiClient.request<InterestPendingResponse>(`/payments/customers/${customerId}/interest-pending`),
+      apiClient.request<PrincipalContextResponse>(`/payments/customers/${customerId}/principal-context`),
+      apiClient.request<PaymentEvent[]>(`/payments/customers/${customerId}/history`)
+    ])
+
+    pendingInterestData.value = pending
+    principalContextData.value = principal
+    paymentEvents.value = history
+  } catch {
+    financialDataError.value = true
+    pendingInterestData.value = null
+    principalContextData.value = null
+    paymentEvents.value = []
+  } finally {
+    financialDataLoading.value = false
+  }
 }
 
 const handleCreateCustomer = async () => {
@@ -339,13 +538,36 @@ const handleUpdateCustomer = async () => {
   }
 }
 
+const paymentMethodLabel = (method: string) => {
+  if (method === 'cash') {
+    return t('common.cash')
+  }
+  if (method === 'bank-transfer') {
+    return t('common.bankTransfer')
+  }
+  return t('common.other')
+}
+
+const paymentTypeLabel = (paymentType: string) => {
+  if (paymentType === 'interest') {
+    return t('payments.interestTab')
+  }
+  if (paymentType === 'principal') {
+    return t('payments.principalTab')
+  }
+  if (paymentType === 'advance') {
+    return t('customers.advancePayment')
+  }
+  return paymentType
+}
+
 const filteredCustomers = computed(() => {
   const query = search.value.trim().toLowerCase()
   if (!query) {
     return state.customers
   }
 
-  return state.customers.filter((customer) =>
+  return state.customers.filter((customer: Customer) =>
     [customer.fullName, customer.documentNumber, customer.phone, customer.city].some((value) =>
       value.toLowerCase().includes(query)
     )

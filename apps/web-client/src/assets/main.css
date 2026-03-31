@@ -177,6 +177,10 @@ h3 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .mt-16 {
   margin-top: 1rem;
 }
@@ -188,6 +192,26 @@ h3 {
 
 .stat-card {
   min-height: 92px;
+}
+
+.stat-accent-blue {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  border-color: #bfdbfe;
+}
+
+.stat-accent-amber {
+  background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+  border-color: #fcd34d;
+}
+
+.stat-accent-green {
+  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 100%);
+  border-color: #86efac;
+}
+
+.stat-accent-indigo {
+  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 100%);
+  border-color: #c7d2fe;
 }
 
 .stat-label {
@@ -354,6 +378,28 @@ td {
   background: #eff6ff;
 }
 
+.customer-detail-shell {
+  background:
+    radial-gradient(circle at top right, rgba(148, 163, 184, 0.16), transparent 35%),
+    #fff;
+}
+
+.customer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.85rem;
+  background: #f8fafc;
+}
+
+.customer-title {
+  font-size: 1.1rem;
+  margin-bottom: 0.2rem;
+}
+
 ul {
   margin: 0;
   padding-left: 1rem;
@@ -395,8 +441,14 @@ ul {
   }
 
   .grid-3,
-  .grid-2 {
+  .grid-2,
+  .grid-4 {
     grid-template-columns: 1fr;
+  }
+
+  .customer-header {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .topbar {
