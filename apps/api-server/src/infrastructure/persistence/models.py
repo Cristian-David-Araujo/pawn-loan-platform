@@ -117,6 +117,25 @@ class Payment(Base):
     is_reversed: Mapped[bool] = mapped_column(default=False)
 
 
+class PaymentEvent(Base):
+    __tablename__ = "payment_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    payment_type: Mapped[str] = mapped_column(String(60), index=True)
+    loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"), index=True)
+    interest_charge_id: Mapped[int | None] = mapped_column(ForeignKey("interest_charges.id"), nullable=True)
+    billing_period: Mapped[str] = mapped_column(String(30), default="")
+    total_entered_amount: Mapped[float] = mapped_column(Float)
+    allocated_to_interest: Mapped[float] = mapped_column(Float, default=0)
+    allocated_to_penalty: Mapped[float] = mapped_column(Float, default=0)
+    allocated_to_principal: Mapped[float] = mapped_column(Float, default=0)
+    payment_date: Mapped[date] = mapped_column(Date)
+    operator_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    payment_method: Mapped[str] = mapped_column(String(40), default="cash")
+    notes: Mapped[str] = mapped_column(Text, default="")
+    audit_timestamp: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
+
+
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
