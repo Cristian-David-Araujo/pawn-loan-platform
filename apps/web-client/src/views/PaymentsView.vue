@@ -89,7 +89,7 @@
             <td>#{{ item.loan_id }}</td>
             <td>{{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
             <td>{{ item.billing_period }}</td>
-            <td>{{ item.due_date }}</td>
+            <td>{{ formatDateDMY(item.due_date) }}</td>
             <td>{{ formatCurrency(item.original_interest_amount) }}</td>
             <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
             <td>{{ formatCurrency(item.penalty_amount) }}</td>
@@ -166,7 +166,7 @@
         </div>
         <div class="card">
           <p>{{ t('payments.nextDueDate') }}</p>
-          <strong>{{ selectedPrincipalLoan.next_due_date }}</strong>
+          <strong>{{ formatDateDMY(selectedPrincipalLoan.next_due_date) }}</strong>
         </div>
       </div>
 
@@ -217,7 +217,7 @@
         </thead>
         <tbody>
           <tr v-for="event in paymentHistory" :key="event.id">
-            <td>{{ event.payment_date }}</td>
+            <td>{{ formatDateDMY(event.payment_date) }}</td>
             <td>{{ event.payment_type }}</td>
             <td>#{{ event.loan_id }}</td>
             <td>{{ event.billing_period || '-' }}</td>
@@ -245,6 +245,7 @@ import { CircleDollarSign, ReceiptText, WalletCards } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { formatDateDMY } from '../utils/date'
 
 interface InterestPendingItem {
   interest_charge_id: number

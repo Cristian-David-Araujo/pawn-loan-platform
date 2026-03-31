@@ -101,10 +101,10 @@
         </div>
 
         <div class="stats-inline mt-16">
-          <span class="pill">{{ t('customers.customerSince', { date: formatDate(selectedCustomer.createdAt) }) }}</span>
-          <span class="pill">{{ t('customers.lastUpdate', { date: formatDate(selectedCustomer.updatedAt) }) }}</span>
+          <span class="pill">{{ t('customers.customerSince', { date: formatDateDMY(selectedCustomer.createdAt) }) }}</span>
+          <span class="pill">{{ t('customers.lastUpdate', { date: formatDateDMY(selectedCustomer.updatedAt) }) }}</span>
           <span v-if="firstLoanDisbursementDate" class="pill">
-            {{ t('customers.firstLoanDate', { date: formatDate(firstLoanDisbursementDate) }) }}
+            {{ t('customers.firstLoanDate', { date: formatDateDMY(firstLoanDisbursementDate) }) }}
           </span>
         </div>
 
@@ -195,7 +195,7 @@
               <tr v-for="item in pendingInterestItems" :key="item.interest_charge_id">
                 <td>#{{ item.loan_id }}</td>
                 <td>{{ item.billing_period }}</td>
-                <td>{{ item.due_date }}</td>
+                <td>{{ formatDateDMY(item.due_date) }}</td>
                 <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
                 <td>{{ formatCurrency(item.penalty_amount) }}</td>
                 <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
@@ -231,7 +231,7 @@
             </thead>
             <tbody>
               <tr v-for="event in paymentEvents" :key="event.id">
-                <td>{{ event.payment_date }}</td>
+                <td>{{ formatDateDMY(event.payment_date) }}</td>
                 <td>{{ paymentTypeLabel(event.payment_type) }}</td>
                 <td>#{{ event.loan_id }}</td>
                 <td>{{ event.billing_period || '-' }}</td>
@@ -265,7 +265,7 @@
               <tr v-for="loan in selectedCustomerLoans" :key="loan.id">
                 <td>#{{ loan.id }}</td>
                 <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-                <td>{{ formatDate(loan.disbursementDate) }}</td>
+                <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
                 <td>{{ loan.dueDay }}</td>
                 <td>{{ formatCurrency(loan.principalAmount) }}</td>
                 <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
@@ -298,7 +298,7 @@
               <tr v-for="payment in selectedCustomerPayments" :key="payment.id">
                 <td>#{{ payment.id }}</td>
                 <td>#{{ payment.loanId }}</td>
-                <td>{{ payment.paymentDate }}</td>
+                <td>{{ formatDateDMY(payment.paymentDate) }}</td>
                 <td>{{ formatCurrency(payment.totalAmount) }}</td>
                 <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
                 <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
@@ -357,6 +357,7 @@ import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
+import { formatDateDMY } from '../utils/date'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -495,13 +496,6 @@ const formatCurrency = (amount: number) =>
   new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
     amount
   )
-
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: '2-digit'
-  }).format(new Date(value))
 
 const syncEditForm = () => {
   if (!selectedCustomer.value) {
