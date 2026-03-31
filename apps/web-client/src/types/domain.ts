@@ -7,8 +7,12 @@ export interface Customer {
   documentType: string
   documentNumber: string
   phone: string
+  email: string
+  address: string
   city: string
   status: 'active' | 'archived'
+  createdAt: string
+  updatedAt: string
 }
 
 export interface Loan {

@@ -306,6 +306,18 @@ td {
   padding: 0.6rem 0.4rem;
 }
 
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f8fafc;
+}
+
+.selected-row {
+  background: #eff6ff;
+}
+
 ul {
   margin: 0;
   padding-left: 1rem;

@@ -10,8 +10,12 @@ interface BackendCustomer {
   document_type: string
   document_number: string
   phone: string
+  email: string
+  address: string
   city: string
   status: string
+  created_at: string
+  updated_at: string
 }
 
 interface BackendLoan {
@@ -56,6 +60,16 @@ interface CreateCustomerPayload {
   city: string
 }
 
+interface UpdateCustomerPayload {
+  id: number
+  fullName: string
+  phone: string
+  email: string
+  address: string
+  city: string
+  status: 'active' | 'archived'
+}
+
 interface CreateLoanPayload {
   customerId: number
   loanType: LoanType
@@ -96,8 +110,12 @@ const mapCustomer = (item: BackendCustomer): Customer => ({
   documentType: item.document_type,
   documentNumber: item.document_number,
   phone: item.phone,
+  email: item.email,
+  address: item.address,
   city: item.city,
-  status: item.status === 'active' ? 'active' : 'archived'
+  status: item.status === 'active' ? 'active' : 'archived',
+  createdAt: item.created_at,
+  updatedAt: item.updated_at
 })
 
 const mapLoan = (item: BackendLoan): Loan => ({
@@ -176,6 +194,8 @@ const getCustomerName = (customerId: number) => {
   return customer?.fullName ?? '__UNKNOWN_CUSTOMER__'
 }
 
+const getCustomerById = (customerId: number) => state.customers.find((item) => item.id === customerId) ?? null
+
 const createCustomer = async (payload: CreateCustomerPayload) => {
   const duplicate = state.customers.some(
     (item) => item.documentType === payload.documentType && item.documentNumber === payload.documentNumber
@@ -200,6 +220,30 @@ const createCustomer = async (payload: CreateCustomerPayload) => {
 
   await refreshAll()
   return { ok: true, messageKey: 'messages.customerCreated' }
+}
+
+const updateCustomer = async (payload: UpdateCustomerPayload) => {
+  const current = state.customers.find((item) => item.id === payload.id)
+  if (!current) {
+    return { ok: false, messageKey: 'messages.customerNotFound' }
+  }
+
+  const nameParts = splitName(payload.fullName)
+
+  await apiClient.request<BackendCustomer>(`/customers/${payload.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      ...nameParts,
+      phone: payload.phone,
+      email: payload.email,
+      address: payload.address,
+      city: payload.city,
+      status: payload.status
+    })
+  })
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.customerUpdated' }
 }
 
 const createLoan = async (payload: CreateLoanPayload) => {
@@ -281,9 +325,11 @@ export const useMockPlatformStore = () => ({
   state,
   dashboardStats,
   getCustomerName,
+  getCustomerById,
   ensureInitialized,
   refreshAll,
   createCustomer,
+  updateCustomer,
   createLoan,
   createCollateral,
   createPayment
