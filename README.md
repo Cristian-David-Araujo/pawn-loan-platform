@@ -1,172 +1,142 @@
-# Pawn Loan Platform
+# Pawn and Personal Loan Management Platform
 
-A microservices-based loan management platform for pawn-backed and personal loans, built with **FastAPI**, **Vue 3**, **PostgreSQL**, and **Docker**.
-
-## Features
-
-- **Customer Management** – Register and manage customer profiles
-- **Loan Applications** – Create, submit, approve, and reject loan applications
-- **Loan Lifecycle** – Disbursement, tracking, renewals, and closures
-- **Pawn Collateral** – Register, track, release, and liquidate collateral items
-- **Finance / Interest** – Monthly interest generation and balance tracking
-- **Payment Management** – Register payments, allocation, and reversals
-- **Reporting** – Active loans, overdue, collateral, cash summary reports
-- **Authentication** – JWT-based auth with role-based access control
-
-## Architecture
-
-```
-Frontend (Vue 3) → API Gateway (port 8000)
-                          ↓
-       ┌──────────────────────────────────┐
-       │           Microservices          │
-       ├──────────────────────────────────┤
-       │ Identity Service    :8001        │
-       │ Customer Service    :8002        │
-       │ Loan Service        :8003        │
-       │ Collateral Service  :8004        │
-       │ Finance Service     :8005        │
-       │ Payment Service     :8006        │
-       │ Reporting Service   :8007        │
-       └──────────────────────────────────┘
-                          ↓
-                    PostgreSQL :5432
-```
+Monorepo scaffold for a pawn-backed and personal loan platform.
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Vue 3, Vite, TypeScript, Pinia, Vue Router, Axios |
-| Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic, Pydantic v2 |
-| Database | PostgreSQL 16 |
-| Auth | JWT (python-jose) |
-| Infrastructure | Docker, Docker Compose |
+- Backend: FastAPI (Python)
+- Frontend: Vue 3 + Vite + TypeScript
+- Database: PostgreSQL
+- Runtime: Docker + Docker Compose
 
-## Quick Start
+## Repository Structure
 
-### Prerequisites
-
-- Docker & Docker Compose
-- Make (optional, for convenience commands)
-
-### 1. Clone and configure environment
-
-```bash
-cp .env.example .env
-# Edit .env to set a strong SECRET_KEY
-```
-
-### 2. Start all services
-
-```bash
-docker compose up -d
-# or
-make up
-```
-
-### 3. Access the application
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost |
-| API Gateway | http://localhost:8000 |
-| Identity Service (docs) | http://localhost:8001/docs |
-| Customer Service (docs) | http://localhost:8002/docs |
-| Loan Service (docs) | http://localhost:8003/docs |
-| Collateral Service (docs) | http://localhost:8004/docs |
-| Finance Service (docs) | http://localhost:8005/docs |
-| Payment Service (docs) | http://localhost:8006/docs |
-| Reporting Service (docs) | http://localhost:8007/docs |
-
-### 4. Create the first admin user
-
-```bash
-# POST to identity service to register
-curl -X POST http://localhost:8001/api/v1/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"username":"admin","email":"admin@example.com","password":"admin123","full_name":"Administrator"}'
-```
-
-## Development
-
-### Running Tests
-
-```bash
-# All services
-make test
-
-# Single service
-cd backend/loan-service && python -m pytest tests/ -v
-```
-
-### Project Structure
-
-```
+```text
 pawn-loan-platform/
-├── frontend/
-│   └── web-app/              # Vue 3 application
-├── backend/
-│   ├── gateway/              # API Gateway (port 8000)
-│   ├── identity-service/     # Auth + Users (port 8001)
-│   ├── customer-service/     # Customer CRUD (port 8002)
-│   ├── loan-service/         # Loans + Applications (port 8003)
-│   ├── collateral-service/   # Collateral Items (port 8004)
-│   ├── finance-service/      # Interest + Penalties (port 8005)
-│   ├── payment-service/      # Payments (port 8006)
-│   └── reporting-service/    # Reports (port 8007)
+├── apps/
+│   ├── web-client/
+│   └── api-server/
 ├── database/
-│   └── init/                 # PostgreSQL init scripts
+├── infrastructure/
+├── docs/
+├── .github/
 ├── docker-compose.yml
-├── .env.example
-├── Makefile
 └── README.md
 ```
 
-## API Overview
+## Docker Services
 
-All APIs follow REST conventions and are versioned under `/api/v1/`.
+- `web-client`: Vue development server on port `5173`
+- `api-server`: FastAPI development server on port `8000`
+- `postgres`: PostgreSQL on port `5432`
 
-### Authentication
-```
-POST /api/v1/auth/login       # Login (returns JWT)
-POST /api/v1/auth/register    # Register user
-GET  /api/v1/users/me         # Current user profile
-```
+## Environment Files
 
-### Customers
-```
-GET  /api/v1/customers        # List customers
-POST /api/v1/customers        # Create customer
-GET  /api/v1/customers/{id}   # Get customer
-PUT  /api/v1/customers/{id}   # Update customer
-```
+- Root source of truth: `.env`
+- App-local files:
+	- `apps/api-server/.env`
+	- `apps/web-client/.env`
 
-### Loans
-```
-POST /api/v1/loan-applications               # Create application
-POST /api/v1/loan-applications/{id}/approve  # Approve
-POST /api/v1/loans                           # Create loan from application
-GET  /api/v1/loans/{id}                      # Get loan details
-POST /api/v1/loans/{id}/renew                # Renew loan
-POST /api/v1/loans/{id}/close                # Close loan
-```
+Versioned templates:
 
-### Payments
-```
-POST /api/v1/payments               # Register payment
-GET  /api/v1/payments               # List payments
-POST /api/v1/payments/{id}/reverse  # Reverse payment
+- `.env.example`
+- `apps/api-server/.env.example`
+- `apps/web-client/.env.example`
+
+`docker-compose.yml` is configured to reference the root `.env` so shared settings are centralized.
+
+Create local env files from templates:
+
+```bash
+cp .env.example .env
+cp apps/api-server/.env.example apps/api-server/.env
+cp apps/web-client/.env.example apps/web-client/.env
 ```
 
-### Collateral
-```
-POST /api/v1/collateral-items                  # Register item
-GET  /api/v1/collateral-items/{id}             # Get item
-POST /api/v1/collateral-items/{id}/release     # Release
-POST /api/v1/collateral-items/{id}/liquidate   # Liquidate
+## Run with Docker Compose
+
+From the repository root:
+
+```bash
+docker compose up --build
 ```
 
-## License
+Run only frontend prototype (no backend dependency required for UI navigation):
 
-MIT
+```bash
+docker compose up --build web-client
+```
+
+Run or rebuild only backend service:
+
+```bash
+docker compose up --build api-server
+```
+
+To stop:
+
+```bash
+docker compose down
+```
+
+## Notes
+
+- `web-client` expects `apps/web-client/package.json`.
+- `api-server` expects `apps/api-server/pyproject.toml` or `apps/api-server/requirements.txt`.
+- Shared Docker settings (ports, DB credentials, API URL) are read from `.env`.
+- `.gitignore` is configured to avoid committing secrets. Only `.env.example` files should be committed.
+- If those files are still missing, containers stay running in idle mode to keep the scaffold ready.
+- Current frontend prototype uses local mock state and does not require backend APIs.
+
+## Backend Quick Start
+
+- FastAPI docs: `http://localhost:8000/docs`
+- Health endpoint: `http://localhost:8000/health`
+- Default bootstrap admin (if not overridden by env):
+	- Username: `admin`
+	- Password: `admin123`
+
+Example login payload:
+
+```json
+{
+	"username": "admin",
+	"password": "admin123"
+}
+```
+
+Important API groups currently implemented:
+
+- Authentication: `/api/v1/auth/*`, `/api/v1/users`
+- Customers: `/api/v1/customers`
+- Loans and applications: `/api/v1/loan-applications`, `/api/v1/loans`
+- Collateral: `/api/v1/collateral-items`
+- Payments: `/api/v1/payments`
+- Finance: `/api/v1/interest/generate`, `/api/v1/loans/{id}/balance`, `/api/v1/loans/{id}/ledger`
+- Reporting: `/api/v1/reports/*`
+
+## Database Init and Seed (Development Best Practice)
+
+The backend uses an idempotent startup bootstrap:
+
+- Creates tables from SQLAlchemy metadata.
+- Ensures admin user exists.
+- Seeds demo data only when enabled.
+
+Environment flags:
+
+- `DB_INIT_ON_STARTUP=true`
+- `DB_SEED_ON_STARTUP=true`
+- `DB_SEED_FORCE=false`
+
+Manual bootstrap command inside container:
+
+```bash
+docker compose exec api-server python -m src.infrastructure.tasks.bootstrap_db --seed
+```
+
+Force reseed (clears sample business data and recreates it):
+
+```bash
+docker compose exec api-server python -m src.infrastructure.tasks.bootstrap_db --seed --force-seed
+```

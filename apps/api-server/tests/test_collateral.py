@@ -1,0 +1,73 @@
+from datetime import date
+
+from fastapi.testclient import TestClient
+
+
+def test_create_collateral_requires_existing_loan(client: TestClient, auth_headers: dict[str, str]) -> None:
+    payload = {
+        "loan_id": 999,
+        "description": "Gold chain",
+        "appraised_value": 600,
+        "storage_location": "Vault A",
+    }
+    response = client.post("/api/v1/collateral-items", headers=auth_headers, json=payload)
+    assert response.status_code == 404
+
+
+
+def test_release_collateral_requires_zero_balance(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+) -> None:
+    loan = create_loan(principal=700)
+
+    create_item_response = client.post(
+        "/api/v1/collateral-items",
+        headers=auth_headers,
+        json={
+            "loan_id": loan["id"],
+            "description": "Watch",
+            "appraised_value": 800,
+            "storage_location": "Vault B",
+        },
+    )
+    assert create_item_response.status_code == 201
+    item_id = create_item_response.json()["id"]
+
+    release_response = client.post(f"/api/v1/collateral-items/{item_id}/release", headers=auth_headers)
+    assert release_response.status_code == 400
+
+
+
+def test_liquidate_collateral_updates_status(client: TestClient, auth_headers: dict[str, str], create_customer) -> None:
+    customer = create_customer(document_number="COLL-CUST-1")
+
+    loan_payload = {
+        "customer_id": customer["id"],
+        "loan_type": "pawn",
+        "principal_amount": 0,
+        "monthly_interest_rate": 7,
+        "disbursement_date": str(date.today()),
+        "due_day": 9,
+    }
+    loan_response = client.post("/api/v1/loans", headers=auth_headers, json=loan_payload)
+    assert loan_response.status_code == 201
+    loan_id = loan_response.json()["id"]
+
+    item_response = client.post(
+        "/api/v1/collateral-items",
+        headers=auth_headers,
+        json={
+            "loan_id": loan_id,
+            "description": "Ring",
+            "appraised_value": 300,
+            "storage_location": "Vault C",
+        },
+    )
+    assert item_response.status_code == 201
+    item_id = item_response.json()["id"]
+
+    liquidate_response = client.post(f"/api/v1/collateral-items/{item_id}/liquidate", headers=auth_headers)
+    assert liquidate_response.status_code == 200
+    assert liquidate_response.json()["status"] == "liquidated"
