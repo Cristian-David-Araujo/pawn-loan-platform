@@ -438,6 +438,21 @@ const submitInterestPayment = async () => {
           })
         })
       }
+
+      const extraAdvance = Math.max(0, interestExtraAdvanceAmount.value)
+      if (extraAdvance > 0) {
+        await apiClient.request('/payments/interest', {
+          method: 'POST',
+          body: JSON.stringify({
+            customer_id: selectedCustomerId.value,
+            selected_charge_ids: [],
+            pay_all_pending: false,
+            total_amount: extraAdvance,
+            payment_method: interestPaymentMethod.value,
+            notes: interestNotes.value
+          })
+        })
+      }
     }
 
     await refreshAll()

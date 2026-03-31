@@ -55,6 +55,7 @@ class InterestPendingResponse(BaseModel):
     total_pending_interest: float
     total_pending_penalty: float
     total_outstanding: float
+    available_advance_balance: float
 
 
 class InterestPaymentRequest(BaseModel):

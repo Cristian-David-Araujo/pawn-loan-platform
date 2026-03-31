@@ -55,38 +55,69 @@ def _pending_interest_items_for_customer(db: Session, customer_id: int, today: d
         return []
 
     loan_by_id = {loan.id: loan for loan in loans}
-    charge_rows = list(
-        db.scalars(
-            select(InterestCharge).where(
-                InterestCharge.loan_id.in_(list(loan_by_id.keys())),
-                InterestCharge.status.in_(["generated", "partially_paid"]),
-            )
-        ).all()
-    )
-
     items: list[InterestPendingItem] = []
-    for charge in charge_rows:
-        calc = _compute_charge_pending(db, charge, today)
-        if calc["outstanding"] <= 0:
-            continue
-
-        loan = loan_by_id[charge.loan_id]
-        billing_period = charge.period_start.strftime("%Y-%m")
-        items.append(
-            InterestPendingItem(
-                interest_charge_id=charge.id,
-                loan_id=charge.loan_id,
-                loan_type=loan.loan_type.value,
-                disbursement_date=loan.disbursement_date,
-                billing_period=billing_period,
-                due_date=charge.period_end,
-                original_interest_amount=round(charge.amount, 2),
-                remaining_pending_amount=round(calc["base_pending"], 2),
-                overdue=bool(calc["overdue"]),
-                penalty_amount=round(calc["penalty_amount"], 2),
-                current_outstanding_balance=round(calc["outstanding"], 2),
-            )
+    for loan in loans:
+        charges = list(
+            db.scalars(
+                select(InterestCharge)
+                .where(
+                    InterestCharge.loan_id == loan.id,
+                    InterestCharge.status.in_(["generated", "partially_paid"]),
+                )
+                .order_by(InterestCharge.period_end.asc(), InterestCharge.id.asc())
+            ).all()
         )
+
+        advance_pool = round(
+            sum(
+                event.allocated_to_interest
+                for event in db.scalars(
+                    select(PaymentEvent).where(
+                        PaymentEvent.loan_id == loan.id,
+                        PaymentEvent.interest_charge_id.is_(None),
+                        PaymentEvent.payment_type == "interest_advance_payment",
+                    )
+                ).all()
+            ),
+            2,
+        )
+
+        for charge in charges:
+            charge_events = list(
+                db.scalars(select(PaymentEvent).where(PaymentEvent.interest_charge_id == charge.id)).all()
+            )
+
+            paid_interest = round(sum(item.allocated_to_interest for item in charge_events), 2)
+            paid_penalty = round(sum(item.allocated_to_penalty for item in charge_events), 2)
+
+            base_pending = round(max(0.0, charge.amount - paid_interest), 2)
+            if advance_pool > 0 and base_pending > 0:
+                advance_applied = round(min(advance_pool, base_pending), 2)
+                base_pending = round(base_pending - advance_applied, 2)
+                advance_pool = round(advance_pool - advance_applied, 2)
+
+            overdue = charge.period_end < today
+            penalty_amount = round(base_pending * 0.02, 2) if overdue and base_pending > 0 else 0.0
+            pending_penalty = round(max(0.0, penalty_amount - paid_penalty), 2)
+            outstanding = round(base_pending + pending_penalty, 2)
+            if outstanding <= 0:
+                continue
+
+            items.append(
+                InterestPendingItem(
+                    interest_charge_id=charge.id,
+                    loan_id=charge.loan_id,
+                    loan_type=loan.loan_type.value,
+                    disbursement_date=loan.disbursement_date,
+                    billing_period=charge.period_start.strftime("%Y-%m"),
+                    due_date=charge.period_end,
+                    original_interest_amount=round(charge.amount, 2),
+                    remaining_pending_amount=round(base_pending, 2),
+                    overdue=overdue,
+                    penalty_amount=round(pending_penalty, 2),
+                    current_outstanding_balance=round(outstanding, 2),
+                )
+            )
 
     return sorted(items, key=lambda item: (item.due_date, item.loan_id, item.interest_charge_id))
 
@@ -98,6 +129,20 @@ def get_pending_interest(
     _: User = Depends(get_current_user),
 ) -> InterestPendingResponse:
     today = date.today()
+    loans = list(
+        db.scalars(select(Loan).where(Loan.customer_id == customer_id, Loan.status != LoanStatus.closed)).all()
+    )
+    loan_ids = [loan.id for loan in loans]
+    if not loan_ids:
+        return InterestPendingResponse(
+            customer_id=customer_id,
+            groups=[],
+            total_pending_interest=0,
+            total_pending_penalty=0,
+            total_outstanding=0,
+            available_advance_balance=0,
+        )
+
     items = _pending_interest_items_for_customer(db, customer_id, today)
 
     grouped: dict[str, list[InterestPendingItem]] = {}
@@ -112,6 +157,47 @@ def get_pending_interest(
     total_pending_interest = round(sum(item.remaining_pending_amount for item in items), 2)
     total_pending_penalty = round(sum(item.penalty_amount for item in items), 2)
     total_outstanding = round(sum(item.current_outstanding_balance for item in items), 2)
+    total_available_advance = round(
+        sum(
+            event.allocated_to_interest
+            for event in db.scalars(
+                select(PaymentEvent).where(
+                    PaymentEvent.loan_id.in_(loan_ids),
+                    PaymentEvent.interest_charge_id.is_(None),
+                    PaymentEvent.payment_type == "interest_advance_payment",
+                )
+            ).all()
+        ),
+        2,
+    )
+
+    total_generated_interest = round(
+        sum(
+            charge.amount
+            for charge in db.scalars(
+                select(InterestCharge).where(
+                    InterestCharge.loan_id.in_(loan_ids),
+                )
+            ).all()
+        ),
+        2,
+    )
+
+    total_linked_interest_paid = round(
+        sum(
+            event.allocated_to_interest
+            for event in db.scalars(
+                select(PaymentEvent).where(
+                    PaymentEvent.loan_id.in_(loan_ids),
+                    PaymentEvent.interest_charge_id.is_not(None),
+                )
+            ).all()
+        ),
+        2,
+    )
+
+    consumed_advance = max(0.0, total_generated_interest - total_linked_interest_paid - total_pending_interest)
+    available_advance_balance = round(max(0.0, total_available_advance - consumed_advance), 2)
 
     return InterestPendingResponse(
         customer_id=customer_id,
@@ -119,6 +205,7 @@ def get_pending_interest(
         total_pending_interest=total_pending_interest,
         total_pending_penalty=total_pending_penalty,
         total_outstanding=total_outstanding,
+        available_advance_balance=available_advance_balance,
     )
 
 
@@ -207,9 +294,72 @@ def pay_interest(
         selected = set(payload.selected_charge_ids)
         selected_items = [item for item in items if item.interest_charge_id in selected]
     else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Select one or more interest charges or use pay_all_pending",
+        loan = db.scalar(
+            select(Loan)
+            .where(Loan.customer_id == payload.customer_id, Loan.status != LoanStatus.closed)
+            .order_by(Loan.id.asc())
+        )
+        if loan is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer has no active loans")
+
+        advance_amount = round(payload.total_amount, 2)
+        payment = Payment(
+            loan_id=loan.id,
+            payment_date=payload.payment_date,
+            total_amount=advance_amount,
+            allocated_to_penalty=0,
+            allocated_to_interest=advance_amount,
+            allocated_to_fees=0,
+            allocated_to_principal=0,
+            payment_method=payload.payment_method,
+            received_by=current_user.id,
+        )
+        db.add(payment)
+
+        event = PaymentEvent(
+            payment_type="interest_advance_payment",
+            loan_id=loan.id,
+            interest_charge_id=None,
+            billing_period=payload.payment_date.strftime("%Y-%m"),
+            total_entered_amount=advance_amount,
+            allocated_to_interest=advance_amount,
+            allocated_to_penalty=0,
+            allocated_to_principal=0,
+            payment_date=payload.payment_date,
+            operator_user_id=current_user.id,
+            payment_method=payload.payment_method,
+            notes=payload.notes,
+        )
+        db.add(event)
+        db.commit()
+        db.refresh(event)
+
+        write_audit(
+            db,
+            action="interest_advance_payment",
+            entity_type="PaymentEvent",
+            entity_id=str(event.id),
+            user=current_user,
+            new_data=f"customer={payload.customer_id},amount={advance_amount}",
+        )
+
+        return InterestPaymentResponse(
+            customer_id=payload.customer_id,
+            total_entered_amount=advance_amount,
+            total_allocated_amount=advance_amount,
+            unallocated_amount=0,
+            allocations=[
+                InterestPaymentAllocation(
+                    payment_event_id=event.id,
+                    loan_id=loan.id,
+                    interest_charge_id=None,
+                    payment_type="interest_advance_payment",
+                    billing_period=event.billing_period,
+                    allocated_to_interest=advance_amount,
+                    allocated_to_penalty=0,
+                    allocated_total=advance_amount,
+                )
+            ],
         )
 
     if not selected_items:
