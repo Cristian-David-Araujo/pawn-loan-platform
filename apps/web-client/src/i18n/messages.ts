@@ -143,6 +143,7 @@ export const messages = {
       customerDocumentExists: 'Customer document already exists.',
       paymentRegistered: 'Payment registered.',
       allocationMustEqualTotal: 'Allocation must equal total amount.',
+      operationFailed: 'Operation failed. Please try again.',
       unknownCustomer: 'Unknown customer'
     }
   },
@@ -290,6 +291,7 @@ export const messages = {
       customerDocumentExists: 'El documento del cliente ya existe.',
       paymentRegistered: 'Pago registrado.',
       allocationMustEqualTotal: 'La asignacion debe ser igual al monto total.',
+      operationFailed: 'La operacion fallo. Intentalo nuevamente.',
       unknownCustomer: 'Cliente desconocido'
     }
   }

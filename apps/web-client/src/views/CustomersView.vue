@@ -45,6 +45,7 @@
             <th>{{ t('common.phone') }}</th>
             <th>{{ t('common.city') }}</th>
             <th>{{ t('common.status') }}</th>
+            <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -61,6 +62,11 @@
             <td>{{ customer.phone }}</td>
             <td>{{ customer.city }}</td>
             <td>{{ customer.status === 'active' ? t('common.active') : customer.status }}</td>
+            <td>
+              <button class="btn btn-secondary" type="button" @click.stop="selectCustomer(customer.id)">
+                {{ t('customers.editCustomer') }}
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -121,6 +127,7 @@ const { t } = useI18n()
 const message = ref('')
 const search = ref('')
 const selectedCustomerId = ref<number | null>(null)
+const isSaving = ref(false)
 
 onMounted(async () => {
   await ensureInitialized()
@@ -166,36 +173,47 @@ const selectCustomer = (customerId: number) => {
 }
 
 const handleCreateCustomer = async () => {
-  const result = await createCustomer({ ...form })
-  message.value = t(result.messageKey)
+  try {
+    const result = await createCustomer({ ...form })
+    message.value = t(result.messageKey)
 
-  if (result.ok) {
-    form.fullName = ''
-    form.documentType = 'ID'
-    form.documentNumber = ''
-    form.phone = ''
-    form.city = ''
+    if (result.ok) {
+      form.fullName = ''
+      form.documentType = 'ID'
+      form.documentNumber = ''
+      form.phone = ''
+      form.city = ''
+    }
+  } catch {
+    message.value = t('messages.operationFailed')
   }
 }
 
 const handleUpdateCustomer = async () => {
-  if (!selectedCustomer.value) {
+  if (!selectedCustomer.value || isSaving.value) {
     return
   }
 
-  const result = await updateCustomer({
-    id: selectedCustomer.value.id,
-    fullName: editForm.fullName,
-    phone: editForm.phone,
-    email: editForm.email,
-    address: editForm.address,
-    city: editForm.city,
-    status: editForm.status
-  })
+  isSaving.value = true
+  try {
+    const result = await updateCustomer({
+      id: selectedCustomer.value.id,
+      fullName: editForm.fullName,
+      phone: editForm.phone,
+      email: editForm.email,
+      address: editForm.address,
+      city: editForm.city,
+      status: editForm.status
+    })
 
-  message.value = t(result.messageKey)
-  if (result.ok) {
-    syncEditForm()
+    message.value = t(result.messageKey)
+    if (result.ok) {
+      syncEditForm()
+    }
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
   }
 }
 
