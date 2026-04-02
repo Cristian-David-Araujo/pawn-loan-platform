@@ -317,7 +317,7 @@ const updateCustomer = async (payload: UpdateCustomerPayload) => {
 }
 
 const createLoan = async (payload: CreateLoanPayload) => {
-  await apiClient.request<BackendLoan>('/loans', {
+  const created = await apiClient.request<BackendLoan>('/loans', {
     method: 'POST',
     body: JSON.stringify({
       customer_id: payload.customerId,
@@ -331,6 +331,7 @@ const createLoan = async (payload: CreateLoanPayload) => {
   })
 
   await refreshAll()
+  return mapLoan(created)
 }
 
 const createCollateral = async (payload: CreateCollateralPayload) => {

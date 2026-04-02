@@ -89,22 +89,15 @@
           />
         </label>
       </div>
-      <button class="btn" type="submit">
-        <FilePlus2 :size="16" />
-        {{ t('loans.createLoan') }}
-      </button>
-    </form>
+      <label class="checkbox-row" :title="t('loans.applyCollateralHelp')">
+        <input v-model="applyCollateralAssociation" type="checkbox" />
+        <span class="field-label-row">
+          {{ t('loans.applyCollateral') }}
+          <span class="field-help" aria-hidden="true">ⓘ</span>
+        </span>
+      </label>
 
-    <form class="card form mt-16" @submit.prevent="handleCreateCollateral">
-      <div class="grid grid-3">
-        <label>
-          {{ t('common.loan') }}
-          <select v-model.number="collateralForm.loanId" required>
-            <option v-for="loan in collateralEligibleLoans" :key="loan.id" :value="loan.id">
-              {{ getLoanOptionLabel(loan.id, loan.customerId) }}
-            </option>
-          </select>
-        </label>
+      <div v-if="applyCollateralAssociation" class="grid grid-3">
         <label>
           {{ t('common.description') }}
           <input v-model="collateralForm.description" required />
@@ -118,9 +111,41 @@
           <input v-model="collateralForm.storageLocation" required />
         </label>
       </div>
+
+      <div v-if="applyCollateralAssociation" class="form-inline">
+        <button class="btn btn-secondary" type="button" @click="addCollateralToQueue">
+          <FilePlus2 :size="16" />
+          {{ t('loans.addCollateralToQueue') }}
+        </button>
+        <span class="pill">{{ t('loans.collateralQueueCount', { count: collateralQueue.length }) }}</span>
+      </div>
+
+      <table v-if="applyCollateralAssociation && collateralQueue.length">
+        <thead>
+          <tr>
+            <th>{{ t('common.description') }}</th>
+            <th>{{ t('collateral.appraisedValue') }}</th>
+            <th>{{ t('collateral.storageLocation') }}</th>
+            <th>{{ t('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in collateralQueue" :key="`${item.description}-${index}`">
+            <td>{{ item.description }}</td>
+            <td>{{ formatCurrency(item.appraisedValue) }}</td>
+            <td>{{ item.storageLocation }}</td>
+            <td>
+              <button class="btn btn-secondary" type="button" @click="removeCollateralFromQueue(index)">
+                {{ t('loans.removeCollateralFromQueue') }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
       <button class="btn" type="submit">
         <FilePlus2 :size="16" />
-        {{ t('collateral.registerCollateralItem') }}
+        {{ t('loans.createLoan') }}
       </button>
     </form>
 
@@ -324,23 +349,27 @@ interface SortCriterion<T extends string> {
   direction: SortDirection
 }
 
+interface CollateralQueueItem {
+  description: string
+  appraisedValue: number
+  storageLocation: string
+}
+
 const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const search = ref('')
 const message = ref('')
 const applyLatePenalty = ref(true)
+const applyCollateralAssociation = ref(false)
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
+const collateralQueue = ref<CollateralQueueItem[]>([])
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const datePlaceholder = computed(() => getGlobalDateFormat())
 const todayIso = new Date().toISOString().slice(0, 10)
 const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
-
-const collateralEligibleLoans = computed(() =>
-  state.loans.filter((loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
-)
 
 onMounted(async () => {
   await ensureInitialized()
@@ -349,9 +378,6 @@ onMounted(async () => {
   }
   if (state.globalSettings) {
     form.latePenaltyRate = state.globalSettings.defaultLatePenaltyRate
-  }
-  if (collateralEligibleLoans.value.length) {
-    collateralForm.loanId = collateralEligibleLoans.value[0].id
   }
 })
 
@@ -379,33 +405,55 @@ const handleCreateLoan = async () => {
     dueDay: applyLatePenalty.value ? form.dueDay : 0
   }
 
-  await createLoan(payload)
-  form.disbursementDate = formatDateDMY(todayIso)
-  message.value = ''
+  const createdLoan = await createLoan(payload)
 
-  if (!collateralForm.loanId && collateralEligibleLoans.value.length) {
-    collateralForm.loanId = collateralEligibleLoans.value[0].id
+  if (applyCollateralAssociation.value && collateralQueue.value.length) {
+    for (const item of collateralQueue.value) {
+      await createCollateral({
+        loanId: createdLoan.id,
+        description: item.description,
+        appraisedValue: item.appraisedValue,
+        storageLocation: item.storageLocation
+      })
+    }
   }
+
+  form.disbursementDate = formatDateDMY(todayIso)
+  form.loanType = 'pawn'
+  message.value = ''
+  collateralQueue.value = []
+  collateralForm.description = ''
+  collateralForm.appraisedValue = 1000
+  collateralForm.storageLocation = 'Vault A-01'
 }
 
 const collateralForm = reactive({
-  loanId: 0,
   description: '',
   appraisedValue: 1000,
   storageLocation: 'Vault A-01'
 })
 
-const handleCreateCollateral = async () => {
-  if (!collateralEligibleLoans.value.length) {
+const addCollateralToQueue = () => {
+  if (!collateralForm.description.trim()) {
     return
   }
 
-  if (!collateralForm.loanId) {
-    collateralForm.loanId = collateralEligibleLoans.value[0].id
-  }
+  collateralQueue.value = [
+    ...collateralQueue.value,
+    {
+      description: collateralForm.description.trim(),
+      appraisedValue: collateralForm.appraisedValue,
+      storageLocation: collateralForm.storageLocation.trim()
+    }
+  ]
 
-  await createCollateral({ ...collateralForm })
   collateralForm.description = ''
+  collateralForm.appraisedValue = 1000
+  collateralForm.storageLocation = 'Vault A-01'
+}
+
+const removeCollateralFromQueue = (index: number) => {
+  collateralQueue.value = collateralQueue.value.filter((_, itemIndex) => itemIndex !== index)
 }
 
 const formatCurrency = (amount: number) =>
@@ -420,9 +468,6 @@ const getCustomerLabel = (customerId: number) => {
   const value = getCustomerName(customerId)
   return value === '__UNKNOWN_CUSTOMER__' ? t('messages.unknownCustomer') : value
 }
-
-const getLoanOptionLabel = (loanId: number, customerId: number) =>
-  t('collateral.loanOption', { id: loanId, customer: getCustomerLabel(customerId) })
 
 const getSortDirectionSymbol = (direction: SortDirection) => (direction === 'asc' ? '↑' : '↓')
 
