@@ -96,7 +96,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="loan in filteredLoans" :key="loan.id">
+          <tr v-for="loan in filteredLoans" :key="loan.id" class="clickable-row" @click="openLoanDetail(loan.id)">
             <td>{{ loan.id }}</td>
             <td>{{ getCustomerLabel(loan.customerId) }}</td>
             <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
@@ -109,6 +109,109 @@
         </tbody>
       </table>
     </div>
+
+    <div v-if="showLoanDetailModal && selectedLoan" class="modal-backdrop" @click.self="closeLoanDetail">
+      <div class="modal-panel card modal-panel-lg">
+        <div class="modal-header">
+          <h3>{{ t('loans.loanDetail') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeLoanDetail">{{ t('common.close') }}</button>
+        </div>
+
+        <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedLoan.id }) }}</p>
+
+        <div class="grid grid-4 mt-16">
+          <div class="card stat-card stat-accent-indigo">
+            <p class="stat-label">{{ t('common.customer') }}</p>
+            <p class="stat-value">{{ getCustomerLabel(selectedLoan.customerId) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-blue">
+            <p class="stat-label">{{ t('common.type') }}</p>
+            <p class="stat-value">{{ selectedLoan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</p>
+          </div>
+          <div class="card stat-card stat-accent-green">
+            <p class="stat-label">{{ t('common.principal') }}</p>
+            <p class="stat-value">{{ formatCurrency(selectedLoan.principalAmount) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-amber">
+            <p class="stat-label">{{ t('loans.outstanding') }}</p>
+            <p class="stat-value">{{ formatCurrency(selectedLoan.outstandingPrincipal) }}</p>
+          </div>
+        </div>
+
+        <div class="stats-inline mt-16">
+          <span class="pill">{{ t('common.status') }}: {{ t(`common.${selectedLoan.status}`) }}</span>
+          <span class="pill">{{ t('loans.dueDay') }}: {{ selectedLoan.dueDay }}</span>
+          <span class="pill">{{ t('loans.rate') }}: {{ selectedLoan.monthlyInterestRate }}%</span>
+          <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedLoan.disbursementDate) }}</span>
+        </div>
+
+        <div class="mt-16">
+          <h3>{{ t('loans.loanPayments') }}</h3>
+          <p class="muted" v-if="!selectedLoanPayments.length">{{ t('loans.noLoanPayments') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.date') }}</th>
+                <th>{{ t('common.total') }}</th>
+                <th>{{ t('payments.penalty') }}</th>
+                <th>{{ t('common.interest') }}</th>
+                <th>{{ t('common.fees') }}</th>
+                <th>{{ t('common.principal') }}</th>
+                <th>{{ t('common.method') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="payment in selectedLoanPayments" :key="payment.id">
+                <td>#{{ payment.id }}</td>
+                <td>{{ formatDateDMY(payment.paymentDate) }}</td>
+                <td>{{ formatCurrency(payment.totalAmount) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                <td>
+                  {{
+                    payment.paymentMethod === 'cash'
+                      ? t('common.cash')
+                      : payment.paymentMethod === 'bank-transfer'
+                        ? t('common.bankTransfer')
+                        : t('common.other')
+                  }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-16">
+          <h3>{{ t('loans.loanCollateral') }}</h3>
+          <p class="muted" v-if="!selectedLoanCollateral.length">{{ t('loans.noLoanCollateral') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.description') }}</th>
+                <th>{{ t('collateral.appraisedValue') }}</th>
+                <th>{{ t('collateral.custodyCode') }}</th>
+                <th>{{ t('collateral.location') }}</th>
+                <th>{{ t('common.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in selectedLoanCollateral" :key="item.id">
+                <td>#{{ item.id }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ formatCurrency(item.appraisedValue) }}</td>
+                <td>{{ item.custodyCode }}</td>
+                <td>{{ item.storageLocation }}</td>
+                <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -118,11 +221,14 @@ import { useI18n } from 'vue-i18n'
 import { FilePlus2, HandCoins } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { formatDateDMY } from '../utils/date'
 
 const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const search = ref('')
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
+const selectedLoanId = ref<number | null>(null)
+const showLoanDetailModal = ref(false)
 
 const collateralEligibleLoans = computed(() =>
   state.loans.filter((loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
@@ -186,6 +292,41 @@ const getCustomerLabel = (customerId: number) => {
 
 const getLoanOptionLabel = (loanId: number, customerId: number) =>
   t('collateral.loanOption', { id: loanId, customer: getCustomerLabel(customerId) })
+
+const openLoanDetail = (loanId: number) => {
+  selectedLoanId.value = loanId
+  showLoanDetailModal.value = true
+}
+
+const closeLoanDetail = () => {
+  showLoanDetailModal.value = false
+}
+
+const selectedLoan = computed(() => {
+  if (selectedLoanId.value === null) {
+    return null
+  }
+
+  return state.loans.find((loan) => loan.id === selectedLoanId.value) ?? null
+})
+
+const selectedLoanPayments = computed(() => {
+  if (!selectedLoan.value) {
+    return []
+  }
+
+  return state.payments
+    .filter((payment) => payment.loanId === selectedLoan.value?.id)
+    .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+})
+
+const selectedLoanCollateral = computed(() => {
+  if (!selectedLoan.value) {
+    return []
+  }
+
+  return state.collateralItems.filter((item) => item.loanId === selectedLoan.value?.id)
+})
 
 const collateralCountByLoanId = computed(() => {
   const counts = new Map<number, number>()
