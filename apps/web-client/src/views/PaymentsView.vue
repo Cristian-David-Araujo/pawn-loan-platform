@@ -84,8 +84,8 @@
             <td>{{ formatCurrency(item.penalty_amount) }}</td>
             <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
             <td>
-              <span class="pill" :class="item.overdue ? 'pill-overdue' : 'pill-current'">
-                {{ item.overdue ? t('common.overdue') : t('payments.currentOrUpcoming') }}
+              <span class="pill" :class="getPendingStatusClass(item)">
+                {{ t(getPendingStatusKey(item)) }}
               </span>
             </td>
           </tr>
@@ -353,6 +353,28 @@ const interestAmountToPay = computed(() => Math.max(0, interestEnteredAmount.val
 const remainingAfterInterestPayment = computed(() => Math.max(0, totalPendingOutstanding.value - interestAmountToPay.value))
 const partialAmount = computed(() => Math.max(0, suggestedSelectedAmount.value - interestAmountToPay.value))
 const advanceAmount = computed(() => Math.max(0, interestAmountToPay.value - suggestedSelectedAmount.value))
+
+const getPendingStatusKey = (item: InterestPendingItem) => {
+  if (item.overdue) {
+    return 'common.overdue'
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const dueDate = new Date(item.due_date)
+  dueDate.setHours(0, 0, 0, 0)
+
+  return dueDate.getTime() === today.getTime() ? 'payments.current' : 'payments.upcoming'
+}
+
+const getPendingStatusClass = (item: InterestPendingItem) => {
+  if (item.overdue) {
+    return 'pill-overdue'
+  }
+
+  return getPendingStatusKey(item) === 'payments.current' ? 'pill-current' : 'pill-upcoming'
+}
 
 const formatCurrency = (amount: number) =>
   new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {

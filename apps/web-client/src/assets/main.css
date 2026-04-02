@@ -511,6 +511,12 @@ label {
   border-color: #bee7cb;
 }
 
+.pill-upcoming {
+  background: #ebf1fb;
+  color: #2f4464;
+  border-color: #d2deef;
+}
+
 .tabs {
   display: flex;
   gap: 0.5rem;

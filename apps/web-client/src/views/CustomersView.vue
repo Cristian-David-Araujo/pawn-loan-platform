@@ -233,8 +233,8 @@
                 <td>{{ formatCurrency(item.penalty_amount) }}</td>
                 <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
                 <td>
-                  <span class="pill" :class="item.overdue ? 'pill-overdue' : 'pill-current'">
-                    {{ item.overdue ? t('common.overdue') : t('payments.currentOrUpcoming') }}
+                  <span class="pill" :class="getPendingStatusClass(item)">
+                    {{ t(getPendingStatusKey(item)) }}
                   </span>
                 </td>
               </tr>
@@ -1013,6 +1013,28 @@ const paymentMethodLabel = (method: string) => {
     return t('common.bankTransfer')
   }
   return t('common.other')
+}
+
+const getPendingStatusKey = (item: { overdue: boolean; due_date: string }) => {
+  if (item.overdue) {
+    return 'common.overdue'
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const dueDate = new Date(item.due_date)
+  dueDate.setHours(0, 0, 0, 0)
+
+  return dueDate.getTime() === today.getTime() ? 'payments.current' : 'payments.upcoming'
+}
+
+const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => {
+  if (item.overdue) {
+    return 'pill-overdue'
+  }
+
+  return getPendingStatusKey(item) === 'payments.current' ? 'pill-current' : 'pill-upcoming'
 }
 
 const paymentTypeLabel = (paymentType: string) => {
