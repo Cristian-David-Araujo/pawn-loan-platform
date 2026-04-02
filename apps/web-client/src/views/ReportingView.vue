@@ -89,14 +89,23 @@ onMounted(async () => {
   await ensureInitialized()
 })
 
-const activeLoans = computed(() => state.loans.filter((loan) => loan.status === 'active'))
-const overdueLoans = computed(() => state.loans.filter((loan) => loan.status === 'overdue'))
+const activeLoans = computed(() =>
+  [...state.loans.filter((loan) => loan.status === 'active')].sort(
+    (a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime()
+  )
+)
+const overdueLoans = computed(() =>
+  [...state.loans.filter((loan) => loan.status === 'overdue')].sort(
+    (a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime()
+  )
+)
 const custodyItems = computed(() => state.collateralItems.filter((item) => item.status === 'in-custody'))
 const filteredPayments = computed(() => {
   const fromDateIso = toIsoDate(fromDate.value)
   const toDateIso = toIsoDate(toDate.value)
 
-  return state.payments.filter((payment) => {
+  return state.payments
+    .filter((payment) => {
     const paymentIso = toIsoDate(payment.paymentDate)
     if (!paymentIso) {
       return false
@@ -106,6 +115,7 @@ const filteredPayments = computed(() => {
     const beforeTo = !toDate.value || !toDateIso || paymentIso <= toDateIso
     return afterFrom && beforeTo
   })
+    .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
 })
 
 const totalCollected = computed(() => filteredPayments.value.reduce((sum, payment) => sum + payment.totalAmount, 0))

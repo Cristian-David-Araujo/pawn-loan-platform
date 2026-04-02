@@ -11,7 +11,7 @@
         <label>
           {{ t('common.customer') }}
           <select v-model.number="form.customerId" required>
-            <option v-for="customer in state.customers" :key="customer.id" :value="customer.id">
+            <option v-for="customer in sortedCustomers" :key="customer.id" :value="customer.id">
               {{ customer.fullName }}
             </option>
           </select>
@@ -93,14 +93,50 @@
       <table>
         <thead>
           <tr>
-            <th>{{ t('common.id') }}</th>
-            <th>{{ t('common.customer') }}</th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleLoanSort('id')">
+                {{ t('common.id') }}
+                <span v-if="getLoanSortBadge('id')" class="sort-indicator">{{ getLoanSortBadge('id') }}</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleLoanSort('customer')">
+                {{ t('common.customer') }}
+                <span v-if="getLoanSortBadge('customer')" class="sort-indicator">{{ getLoanSortBadge('customer') }}</span>
+              </button>
+            </th>
             <th>{{ t('common.type') }}</th>
-            <th>{{ t('common.principal') }}</th>
-            <th>{{ t('loans.outstanding') }}</th>
-            <th>{{ t('loans.rate') }}</th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleLoanSort('date')">
+                {{ t('common.date') }}
+                <span v-if="getLoanSortBadge('date')" class="sort-indicator">{{ getLoanSortBadge('date') }}</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleLoanSort('principal')">
+                {{ t('common.principal') }}
+                <span v-if="getLoanSortBadge('principal')" class="sort-indicator">{{ getLoanSortBadge('principal') }}</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleLoanSort('outstanding')">
+                {{ t('loans.outstanding') }}
+                <span v-if="getLoanSortBadge('outstanding')" class="sort-indicator">{{ getLoanSortBadge('outstanding') }}</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleLoanSort('rate')">
+                {{ t('loans.rate') }}
+                <span v-if="getLoanSortBadge('rate')" class="sort-indicator">{{ getLoanSortBadge('rate') }}</span>
+              </button>
+            </th>
             <th>{{ t('common.collateral') }}</th>
-            <th>{{ t('common.status') }}</th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleLoanSort('status')">
+                {{ t('common.status') }}
+                <span v-if="getLoanSortBadge('status')" class="sort-indicator">{{ getLoanSortBadge('status') }}</span>
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -108,6 +144,7 @@
             <td>{{ loan.id }}</td>
             <td>{{ getCustomerLabel(loan.customerId) }}</td>
             <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+            <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
             <td>{{ formatCurrency(loan.principalAmount) }}</td>
             <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
             <td>{{ loan.monthlyInterestRate }}%</td>
@@ -234,16 +271,26 @@ import PageHeader from '../components/PageHeader.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 
+type SortDirection = 'asc' | 'desc'
+type LoanSortKey = 'date' | 'id' | 'customer' | 'principal' | 'outstanding' | 'rate' | 'status'
+
+interface SortCriterion<T extends string> {
+  key: T
+  direction: SortDirection
+}
+
 const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const search = ref('')
 const message = ref('')
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
+const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const datePlaceholder = computed(() => getGlobalDateFormat())
 const todayIso = new Date().toISOString().slice(0, 10)
+const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
 
 const collateralEligibleLoans = computed(() =>
   state.loans.filter((loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
@@ -251,8 +298,8 @@ const collateralEligibleLoans = computed(() =>
 
 onMounted(async () => {
   await ensureInitialized()
-  if (state.customers.length) {
-    form.customerId = state.customers[0].id
+  if (sortedCustomers.value.length) {
+    form.customerId = sortedCustomers.value[0].id
   }
   if (state.globalSettings) {
     form.latePenaltyRate = state.globalSettings.defaultLatePenaltyRate
@@ -263,7 +310,7 @@ onMounted(async () => {
 })
 
 const form = reactive({
-  customerId: state.customers[0]?.id ?? 1,
+  customerId: 0,
   loanType: 'pawn' as 'pawn' | 'personal',
   principalAmount: 1000,
   monthlyInterestRate: 8,
@@ -323,6 +370,51 @@ const getCustomerLabel = (customerId: number) => {
 
 const getLoanOptionLabel = (loanId: number, customerId: number) =>
   t('collateral.loanOption', { id: loanId, customer: getCustomerLabel(customerId) })
+
+const getSortDirectionSymbol = (direction: SortDirection) => (direction === 'asc' ? '↑' : '↓')
+
+const getLoanSortMeta = (key: LoanSortKey) => {
+  const index = loanSortPriority.value.findIndex((item) => item.key === key)
+  if (index === -1) {
+    return null
+  }
+
+  return {
+    direction: loanSortPriority.value[index].direction,
+    priority: index + 1
+  }
+}
+
+const getLoanSortBadge = (key: LoanSortKey) => {
+  const meta = getLoanSortMeta(key)
+  if (!meta) {
+    return ''
+  }
+
+  return `${getSortDirectionSymbol(meta.direction)}${meta.priority}`
+}
+
+const toggleLoanSort = (key: LoanSortKey) => {
+  const index = loanSortPriority.value.findIndex((item) => item.key === key)
+
+  if (index === -1) {
+    loanSortPriority.value = [{ key, direction: 'asc' }, ...loanSortPriority.value]
+    return
+  }
+
+  const current = loanSortPriority.value[index]
+  const next = [...loanSortPriority.value]
+
+  if (current.direction === 'asc') {
+    const updated = { key, direction: 'desc' as SortDirection }
+    next.splice(index, 1)
+    loanSortPriority.value = [updated, ...next]
+    return
+  }
+
+  next.splice(index, 1)
+  loanSortPriority.value = next.length ? next : [{ key: 'date', direction: 'desc' }]
+}
 
 const openLoanDetail = (loanId: number) => {
   selectedLoanId.value = loanId
@@ -386,11 +478,39 @@ const getLoanCollateralLabel = (loanId: number, loanType: 'pawn' | 'personal') =
 const filteredLoans = computed(() => {
   const query = search.value.trim().toLowerCase()
 
-  return state.loans.filter((loan) => {
+  const filtered = state.loans.filter((loan) => {
     const statusMatches = statusFilter.value === 'all' || loan.status === statusFilter.value
     const customer = getCustomerLabel(loan.customerId).toLowerCase()
     const textMatches = !query || `${loan.id} ${customer}`.includes(query)
     return statusMatches && textMatches
+  })
+
+  return [...filtered].sort((a, b) => {
+    for (const criterion of loanSortPriority.value) {
+      let result = 0
+
+      if (criterion.key === 'id') {
+        result = a.id - b.id
+      } else if (criterion.key === 'customer') {
+        result = getCustomerLabel(a.customerId).localeCompare(getCustomerLabel(b.customerId))
+      } else if (criterion.key === 'principal') {
+        result = a.principalAmount - b.principalAmount
+      } else if (criterion.key === 'outstanding') {
+        result = a.outstandingPrincipal - b.outstandingPrincipal
+      } else if (criterion.key === 'rate') {
+        result = a.monthlyInterestRate - b.monthlyInterestRate
+      } else if (criterion.key === 'status') {
+        result = a.status.localeCompare(b.status)
+      } else {
+        result = new Date(a.disbursementDate).getTime() - new Date(b.disbursementDate).getTime()
+      }
+
+      if (result !== 0) {
+        return criterion.direction === 'asc' ? result : -result
+      }
+    }
+
+    return 0
   })
 })
 </script>

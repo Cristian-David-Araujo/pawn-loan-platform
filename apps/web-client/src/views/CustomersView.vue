@@ -17,17 +17,50 @@
     <div class="card mt-16">
       <div class="table-toolbar">
         <input v-model="search" class="table-search" type="text" :placeholder="t('customers.searchPlaceholder')" />
+        <select v-model="customerStatusFilter" class="table-select">
+          <option value="all">{{ t('loans.allStatuses') }}</option>
+          <option value="active">{{ t('common.active') }}</option>
+          <option value="archived">archived</option>
+        </select>
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>
       <table>
         <thead>
           <tr>
-            <th>{{ t('common.id') }}</th>
-            <th>{{ t('common.name') }}</th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleCustomerSort('id')">
+                {{ t('common.id') }}
+                <span v-if="getCustomerSortBadge('id')" class="sort-indicator">
+                  {{ getCustomerSortBadge('id') }}
+                </span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleCustomerSort('name')">
+                {{ t('common.name') }}
+                <span v-if="getCustomerSortBadge('name')" class="sort-indicator">
+                  {{ getCustomerSortBadge('name') }}
+                </span>
+              </button>
+            </th>
             <th>{{ t('customers.document') }}</th>
             <th>{{ t('common.phone') }}</th>
-            <th>{{ t('common.city') }}</th>
-            <th>{{ t('common.status') }}</th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleCustomerSort('city')">
+                {{ t('common.city') }}
+                <span v-if="getCustomerSortBadge('city')" class="sort-indicator">
+                  {{ getCustomerSortBadge('city') }}
+                </span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleCustomerSort('status')">
+                {{ t('common.status') }}
+                <span v-if="getCustomerSortBadge('status')" class="sort-indicator">
+                  {{ getCustomerSortBadge('status') }}
+                </span>
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -600,12 +633,22 @@ interface PaymentEvent {
   payment_method: string
 }
 
+type SortDirection = 'asc' | 'desc'
+type CustomerSortKey = 'name' | 'id' | 'city' | 'status'
+
+interface SortCriterion<T extends string> {
+  key: T
+  direction: SortDirection
+}
+
 const { state, createCustomer, updateCustomer, updateLoan, updateCollateral, getCustomerById, ensureInitialized } =
   useMockPlatformStore()
 const { t, locale } = useI18n()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const message = ref('')
 const search = ref('')
+const customerStatusFilter = ref<'all' | 'active' | 'archived'>('all')
+const customerSortPriority = ref<SortCriterion<CustomerSortKey>[]>([{ key: 'name', direction: 'asc' }])
 const selectedCustomerId = ref<number | null>(null)
 const showCreateModal = ref(false)
 const showDetailModal = ref(false)
@@ -978,16 +1021,88 @@ const paymentTypeLabel = (paymentType: string) => {
   return paymentType
 }
 
-const filteredCustomers = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  if (!query) {
-    return state.customers
+const getSortDirectionSymbol = (direction: SortDirection) => (direction === 'asc' ? '↑' : '↓')
+
+const getCustomerSortMeta = (key: CustomerSortKey) => {
+  const index = customerSortPriority.value.findIndex((item) => item.key === key)
+  if (index === -1) {
+    return null
   }
 
-  return state.customers.filter((customer: Customer) =>
-    [customer.fullName, customer.documentNumber, customer.phone, customer.city].some((value) =>
+  return {
+    direction: customerSortPriority.value[index].direction,
+    priority: index + 1
+  }
+}
+
+const getCustomerSortBadge = (key: CustomerSortKey) => {
+  const meta = getCustomerSortMeta(key)
+  if (!meta) {
+    return ''
+  }
+
+  return `${getSortDirectionSymbol(meta.direction)}${meta.priority}`
+}
+
+const toggleCustomerSort = (key: CustomerSortKey) => {
+  const index = customerSortPriority.value.findIndex((item) => item.key === key)
+
+  if (index === -1) {
+    customerSortPriority.value = [{ key, direction: 'asc' }, ...customerSortPriority.value]
+    return
+  }
+
+  const current = customerSortPriority.value[index]
+  const next = [...customerSortPriority.value]
+
+  if (current.direction === 'asc') {
+    const updated = { key, direction: 'desc' as SortDirection }
+    next.splice(index, 1)
+    customerSortPriority.value = [updated, ...next]
+    return
+  }
+
+  next.splice(index, 1)
+  customerSortPriority.value = next.length ? next : [{ key: 'name', direction: 'asc' }]
+}
+
+const filteredCustomers = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  const filtered = state.customers.filter((customer: Customer) => {
+    const statusMatches = customerStatusFilter.value === 'all' || customer.status === customerStatusFilter.value
+    if (!statusMatches) {
+      return false
+    }
+
+    if (!query) {
+      return true
+    }
+
+    return [customer.fullName, customer.documentNumber, customer.phone, customer.city].some((value) =>
       value.toLowerCase().includes(query)
     )
-  )
+  })
+
+  return [...filtered].sort((a, b) => {
+    for (const criterion of customerSortPriority.value) {
+      let result = 0
+
+      if (criterion.key === 'id') {
+        result = a.id - b.id
+      } else if (criterion.key === 'city') {
+        result = a.city.localeCompare(b.city)
+      } else if (criterion.key === 'status') {
+        result = a.status.localeCompare(b.status)
+      } else {
+        result = a.fullName.localeCompare(b.fullName)
+      }
+
+      if (result !== 0) {
+        return criterion.direction === 'asc' ? result : -result
+      }
+    }
+
+    return 0
+  })
 })
 </script>

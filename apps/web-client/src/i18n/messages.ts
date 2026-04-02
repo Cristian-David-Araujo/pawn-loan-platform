@@ -47,7 +47,11 @@ export const messages = {
       cash: 'Cash',
       bankTransfer: 'Bank transfer',
       other: 'Other',
-      close: 'Close'
+      close: 'Close',
+      ascending: 'Ascending',
+      descending: 'Descending',
+      recentFirst: 'Recent first',
+      oldestFirst: 'Oldest first',
     },
     dashboard: {
       title: 'Dashboard',
@@ -281,7 +285,11 @@ export const messages = {
       cash: 'Efectivo',
       bankTransfer: 'Transferencia bancaria',
       other: 'Otro',
-      close: 'Cerrar'
+      close: 'Cerrar',
+      ascending: 'Ascendente',
+      descending: 'Descendente',
+      recentFirst: 'Mas reciente primero',
+      oldestFirst: 'Mas antiguo primero',
     },
     dashboard: {
       title: 'Panel',
