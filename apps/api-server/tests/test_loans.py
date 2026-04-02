@@ -63,3 +63,23 @@ def test_renew_closes_source_and_creates_new_loan(client: TestClient, auth_heade
     source_response = client.get(f"/api/v1/loans/{source_loan['id']}", headers=auth_headers)
     assert source_response.status_code == 200
     assert source_response.json()["status"] == "closed"
+
+
+def test_update_loan_allows_rate_due_day_and_status(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+) -> None:
+    loan = create_loan(principal=1200)
+
+    response = client.put(
+        f"/api/v1/loans/{loan['id']}",
+        headers=auth_headers,
+        json={"monthly_interest_rate": 9.5, "due_day": 12, "status": "overdue"},
+    )
+    assert response.status_code == 200
+
+    payload = response.json()
+    assert payload["monthly_interest_rate"] == 9.5
+    assert payload["due_day"] == 12
+    assert payload["status"] == "overdue"

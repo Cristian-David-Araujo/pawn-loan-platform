@@ -259,6 +259,7 @@
                 <th>{{ t('loans.outstanding') }}</th>
                 <th>{{ t('loans.rate') }}</th>
                 <th>{{ t('common.status') }}</th>
+                <th>{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -271,6 +272,11 @@
                 <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
                 <td>{{ loan.monthlyInterestRate }}%</td>
                 <td>{{ t(`common.${loan.status}`) }}</td>
+                <td>
+                  <button class="btn btn-secondary" type="button" @click="openLoanEditModal(loan)">
+                    {{ t('customers.editLoan') }}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -326,24 +332,112 @@
               <tr>
                 <th>{{ t('common.id') }}</th>
                 <th>{{ t('common.loan') }}</th>
+                <th>{{ t('customers.associatedLoanType') }}</th>
+                <th>{{ t('customers.associatedLoanStatus') }}</th>
                 <th>{{ t('common.description') }}</th>
                 <th>{{ t('collateral.appraisedValue') }}</th>
                 <th>{{ t('collateral.custodyCode') }}</th>
                 <th>{{ t('common.status') }}</th>
+                <th>{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in selectedCustomerCollateral" :key="item.id">
                 <td>#{{ item.id }}</td>
                 <td>#{{ item.loanId }}</td>
+                <td>{{ getLoanTypeLabel(item.loanId) }}</td>
+                <td>{{ getLoanStatusLabel(item.loanId) }}</td>
                 <td>{{ item.description }}</td>
                 <td>{{ formatCurrency(item.appraisedValue) }}</td>
                 <td>{{ item.custodyCode }}</td>
                 <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+                <td>
+                  <button class="btn btn-secondary" type="button" @click="openCollateralEditModal(item)">
+                    {{ t('customers.editCollateral') }}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div v-if="showLoanEditModal" class="modal-backdrop" @click.self="closeLoanEditModal">
+      <div class="modal-panel card">
+        <div class="modal-header">
+          <h3>{{ t('customers.editLoan') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeLoanEditModal">{{ t('common.close') }}</button>
+        </div>
+
+        <form class="form mt-16" @submit.prevent="handleUpdateLoan">
+          <div class="grid grid-2">
+            <label>
+              {{ t('loans.monthlyInterestRate') }}
+              <input v-model.number="loanEditForm.monthlyInterestRate" type="number" min="0" step="0.1" required />
+            </label>
+            <label>
+              {{ t('loans.dueDay') }}
+              <input v-model.number="loanEditForm.dueDay" type="number" min="1" max="28" required />
+            </label>
+            <label>
+              {{ t('common.status') }}
+              <select v-model="loanEditForm.status" required>
+                <option value="active">{{ t('common.active') }}</option>
+                <option value="overdue">{{ t('common.overdue') }}</option>
+                <option value="closed">{{ t('common.closed') }}</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="isSaving">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="showCollateralEditModal" class="modal-backdrop" @click.self="closeCollateralEditModal">
+      <div class="modal-panel card">
+        <div class="modal-header">
+          <h3>{{ t('customers.editCollateral') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeCollateralEditModal">{{ t('common.close') }}</button>
+        </div>
+
+        <form class="form mt-16" @submit.prevent="handleUpdateCollateral">
+          <div class="grid grid-2">
+            <label>
+              {{ t('common.loan') }}
+              <select v-model.number="collateralEditForm.loanId" required>
+                <option v-for="loan in collateralAssignableLoans" :key="loan.id" :value="loan.id">#{{ loan.id }}</option>
+              </select>
+            </label>
+            <label>
+              {{ t('common.description') }}
+              <input v-model="collateralEditForm.description" required />
+            </label>
+            <label>
+              {{ t('collateral.appraisedValue') }}
+              <input v-model.number="collateralEditForm.appraisedValue" type="number" min="1" required />
+            </label>
+            <label>
+              {{ t('collateral.storageLocation') }}
+              <input v-model="collateralEditForm.storageLocation" required />
+            </label>
+            <label>
+              {{ t('common.status') }}
+              <select v-model="collateralEditForm.status" required>
+                <option value="in-custody">{{ t('common.inCustody') }}</option>
+                <option value="released">{{ t('common.released') }}</option>
+                <option value="liquidated">{{ t('common.liquidated') }}</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="isSaving">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
       </div>
     </div>
   </section>
@@ -404,19 +498,24 @@ interface PaymentEvent {
   payment_method: string
 }
 
-const { state, createCustomer, updateCustomer, getCustomerById, ensureInitialized } = useMockPlatformStore()
+const { state, createCustomer, updateCustomer, updateLoan, updateCollateral, getCustomerById, ensureInitialized } =
+  useMockPlatformStore()
 const { t, locale } = useI18n()
 const message = ref('')
 const search = ref('')
 const selectedCustomerId = ref<number | null>(null)
 const showCreateModal = ref(false)
 const showDetailModal = ref(false)
+const showLoanEditModal = ref(false)
+const showCollateralEditModal = ref(false)
 const isSaving = ref(false)
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
 const pendingInterestData = ref<InterestPendingResponse | null>(null)
 const principalContextData = ref<PrincipalContextResponse | null>(null)
 const paymentEvents = ref<PaymentEvent[]>([])
+const selectedLoanForEditId = ref<number | null>(null)
+const selectedCollateralForEditId = ref<number | null>(null)
 
 onMounted(async () => {
   await ensureInitialized()
@@ -437,6 +536,20 @@ const editForm = reactive({
   address: '',
   city: '',
   status: 'active' as 'active' | 'archived'
+})
+
+const loanEditForm = reactive({
+  monthlyInterestRate: 0,
+  dueDay: 1,
+  status: 'active' as 'active' | 'overdue' | 'closed'
+})
+
+const collateralEditForm = reactive({
+  loanId: 0,
+  description: '',
+  appraisedValue: 0,
+  storageLocation: '',
+  status: 'in-custody' as 'in-custody' | 'released' | 'liquidated'
 })
 
 const selectedCustomer = computed(() =>
@@ -461,6 +574,10 @@ const selectedCustomerPayments = computed(() =>
 
 const selectedCustomerCollateral = computed(() =>
   state.collateralItems.filter((item: CollateralItem) => selectedCustomerLoanIds.value.has(item.loanId))
+)
+
+const collateralAssignableLoans = computed(() =>
+  selectedCustomerLoans.value.filter((loan: Loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
 )
 
 const pendingInterestItems = computed(() => pendingInterestData.value?.groups.flatMap((group) => group.items) ?? [])
@@ -533,6 +650,32 @@ const closeDetailModal = () => {
   showDetailModal.value = false
 }
 
+const openLoanEditModal = (loan: Loan) => {
+  selectedLoanForEditId.value = loan.id
+  loanEditForm.monthlyInterestRate = loan.monthlyInterestRate
+  loanEditForm.dueDay = loan.dueDay
+  loanEditForm.status = loan.status
+  showLoanEditModal.value = true
+}
+
+const closeLoanEditModal = () => {
+  showLoanEditModal.value = false
+}
+
+const openCollateralEditModal = (item: CollateralItem) => {
+  selectedCollateralForEditId.value = item.id
+  collateralEditForm.loanId = item.loanId
+  collateralEditForm.description = item.description
+  collateralEditForm.appraisedValue = item.appraisedValue
+  collateralEditForm.storageLocation = item.storageLocation
+  collateralEditForm.status = item.status
+  showCollateralEditModal.value = true
+}
+
+const closeCollateralEditModal = () => {
+  showCollateralEditModal.value = false
+}
+
 const loadCustomerFinancialData = async (customerId: number) => {
   financialDataLoading.value = true
   financialDataError.value = false
@@ -601,6 +744,72 @@ const handleUpdateCustomer = async () => {
   } finally {
     isSaving.value = false
   }
+}
+
+const handleUpdateLoan = async () => {
+  if (selectedLoanForEditId.value === null || isSaving.value) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const result = await updateLoan({
+      id: selectedLoanForEditId.value,
+      monthlyInterestRate: loanEditForm.monthlyInterestRate,
+      dueDay: loanEditForm.dueDay,
+      status: loanEditForm.status
+    })
+
+    message.value = t(result.messageKey)
+    closeLoanEditModal()
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const handleUpdateCollateral = async () => {
+  if (selectedCollateralForEditId.value === null || isSaving.value) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const result = await updateCollateral({
+      id: selectedCollateralForEditId.value,
+      loanId: collateralEditForm.loanId,
+      description: collateralEditForm.description,
+      appraisedValue: collateralEditForm.appraisedValue,
+      storageLocation: collateralEditForm.storageLocation,
+      status: collateralEditForm.status
+    })
+
+    message.value = t(result.messageKey)
+    closeCollateralEditModal()
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const getLoanById = (loanId: number) => selectedCustomerLoans.value.find((loan) => loan.id === loanId) ?? null
+
+const getLoanTypeLabel = (loanId: number) => {
+  const loan = getLoanById(loanId)
+  if (!loan) {
+    return '-'
+  }
+  return loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal')
+}
+
+const getLoanStatusLabel = (loanId: number) => {
+  const loan = getLoanById(loanId)
+  if (!loan) {
+    return '-'
+  }
+  return t(`common.${loan.status}`)
 }
 
 const paymentMethodLabel = (method: string) => {

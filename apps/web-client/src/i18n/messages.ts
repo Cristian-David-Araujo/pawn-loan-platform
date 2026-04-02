@@ -100,6 +100,10 @@ export const messages = {
       customerPaymentTraceability: 'Payment traceability events',
       noPaymentEvents: 'No payment events for this customer.',
       advancePayment: 'Advance payment',
+      editLoan: 'Edit loan',
+      editCollateral: 'Edit collateral',
+      associatedLoanType: 'Associated loan type',
+      associatedLoanStatus: 'Associated loan status',
       searchPlaceholder: 'Search customer by name, document, phone, city...',
       totalRecords: 'Records: {count}'
     },
@@ -203,6 +207,8 @@ export const messages = {
       customerDocumentExists: 'Customer document already exists.',
       paymentRegistered: 'Payment registered.',
       allocationMustEqualTotal: 'Allocation must equal total amount.',
+      loanUpdated: 'Loan updated.',
+      collateralUpdated: 'Collateral updated.',
       operationFailed: 'Operation failed. Please try again.',
       unknownCustomer: 'Unknown customer'
     }
@@ -308,6 +314,10 @@ export const messages = {
       customerPaymentTraceability: 'Eventos de trazabilidad de pagos',
       noPaymentEvents: 'No hay eventos de pago para este cliente.',
       advancePayment: 'Pago por adelanto',
+      editLoan: 'Editar prestamo',
+      editCollateral: 'Editar garantia',
+      associatedLoanType: 'Tipo de prestamo asociado',
+      associatedLoanStatus: 'Estado del prestamo asociado',
       searchPlaceholder: 'Buscar cliente por nombre, documento, telefono, ciudad...',
       totalRecords: 'Registros: {count}'
     },
@@ -411,6 +421,8 @@ export const messages = {
       customerDocumentExists: 'El documento del cliente ya existe.',
       paymentRegistered: 'Pago registrado.',
       allocationMustEqualTotal: 'La asignacion debe ser igual al monto total.',
+      loanUpdated: 'Prestamo actualizado.',
+      collateralUpdated: 'Garantia actualizada.',
       operationFailed: 'La operacion fallo. Intentalo nuevamente.',
       unknownCustomer: 'Cliente desconocido'
     }

@@ -85,6 +85,22 @@ interface CreateCollateralPayload {
   storageLocation: string
 }
 
+interface UpdateLoanPayload {
+  id: number
+  monthlyInterestRate: number
+  dueDay: number
+  status: Loan['status']
+}
+
+interface UpdateCollateralPayload {
+  id: number
+  loanId: number
+  description: string
+  appraisedValue: number
+  storageLocation: string
+  status: CollateralItem['status']
+}
+
 interface CreatePaymentPayload {
   loanId: number
   totalAmount: number
@@ -324,6 +340,36 @@ const createPayment = async (payload: CreatePaymentPayload) => {
   return { ok: true, messageKey: 'messages.paymentRegistered' }
 }
 
+const updateLoan = async (payload: UpdateLoanPayload) => {
+  await apiClient.request<BackendLoan>(`/loans/${payload.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      monthly_interest_rate: payload.monthlyInterestRate,
+      due_day: payload.dueDay,
+      status: payload.status
+    })
+  })
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.loanUpdated' }
+}
+
+const updateCollateral = async (payload: UpdateCollateralPayload) => {
+  await apiClient.request<BackendCollateral>(`/collateral-items/${payload.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      loan_id: payload.loanId,
+      description: payload.description,
+      appraised_value: payload.appraisedValue,
+      storage_location: payload.storageLocation,
+      status: payload.status === 'in-custody' ? 'in_custody' : payload.status
+    })
+  })
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.collateralUpdated' }
+}
+
 const dashboardStats = computed(() => {
   const activeLoans = state.loans.filter((item) => item.status === 'active').length
   const overdueLoans = state.loans.filter((item) => item.status === 'overdue').length
@@ -350,6 +396,8 @@ export const useMockPlatformStore = () => ({
   createCustomer,
   updateCustomer,
   createLoan,
+  updateLoan,
   createCollateral,
+  updateCollateral,
   createPayment
 })

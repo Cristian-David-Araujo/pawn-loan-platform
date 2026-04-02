@@ -12,6 +12,7 @@ from src.modules.loans.schemas import (
     LoanApplicationRead,
     LoanCreate,
     LoanRead,
+    LoanUpdate,
     RenewalRequest,
 )
 from src.shared.dependencies.auth import get_current_user
@@ -137,6 +138,35 @@ def get_loan(
     loan = db.get(Loan, loan_id)
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    return loan
+
+
+@router.put("/loans/{loan_id}", response_model=LoanRead)
+def update_loan(
+    loan_id: int,
+    payload: LoanUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Loan:
+    loan = db.get(Loan, loan_id)
+    if loan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+
+    loan.monthly_interest_rate = payload.monthly_interest_rate
+    loan.due_day = payload.due_day
+    loan.status = payload.status
+    db.commit()
+    db.refresh(loan)
+
+    write_audit(
+        db,
+        action="update_loan",
+        entity_type="Loan",
+        entity_id=str(loan.id),
+        user=current_user,
+        new_data=f"rate={loan.monthly_interest_rate},due_day={loan.due_day},status={loan.status.value}",
+    )
+
     return loan
 
 

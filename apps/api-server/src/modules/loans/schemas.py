@@ -57,6 +57,12 @@ class LoanRead(BaseModel):
     created_at: datetime
 
 
+class LoanUpdate(BaseModel):
+    monthly_interest_rate: float
+    due_day: int
+    status: LoanStatus
+
+
 class RenewalRequest(BaseModel):
     monthly_interest_rate: float | None = None
     due_day: int | None = None
