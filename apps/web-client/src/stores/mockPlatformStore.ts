@@ -2,6 +2,7 @@ import { computed, reactive } from 'vue'
 
 import { apiClient } from '../services/api'
 import type { CollateralItem, Customer, GlobalSettings, Loan, LoanType, Payment } from '../types/domain'
+import { setGlobalDateFormat } from '../utils/date'
 
 interface BackendCustomer {
   id: number
@@ -224,6 +225,7 @@ const refreshAll = async () => {
     state.collateralItems = collateralItems.map(mapCollateral)
     state.payments = payments.map(mapPayment)
     state.globalSettings = mapGlobalSettings(globalSettings)
+    setGlobalDateFormat(state.globalSettings.dateFormat)
     state.initialized = true
   } catch (error) {
     state.initialized = false
@@ -381,6 +383,7 @@ const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
     })
   })
 
+  setGlobalDateFormat(payload.dateFormat)
   await refreshAll()
   return { ok: true, messageKey: 'messages.settingsUpdated' }
 }
