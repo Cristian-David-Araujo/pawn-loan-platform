@@ -515,6 +515,96 @@ label {
   gap: 0.5rem;
 }
 
+.report-chart {
+  width: 100%;
+  min-height: 230px;
+}
+
+.chart-svg {
+  width: 100%;
+  height: 230px;
+  display: block;
+}
+
+.chart-axis {
+  stroke: #aac0dd;
+  stroke-width: 0.45;
+}
+
+.chart-grid {
+  stroke: #dbe6f4;
+  stroke-width: 0.28;
+  stroke-dasharray: 1.2 1.2;
+}
+
+.chart-bar {
+  fill: var(--accent);
+  opacity: 0.85;
+}
+
+.chart-bar:hover {
+  opacity: 1;
+}
+
+.chart-x-label,
+.chart-y-label {
+  fill: var(--muted);
+  font-size: 2.7px;
+}
+
+.chart-x-label {
+  dominant-baseline: middle;
+  text-anchor: middle;
+}
+
+.chart-y-label {
+  dominant-baseline: middle;
+  text-anchor: end;
+}
+
+.chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.chart-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(160px, 2.4fr) minmax(120px, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.chart-label,
+.chart-value {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.chart-label {
+  color: var(--muted);
+}
+
+.chart-value {
+  text-align: right;
+}
+
+.chart-track {
+  width: 100%;
+  height: 0.62rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  overflow: hidden;
+}
+
+.chart-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
 .pill,
 .badge {
   border-radius: 999px;
