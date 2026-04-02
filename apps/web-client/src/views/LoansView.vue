@@ -39,6 +39,10 @@
           {{ t('loans.dueDay') }}
           <input v-model.number="form.dueDay" type="number" min="1" max="28" required />
         </label>
+        <label>
+          {{ t('loans.disbursementDate') }}
+          <input v-model="form.disbursementDate" :placeholder="datePlaceholder" required />
+        </label>
       </div>
       <button class="btn" type="submit">
         <FilePlus2 :size="16" />
@@ -113,6 +117,8 @@
         </tbody>
       </table>
     </div>
+
+    <p v-if="message" class="notice mt-16">{{ message }}</p>
 
     <div v-if="showLoanDetailModal && selectedLoan" class="modal-backdrop" @click.self="closeLoanDetail">
       <div class="modal-panel card modal-panel-lg">
@@ -226,15 +232,18 @@ import { useI18n } from 'vue-i18n'
 import { FilePlus2, HandCoins } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
-import { formatDateDMY } from '../utils/date'
+import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 
 const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const search = ref('')
+const message = ref('')
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
+const datePlaceholder = computed(() => getGlobalDateFormat())
+const todayIso = new Date().toISOString().slice(0, 10)
 
 const collateralEligibleLoans = computed(() =>
   state.loans.filter((loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
@@ -259,11 +268,20 @@ const form = reactive({
   principalAmount: 1000,
   monthlyInterestRate: 8,
   latePenaltyRate: 0,
-  dueDay: 5
+  dueDay: 5,
+  disbursementDate: formatDateDMY(todayIso)
 })
 
 const handleCreateLoan = async () => {
-  await createLoan({ ...form })
+  const disbursementDate = toIsoDate(form.disbursementDate)
+  if (!disbursementDate) {
+    message.value = t('messages.invalidDateFormat')
+    return
+  }
+
+  await createLoan({ ...form, disbursementDate })
+  form.disbursementDate = formatDateDMY(todayIso)
+  message.value = ''
 
   if (!collateralForm.loanId && collateralEligibleLoans.value.length) {
     collateralForm.loanId = collateralEligibleLoans.value[0].id

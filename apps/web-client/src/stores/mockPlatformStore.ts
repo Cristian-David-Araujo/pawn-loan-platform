@@ -87,6 +87,7 @@ interface CreateLoanPayload {
   monthlyInterestRate: number
   latePenaltyRate: number
   dueDay: number
+  disbursementDate: string
 }
 
 interface CreateCollateralPayload {
@@ -321,7 +322,7 @@ const createLoan = async (payload: CreateLoanPayload) => {
       principal_amount: payload.principalAmount,
       monthly_interest_rate: payload.monthlyInterestRate,
       late_penalty_rate: payload.latePenaltyRate,
-      disbursement_date: new Date().toISOString().slice(0, 10),
+      disbursement_date: payload.disbursementDate,
       due_day: payload.dueDay
     })
   })

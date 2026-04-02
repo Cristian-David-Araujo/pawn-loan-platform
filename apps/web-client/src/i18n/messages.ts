@@ -116,6 +116,7 @@ export const messages = {
       monthlyInterestRate: 'Monthly interest rate (%)',
       latePenaltyRate: 'Late penalty rate (%)',
       dueDay: 'Due day',
+      disbursementDate: 'Disbursement date',
       createLoan: 'Create loan',
       outstanding: 'Outstanding',
       rate: 'Rate',
@@ -227,6 +228,7 @@ export const messages = {
       settingsUpdated: 'Settings updated.',
       loanUpdated: 'Loan updated.',
       collateralUpdated: 'Collateral updated.',
+      invalidDateFormat: 'Invalid date format. Use the configured global format.',
       operationFailed: 'Operation failed. Please try again.',
       unknownCustomer: 'Unknown customer'
     }
@@ -348,6 +350,7 @@ export const messages = {
       monthlyInterestRate: 'Tasa de interes mensual (%)',
       latePenaltyRate: 'Tasa de mora (%)',
       dueDay: 'Dia de vencimiento',
+      disbursementDate: 'Fecha del prestamo',
       createLoan: 'Crear prestamo',
       outstanding: 'Pendiente',
       rate: 'Tasa',
@@ -459,6 +462,7 @@ export const messages = {
       settingsUpdated: 'Configuraciones actualizadas.',
       loanUpdated: 'Prestamo actualizado.',
       collateralUpdated: 'Garantia actualizada.',
+      invalidDateFormat: 'Formato de fecha invalido. Usa el formato global configurado.',
       operationFailed: 'La operacion fallo. Intentalo nuevamente.',
       unknownCustomer: 'Cliente desconocido'
     }
