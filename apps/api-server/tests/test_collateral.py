@@ -14,6 +14,83 @@ def test_create_collateral_requires_existing_loan(client: TestClient, auth_heade
     assert response.status_code == 404
 
 
+def test_create_collateral_rejects_personal_loan(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+) -> None:
+    customer = create_customer(document_number="COLL-CUST-PERSONAL")
+
+    loan_response = client.post(
+        "/api/v1/loans",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "loan_type": "personal",
+            "principal_amount": 500,
+            "monthly_interest_rate": 6,
+            "disbursement_date": str(date.today()),
+            "due_day": 10,
+        },
+    )
+    assert loan_response.status_code == 201
+    personal_loan_id = loan_response.json()["id"]
+
+    collateral_response = client.post(
+        "/api/v1/collateral-items",
+        headers=auth_headers,
+        json={
+            "loan_id": personal_loan_id,
+            "description": "Laptop",
+            "appraised_value": 450,
+            "storage_location": "Vault D",
+        },
+    )
+    assert collateral_response.status_code == 400
+
+
+def test_create_collateral_rejects_closed_loan(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+) -> None:
+    customer = create_customer(document_number="COLL-CUST-CLOSED")
+
+    loan_response = client.post(
+        "/api/v1/loans",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "loan_type": "pawn",
+            "principal_amount": 0,
+            "monthly_interest_rate": 8,
+            "disbursement_date": str(date.today()),
+            "due_day": 12,
+        },
+    )
+    assert loan_response.status_code == 201
+    loan_id = loan_response.json()["id"]
+
+    close_response = client.post(
+        f"/api/v1/loans/{loan_id}/close",
+        headers=auth_headers,
+        json={"force": False},
+    )
+    assert close_response.status_code == 200
+
+    collateral_response = client.post(
+        "/api/v1/collateral-items",
+        headers=auth_headers,
+        json={
+            "loan_id": loan_id,
+            "description": "Gold ring",
+            "appraised_value": 300,
+            "storage_location": "Vault E",
+        },
+    )
+    assert collateral_response.status_code == 400
+
+
 
 def test_release_collateral_requires_zero_balance(
     client: TestClient,

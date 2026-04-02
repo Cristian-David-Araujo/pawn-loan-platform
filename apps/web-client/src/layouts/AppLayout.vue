@@ -72,7 +72,6 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import {
   BarChart3,
-  Gem,
   HandCoins,
   LayoutDashboard,
   PanelLeft,
@@ -89,7 +88,6 @@ const navItems = [
   { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
   { to: '/customers', labelKey: 'app.customers', icon: Users },
   { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
-  { to: '/collateral', labelKey: 'app.collateral', icon: Gem },
   { to: '/payments', labelKey: 'app.payments', icon: ReceiptText },
   { to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 }
 ]

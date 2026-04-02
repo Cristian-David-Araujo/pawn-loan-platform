@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import CollateralItem, Loan, User
 from src.modules.collateral.schemas import CollateralCreate, CollateralRead
 from src.shared.dependencies.auth import get_current_user
@@ -24,6 +25,10 @@ def create_collateral_item(
     loan = db.get(Loan, payload.loan_id)
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    if loan.loan_type != "pawn":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Collateral is only allowed for pawn loans")
+    if loan.status == LoanStatus.closed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot register collateral for closed loan")
 
     item = CollateralItem(
         **payload.model_dump(),

@@ -24,6 +24,7 @@ export const messages = {
       total: 'Total',
       customer: 'Customer',
       loan: 'Loan',
+      collateral: 'Collateral',
       method: 'Method',
       description: 'Description',
       city: 'City',
@@ -112,6 +113,8 @@ export const messages = {
       createLoan: 'Create loan',
       outstanding: 'Outstanding',
       rate: 'Rate',
+      noCollateralLinked: 'No collateral linked',
+      collateralLinkedCount: 'Linked collateral: {count}',
       searchPlaceholder: 'Search loans by customer or id...',
       allStatuses: 'All statuses',
       totalLoans: 'Loans: {count}'
@@ -229,6 +232,7 @@ export const messages = {
       total: 'Total',
       customer: 'Cliente',
       loan: 'Prestamo',
+      collateral: 'Garantia',
       method: 'Metodo',
       description: 'Descripcion',
       city: 'Ciudad',
@@ -317,6 +321,8 @@ export const messages = {
       createLoan: 'Crear prestamo',
       outstanding: 'Pendiente',
       rate: 'Tasa',
+      noCollateralLinked: 'Sin garantia asociada',
+      collateralLinkedCount: 'Garantias asociadas: {count}',
       searchPlaceholder: 'Buscar prestamos por cliente o id...',
       allStatuses: 'Todos los estados',
       totalLoans: 'Prestamos: {count}'

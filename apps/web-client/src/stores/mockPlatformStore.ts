@@ -194,7 +194,7 @@ const ensureInitialized = async () => {
     return
   }
 
-  const maxAttempts = 5
+  const maxAttempts = 60
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       await refreshAll()
@@ -203,7 +203,7 @@ const ensureInitialized = async () => {
       if (attempt === maxAttempts) {
         return
       }
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+      await new Promise((resolve) => setTimeout(resolve, 2000))
     }
   }
 }
