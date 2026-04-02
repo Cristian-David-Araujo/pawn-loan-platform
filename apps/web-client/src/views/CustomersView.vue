@@ -263,7 +263,12 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="loan in selectedCustomerLoans" :key="loan.id">
+              <tr
+                v-for="loan in selectedCustomerLoans"
+                :key="loan.id"
+                class="clickable-row"
+                @click="openCustomerLoanDetail(loan.id)"
+              >
                 <td>#{{ loan.id }}</td>
                 <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
                 <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
@@ -273,7 +278,7 @@
                 <td>{{ loan.monthlyInterestRate }}%</td>
                 <td>{{ t(`common.${loan.status}`) }}</td>
                 <td>
-                  <button class="btn btn-secondary" type="button" @click="openLoanEditModal(loan)">
+                  <button class="btn btn-secondary" type="button" @click.stop="openLoanEditModal(loan)">
                     {{ t('customers.editLoan') }}
                   </button>
                 </td>
@@ -356,6 +361,103 @@
                     {{ t('customers.editCollateral') }}
                   </button>
                 </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showCustomerLoanDetailModal && selectedCustomerLoanDetail" class="modal-backdrop" @click.self="closeCustomerLoanDetail">
+      <div class="modal-panel card modal-panel-lg">
+        <div class="modal-header">
+          <h3>{{ t('loans.loanDetail') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeCustomerLoanDetail">{{ t('common.close') }}</button>
+        </div>
+
+        <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedCustomerLoanDetail.id }) }}</p>
+
+        <div class="grid grid-4 mt-16">
+          <div class="card stat-card stat-accent-indigo">
+            <p class="stat-label">{{ t('common.customer') }}</p>
+            <p class="stat-value">{{ selectedCustomer?.fullName }}</p>
+          </div>
+          <div class="card stat-card stat-accent-blue">
+            <p class="stat-label">{{ t('common.type') }}</p>
+            <p class="stat-value">
+              {{ selectedCustomerLoanDetail.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}
+            </p>
+          </div>
+          <div class="card stat-card stat-accent-green">
+            <p class="stat-label">{{ t('common.principal') }}</p>
+            <p class="stat-value">{{ formatCurrency(selectedCustomerLoanDetail.principalAmount) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-amber">
+            <p class="stat-label">{{ t('loans.outstanding') }}</p>
+            <p class="stat-value">{{ formatCurrency(selectedCustomerLoanDetail.outstandingPrincipal) }}</p>
+          </div>
+        </div>
+
+        <div class="stats-inline mt-16">
+          <span class="pill">{{ t('common.status') }}: {{ t(`common.${selectedCustomerLoanDetail.status}`) }}</span>
+          <span class="pill">{{ t('loans.dueDay') }}: {{ selectedCustomerLoanDetail.dueDay }}</span>
+          <span class="pill">{{ t('loans.rate') }}: {{ selectedCustomerLoanDetail.monthlyInterestRate }}%</span>
+          <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedCustomerLoanDetail.disbursementDate) }}</span>
+        </div>
+
+        <div class="mt-16">
+          <h3>{{ t('loans.loanPayments') }}</h3>
+          <p class="muted" v-if="!selectedCustomerLoanPayments.length">{{ t('loans.noLoanPayments') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.date') }}</th>
+                <th>{{ t('common.total') }}</th>
+                <th>{{ t('payments.penalty') }}</th>
+                <th>{{ t('common.interest') }}</th>
+                <th>{{ t('common.fees') }}</th>
+                <th>{{ t('common.principal') }}</th>
+                <th>{{ t('common.method') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="payment in selectedCustomerLoanPayments" :key="payment.id">
+                <td>#{{ payment.id }}</td>
+                <td>{{ formatDateDMY(payment.paymentDate) }}</td>
+                <td>{{ formatCurrency(payment.totalAmount) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                <td>{{ paymentMethodLabel(payment.paymentMethod) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-16">
+          <h3>{{ t('loans.loanCollateral') }}</h3>
+          <p class="muted" v-if="!selectedCustomerLoanCollateral.length">{{ t('loans.noLoanCollateral') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.description') }}</th>
+                <th>{{ t('collateral.appraisedValue') }}</th>
+                <th>{{ t('collateral.custodyCode') }}</th>
+                <th>{{ t('collateral.location') }}</th>
+                <th>{{ t('common.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in selectedCustomerLoanCollateral" :key="item.id">
+                <td>#{{ item.id }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ formatCurrency(item.appraisedValue) }}</td>
+                <td>{{ item.custodyCode }}</td>
+                <td>{{ item.storageLocation }}</td>
+                <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
               </tr>
             </tbody>
           </table>
@@ -506,6 +608,7 @@ const search = ref('')
 const selectedCustomerId = ref<number | null>(null)
 const showCreateModal = ref(false)
 const showDetailModal = ref(false)
+const showCustomerLoanDetailModal = ref(false)
 const showLoanEditModal = ref(false)
 const showCollateralEditModal = ref(false)
 const isSaving = ref(false)
@@ -515,6 +618,7 @@ const pendingInterestData = ref<InterestPendingResponse | null>(null)
 const principalContextData = ref<PrincipalContextResponse | null>(null)
 const paymentEvents = ref<PaymentEvent[]>([])
 const selectedLoanForEditId = ref<number | null>(null)
+const selectedLoanDetailId = ref<number | null>(null)
 const selectedCollateralForEditId = ref<number | null>(null)
 
 onMounted(async () => {
@@ -575,6 +679,32 @@ const selectedCustomerPayments = computed(() =>
 const selectedCustomerCollateral = computed(() =>
   state.collateralItems.filter((item: CollateralItem) => selectedCustomerLoanIds.value.has(item.loanId))
 )
+
+const selectedCustomerLoanDetail = computed(() => {
+  if (selectedLoanDetailId.value === null) {
+    return null
+  }
+
+  return selectedCustomerLoans.value.find((loan: Loan) => loan.id === selectedLoanDetailId.value) ?? null
+})
+
+const selectedCustomerLoanPayments = computed(() => {
+  if (!selectedCustomerLoanDetail.value) {
+    return []
+  }
+
+  return selectedCustomerPayments.value
+    .filter((payment: Payment) => payment.loanId === selectedCustomerLoanDetail.value?.id)
+    .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+})
+
+const selectedCustomerLoanCollateral = computed(() => {
+  if (!selectedCustomerLoanDetail.value) {
+    return []
+  }
+
+  return selectedCustomerCollateral.value.filter((item: CollateralItem) => item.loanId === selectedCustomerLoanDetail.value?.id)
+})
 
 const collateralAssignableLoans = computed(() =>
   selectedCustomerLoans.value.filter((loan: Loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
@@ -648,6 +778,15 @@ const openCustomerDetail = (customerId: number) => {
 
 const closeDetailModal = () => {
   showDetailModal.value = false
+}
+
+const openCustomerLoanDetail = (loanId: number) => {
+  selectedLoanDetailId.value = loanId
+  showCustomerLoanDetailModal.value = true
+}
+
+const closeCustomerLoanDetail = () => {
+  showCustomerLoanDetailModal.value = false
 }
 
 const openLoanEditModal = (loan: Loan) => {
