@@ -8,6 +8,7 @@ class GlobalSettingsUpdate(BaseModel):
     timezone: str
     date_format: str
     default_late_penalty_rate: float
+    interest_generation_lead_days: int | None = None
 
 
 class GlobalSettingsRead(BaseModel):
@@ -18,4 +19,5 @@ class GlobalSettingsRead(BaseModel):
     timezone: str
     date_format: str
     default_late_penalty_rate: float
+    interest_generation_lead_days: int
     updated_at: datetime

@@ -60,6 +60,7 @@ interface BackendGlobalSettings {
   timezone: string
   date_format: string
   default_late_penalty_rate: number
+  interest_generation_lead_days?: number
 }
 
 interface CreateCustomerPayload {
@@ -128,6 +129,7 @@ interface UpdateGlobalSettingsPayload {
   timezone: string
   dateFormat: string
   defaultLatePenaltyRate: number
+  interestGenerationLeadDays: number
 }
 
 const state = reactive({
@@ -195,7 +197,8 @@ const mapGlobalSettings = (item: BackendGlobalSettings): GlobalSettings => ({
   currencyCode: item.currency_code,
   timezone: item.timezone,
   dateFormat: item.date_format,
-  defaultLatePenaltyRate: item.default_late_penalty_rate
+  defaultLatePenaltyRate: item.default_late_penalty_rate,
+  interestGenerationLeadDays: item.interest_generation_lead_days ?? 0
 })
 
 const splitName = (fullName: string) => {
@@ -380,7 +383,8 @@ const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
       currency_code: payload.currencyCode,
       timezone: payload.timezone,
       date_format: payload.dateFormat,
-      default_late_penalty_rate: payload.defaultLatePenaltyRate
+      default_late_penalty_rate: payload.defaultLatePenaltyRate,
+      interest_generation_lead_days: payload.interestGenerationLeadDays
     })
   })
 

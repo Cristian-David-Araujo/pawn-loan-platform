@@ -207,9 +207,16 @@ export const messages = {
       title: 'Settings',
       subtitle: 'Manage global software configuration.',
       currencyCode: 'Currency',
+      currencyCodeHelp: 'Main currency used to display loan balances, payments and reports.',
       timezone: 'Timezone',
+      timezoneHelp: 'Reference timezone used by the platform for date-sensitive operations.',
       dateFormat: 'Date format',
+      dateFormatHelp: 'Date format shown in forms and tables across the app.',
       defaultLatePenaltyRate: 'Default late penalty rate (%)',
+      defaultLatePenaltyRateHelp: 'Default penalty percentage suggested when creating new loans.',
+      interestGenerationLeadDays: 'Days before next interest date to pre-generate charge',
+      interestGenerationLeadDaysHelp:
+        'If set to 3, the interest charge is generated 3 days before the monthly interest date.',
       saveSettings: 'Save settings'
     },
     reporting: {
@@ -451,9 +458,16 @@ export const messages = {
       title: 'Configuraciones',
       subtitle: 'Administra la configuracion global del software.',
       currencyCode: 'Moneda',
+      currencyCodeHelp: 'Moneda principal usada para mostrar saldos, pagos y reportes.',
       timezone: 'Zona horaria',
+      timezoneHelp: 'Zona horaria de referencia usada por la plataforma en operaciones con fecha.',
       dateFormat: 'Formato de fecha',
+      dateFormatHelp: 'Formato de fecha que se muestra en formularios y tablas de la aplicacion.',
       defaultLatePenaltyRate: 'Tasa de mora por defecto (%)',
+      defaultLatePenaltyRateHelp: 'Porcentaje de mora sugerido por defecto al crear nuevos prestamos.',
+      interestGenerationLeadDays: 'Dias antes de la siguiente fecha de interes para pre-generar el cargo',
+      interestGenerationLeadDaysHelp:
+        'Si configuras 3, el cargo de interes se genera 3 dias antes de la fecha mensual de interes.',
       saveSettings: 'Guardar configuraciones'
     },
     reporting: {

@@ -56,4 +56,5 @@ export interface GlobalSettings {
   timezone: string
   dateFormat: string
   defaultLatePenaltyRate: number
+  interestGenerationLeadDays: number
 }

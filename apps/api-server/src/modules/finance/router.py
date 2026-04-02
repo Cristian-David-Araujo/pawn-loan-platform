@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, User
+from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, Payment, User
 from src.modules.finance.schemas import InterestChargeRead, InterestGenerationRequest, LoanBalanceRead
 from src.shared.dependencies.auth import get_current_user
 from src.shared.dependencies.db import get_db
@@ -52,11 +52,15 @@ def generate_interest(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[InterestCharge]:
+    settings = db.get(GlobalSettings, 1)
+    lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
+    effective_as_of_date = payload.as_of_date + timedelta(days=lead_days)
+
     loans = list(db.scalars(select(Loan).where(Loan.status == LoanStatus.active)).all())
     generated: list[InterestCharge] = []
 
     for loan in loans:
-        period = _interest_period_for_as_of(payload.as_of_date, loan.disbursement_date)
+        period = _interest_period_for_as_of(effective_as_of_date, loan.disbursement_date)
         if period is None:
             continue
 
