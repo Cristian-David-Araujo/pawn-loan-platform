@@ -78,6 +78,7 @@ import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
 const { state, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
+const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const today = new Date().toISOString().slice(0, 10)
 const fromDate = ref('')
 const toDate = ref(today)
@@ -100,7 +101,10 @@ const filteredPayments = computed(() => {
 const totalCollected = computed(() => filteredPayments.value.reduce((sum, payment) => sum + payment.totalAmount, 0))
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+    style: 'currency',
+    currency: currencyCode.value
+  }).format(
     amount
   )
 

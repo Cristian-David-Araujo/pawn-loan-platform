@@ -49,3 +49,11 @@ export interface Payment {
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
 }
+
+export interface GlobalSettings {
+  id: number
+  currencyCode: string
+  timezone: string
+  dateFormat: string
+  defaultLatePenaltyRate: number
+}

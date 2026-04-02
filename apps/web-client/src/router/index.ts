@@ -5,6 +5,7 @@ import CustomersView from '../views/CustomersView.vue'
 import LoansView from '../views/LoansView.vue'
 import PaymentsView from '../views/PaymentsView.vue'
 import ReportingView from '../views/ReportingView.vue'
+import SettingsView from '../views/SettingsView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -19,7 +20,8 @@ const router = createRouter({
         { path: 'loans', name: 'loans', component: LoansView, meta: { labelKey: 'app.loans' } },
         { path: 'collateral', redirect: '/loans' },
         { path: 'payments', name: 'payments', component: PaymentsView, meta: { labelKey: 'app.payments' } },
-        { path: 'reporting', name: 'reporting', component: ReportingView, meta: { labelKey: 'app.reporting' } }
+        { path: 'reporting', name: 'reporting', component: ReportingView, meta: { labelKey: 'app.reporting' } },
+        { path: 'settings', name: 'settings', component: SettingsView, meta: { labelKey: 'app.settings' } }
       ]
     }
   ]

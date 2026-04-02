@@ -234,6 +234,7 @@ const search = ref('')
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
+const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
 const collateralEligibleLoans = computed(() =>
   state.loans.filter((loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
@@ -243,6 +244,9 @@ onMounted(async () => {
   await ensureInitialized()
   if (state.customers.length) {
     form.customerId = state.customers[0].id
+  }
+  if (state.globalSettings) {
+    form.latePenaltyRate = state.globalSettings.defaultLatePenaltyRate
   }
   if (collateralEligibleLoans.value.length) {
     collateralForm.loanId = collateralEligibleLoans.value[0].id
@@ -287,7 +291,10 @@ const handleCreateCollateral = async () => {
 }
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+    style: 'currency',
+    currency: currencyCode.value
+  }).format(
     amount
   )
 

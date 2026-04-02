@@ -290,6 +290,7 @@ interface PaymentEvent {
 
 const { state, ensureInitialized, refreshAll } = useMockPlatformStore()
 const { t, locale } = useI18n()
+const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
 const activeTab = ref<'interest' | 'principal'>('interest')
 const selectedCustomerId = ref<number | null>(null)
@@ -342,7 +343,10 @@ const partialAmount = computed(() => Math.max(0, suggestedSelectedAmount.value -
 const advanceAmount = computed(() => Math.max(0, interestAmountToPay.value - suggestedSelectedAmount.value))
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+    style: 'currency',
+    currency: currencyCode.value
+  }).format(
     amount
   )
 

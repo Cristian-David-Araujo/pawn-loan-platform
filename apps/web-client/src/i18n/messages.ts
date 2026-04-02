@@ -14,7 +14,8 @@ export const messages = {
       loans: 'Loans',
       collateral: 'Collateral',
       payments: 'Payments',
-      reporting: 'Reporting'
+      reporting: 'Reporting',
+      settings: 'Settings'
     },
     common: {
       id: 'ID',
@@ -191,6 +192,15 @@ export const messages = {
       allMethods: 'All methods',
       totalPayments: 'Payments: {count}'
     },
+    settings: {
+      title: 'Settings',
+      subtitle: 'Manage global software configuration.',
+      currencyCode: 'Currency',
+      timezone: 'Timezone',
+      dateFormat: 'Date format',
+      defaultLatePenaltyRate: 'Default late penalty rate (%)',
+      saveSettings: 'Save settings'
+    },
     reporting: {
       title: 'Reporting',
       subtitle: 'Basic operational reports with mock data.',
@@ -214,6 +224,7 @@ export const messages = {
       customerDocumentExists: 'Customer document already exists.',
       paymentRegistered: 'Payment registered.',
       allocationMustEqualTotal: 'Allocation must equal total amount.',
+      settingsUpdated: 'Settings updated.',
       loanUpdated: 'Loan updated.',
       collateralUpdated: 'Collateral updated.',
       operationFailed: 'Operation failed. Please try again.',
@@ -235,7 +246,8 @@ export const messages = {
       loans: 'Prestamos',
       collateral: 'Garantias',
       payments: 'Pagos',
-      reporting: 'Reportes'
+      reporting: 'Reportes',
+      settings: 'Configuraciones'
     },
     common: {
       id: 'ID',
@@ -412,6 +424,15 @@ export const messages = {
       allMethods: 'Todos los metodos',
       totalPayments: 'Pagos: {count}'
     },
+    settings: {
+      title: 'Configuraciones',
+      subtitle: 'Administra la configuracion global del software.',
+      currencyCode: 'Moneda',
+      timezone: 'Zona horaria',
+      dateFormat: 'Formato de fecha',
+      defaultLatePenaltyRate: 'Tasa de mora por defecto (%)',
+      saveSettings: 'Guardar configuraciones'
+    },
     reporting: {
       title: 'Reportes',
       subtitle: 'Reportes operativos basicos con datos mock.',
@@ -435,6 +456,7 @@ export const messages = {
       customerDocumentExists: 'El documento del cliente ya existe.',
       paymentRegistered: 'Pago registrado.',
       allocationMustEqualTotal: 'La asignacion debe ser igual al monto total.',
+      settingsUpdated: 'Configuraciones actualizadas.',
       loanUpdated: 'Prestamo actualizado.',
       collateralUpdated: 'Garantia actualizada.',
       operationFailed: 'La operacion fallo. Intentalo nuevamente.',

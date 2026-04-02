@@ -1,7 +1,7 @@
 import { computed, reactive } from 'vue'
 
 import { apiClient } from '../services/api'
-import type { CollateralItem, Customer, Loan, LoanType, Payment } from '../types/domain'
+import type { CollateralItem, Customer, GlobalSettings, Loan, LoanType, Payment } from '../types/domain'
 
 interface BackendCustomer {
   id: number
@@ -51,6 +51,14 @@ interface BackendPayment {
   allocated_to_fees: number
   allocated_to_principal: number
   payment_method: Payment['paymentMethod']
+}
+
+interface BackendGlobalSettings {
+  id: number
+  currency_code: string
+  timezone: string
+  date_format: string
+  default_late_penalty_rate: number
 }
 
 interface CreateCustomerPayload {
@@ -113,11 +121,19 @@ interface CreatePaymentPayload {
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
 }
 
+interface UpdateGlobalSettingsPayload {
+  currencyCode: string
+  timezone: string
+  dateFormat: string
+  defaultLatePenaltyRate: number
+}
+
 const state = reactive({
   customers: [] as Customer[],
   loans: [] as Loan[],
   collateralItems: [] as CollateralItem[],
   payments: [] as Payment[],
+  globalSettings: null as GlobalSettings | null,
   initialized: false,
   loading: false,
   loadError: ''
@@ -172,6 +188,14 @@ const mapPayment = (item: BackendPayment): Payment => ({
   paymentMethod: item.payment_method
 })
 
+const mapGlobalSettings = (item: BackendGlobalSettings): GlobalSettings => ({
+  id: item.id,
+  currencyCode: item.currency_code,
+  timezone: item.timezone,
+  dateFormat: item.date_format,
+  defaultLatePenaltyRate: item.default_late_penalty_rate
+})
+
 const splitName = (fullName: string) => {
   const parts = fullName.trim().split(/\s+/)
   if (parts.length <= 1) {
@@ -187,17 +211,19 @@ const refreshAll = async () => {
   state.loading = true
   state.loadError = ''
   try {
-    const [customers, loans, collateralItems, payments] = await Promise.all([
+    const [customers, loans, collateralItems, payments, globalSettings] = await Promise.all([
       apiClient.request<BackendCustomer[]>('/customers'),
       apiClient.request<BackendLoan[]>('/loans'),
       apiClient.request<BackendCollateral[]>('/collateral-items'),
-      apiClient.request<BackendPayment[]>('/payments')
+      apiClient.request<BackendPayment[]>('/payments'),
+      apiClient.request<BackendGlobalSettings>('/settings')
     ])
 
     state.customers = customers.map(mapCustomer)
     state.loans = loans.map(mapLoan)
     state.collateralItems = collateralItems.map(mapCollateral)
     state.payments = payments.map(mapPayment)
+    state.globalSettings = mapGlobalSettings(globalSettings)
     state.initialized = true
   } catch (error) {
     state.initialized = false
@@ -344,6 +370,21 @@ const createPayment = async (payload: CreatePaymentPayload) => {
   return { ok: true, messageKey: 'messages.paymentRegistered' }
 }
 
+const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
+  await apiClient.request<BackendGlobalSettings>('/settings', {
+    method: 'PUT',
+    body: JSON.stringify({
+      currency_code: payload.currencyCode,
+      timezone: payload.timezone,
+      date_format: payload.dateFormat,
+      default_late_penalty_rate: payload.defaultLatePenaltyRate
+    })
+  })
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.settingsUpdated' }
+}
+
 const updateLoan = async (payload: UpdateLoanPayload) => {
   await apiClient.request<BackendLoan>(`/loans/${payload.id}`, {
     method: 'PUT',
@@ -403,5 +444,6 @@ export const useMockPlatformStore = () => ({
   updateLoan,
   createCollateral,
   updateCollateral,
-  createPayment
+  createPayment,
+  updateGlobalSettings
 })

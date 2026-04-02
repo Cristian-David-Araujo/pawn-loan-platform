@@ -7,6 +7,7 @@ from src.domain.enums.loan import LoanStatus, LoanType
 from src.infrastructure.persistence.models import (
     CollateralItem,
     Customer,
+    GlobalSettings,
     InterestCharge,
     Loan,
     LoanApplication,
@@ -31,8 +32,21 @@ def seed_database(db: Session, force: bool = False) -> bool:
         db.query(Loan).delete()
         db.query(LoanApplication).delete()
         db.query(Customer).delete()
+        db.query(GlobalSettings).delete()
 
     users = _ensure_users(db)
+
+    if db.get(GlobalSettings, 1) is None:
+        db.add(
+            GlobalSettings(
+                id=1,
+                currency_code="COP",
+                timezone="America/Bogota",
+                date_format="DD/MM/YYYY",
+                default_late_penalty_rate=0,
+            )
+        )
+        db.flush()
 
     customer_1 = Customer(
         first_name="Ana",

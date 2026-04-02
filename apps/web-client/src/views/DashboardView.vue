@@ -38,16 +38,20 @@ import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
 
-const { dashboardStats, ensureInitialized } = useMockPlatformStore()
+const { state, dashboardStats, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
 const stats = computed(() => dashboardStats.value)
+const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
 onMounted(async () => {
   await ensureInitialized()
 })
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+    style: 'currency',
+    currency: currencyCode.value
+  }).format(
     amount
   )
 </script>
