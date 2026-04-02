@@ -1,3 +1,4 @@
+from calendar import monthrange
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,18 +29,47 @@ from src.shared.utils.audit import write_audit
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
+def _charge_due_date(period_end: date, grace_days: int) -> date:
+    return period_end + timedelta(days=max(0, grace_days))
+
+
+def _month_anchor(year: int, month: int, anchor_day: int) -> date:
+    last_day = monthrange(year, month)[1]
+    day = min(max(1, anchor_day), last_day)
+    return date(year, month, day)
+
+
+def _add_months(base_date: date, months: int, anchor_day: int) -> date:
+    month_index = (base_date.month - 1) + months
+    year = base_date.year + (month_index // 12)
+    month = (month_index % 12) + 1
+    return _month_anchor(year, month, anchor_day)
+
+
+def _next_interest_generation_date(as_of_date: date, disbursement_date: date) -> date:
+    anchor_day = disbursement_date.day
+    current_anchor = _month_anchor(as_of_date.year, as_of_date.month, anchor_day)
+
+    if as_of_date <= current_anchor:
+        return current_anchor
+
+    return _add_months(current_anchor, 1, anchor_day)
+
+
 def _compute_charge_pending(
     db: Session,
     charge: InterestCharge,
     today: date,
     late_penalty_rate: float,
+    grace_days: int,
 ) -> dict[str, float | bool]:
     events = list(db.scalars(select(PaymentEvent).where(PaymentEvent.interest_charge_id == charge.id)).all())
     paid_interest = round(sum(item.allocated_to_interest for item in events), 2)
     paid_penalty = round(sum(item.allocated_to_penalty for item in events), 2)
 
     base_pending = round(max(0.0, charge.amount - paid_interest), 2)
-    overdue = charge.period_end < today
+    due_date = _charge_due_date(charge.period_end, grace_days)
+    overdue = due_date < today
     penalty_amount = round(base_pending * (late_penalty_rate / 100), 2) if overdue and base_pending > 0 else 0.0
     pending_penalty = round(max(0.0, penalty_amount - paid_penalty), 2)
     outstanding = round(base_pending + pending_penalty, 2)
@@ -100,7 +130,8 @@ def _pending_interest_items_for_customer(db: Session, customer_id: int, today: d
                 base_pending = round(base_pending - advance_applied, 2)
                 advance_pool = round(advance_pool - advance_applied, 2)
 
-            overdue = charge.period_end < today
+            due_date = _charge_due_date(charge.period_end, loan.due_day)
+            overdue = due_date < today
             penalty_amount = (
                 round(base_pending * (loan.late_penalty_rate / 100), 2)
                 if overdue and base_pending > 0
@@ -118,7 +149,7 @@ def _pending_interest_items_for_customer(db: Session, customer_id: int, today: d
                     loan_type=loan.loan_type.value,
                     disbursement_date=loan.disbursement_date,
                     billing_period=charge.period_start.strftime("%Y-%m"),
-                    due_date=charge.period_end,
+                    due_date=due_date,
                     original_interest_amount=round(charge.amount, 2),
                     remaining_pending_amount=round(base_pending, 2),
                     overdue=overdue,
@@ -552,7 +583,10 @@ def principal_context(
                 loan_id=loan.id,
                 loan_type=loan.loan_type.value,
                 disbursement_date=loan.disbursement_date,
-                next_due_date=today + timedelta(days=max(1, loan.due_day)),
+                next_due_date=_charge_due_date(
+                    _next_interest_generation_date(today, loan.disbursement_date),
+                    loan.due_day,
+                ),
                 original_principal=loan.principal_amount,
                 outstanding_principal=loan.outstanding_principal,
                 accrued_unpaid_interest=unpaid_interest,

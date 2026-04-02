@@ -27,21 +27,66 @@
           {{ t('loans.principalAmount') }}
           <input v-model.number="form.principalAmount" type="number" min="1" required />
         </label>
-        <label>
-          {{ t('loans.monthlyInterestRate') }}
-          <input v-model.number="form.monthlyInterestRate" type="number" min="0" step="0.1" required />
+        <label :title="t('loans.monthlyInterestRateHelp')">
+          <span class="field-label-row">
+            {{ t('loans.monthlyInterestRate') }}
+            <span class="field-help" aria-hidden="true">ⓘ</span>
+          </span>
+          <input
+            v-model.number="form.monthlyInterestRate"
+            type="number"
+            min="0"
+            step="0.1"
+            required
+            :title="t('loans.monthlyInterestRateHelp')"
+          />
         </label>
-        <label>
-          {{ t('loans.latePenaltyRate') }}
-          <input v-model.number="form.latePenaltyRate" type="number" min="0" step="0.1" required />
+        <label class="checkbox-row" :title="t('loans.applyLatePenaltyHelp')">
+          <input v-model="applyLatePenalty" type="checkbox" />
+          <span class="field-label-row">
+            {{ t('loans.applyLatePenalty') }}
+            <span class="field-help" aria-hidden="true">ⓘ</span>
+          </span>
         </label>
-        <label>
-          {{ t('loans.dueDay') }}
-          <input v-model.number="form.dueDay" type="number" min="1" max="28" required />
+        <label v-if="applyLatePenalty" :title="t('loans.latePenaltyRateHelp')">
+          <span class="field-label-row">
+            {{ t('loans.latePenaltyRate') }}
+            <span class="field-help" aria-hidden="true">ⓘ</span>
+          </span>
+          <input
+            v-model.number="form.latePenaltyRate"
+            type="number"
+            min="0"
+            step="0.1"
+            required
+            :title="t('loans.latePenaltyRateHelp')"
+          />
         </label>
-        <label>
-          {{ t('loans.disbursementDate') }}
-          <input v-model="form.disbursementDate" :placeholder="datePlaceholder" required />
+        <label v-if="applyLatePenalty" :title="t('loans.graceDaysHelp')">
+          <span class="field-label-row">
+            {{ t('loans.dueDay') }}
+            <span class="field-help" aria-hidden="true">ⓘ</span>
+          </span>
+          <input
+            v-model.number="form.dueDay"
+            type="number"
+            min="0"
+            max="60"
+            required
+            :title="t('loans.graceDaysHelp')"
+          />
+        </label>
+        <label :title="t('loans.disbursementDateHelp')">
+          <span class="field-label-row">
+            {{ t('loans.disbursementDate') }}
+            <span class="field-help" aria-hidden="true">ⓘ</span>
+          </span>
+          <input
+            v-model="form.disbursementDate"
+            :placeholder="datePlaceholder"
+            required
+            :title="t('loans.disbursementDateHelp')"
+          />
         </label>
       </div>
       <button class="btn" type="submit">
@@ -187,7 +232,7 @@
 
         <div class="stats-inline mt-16">
           <span class="pill">{{ t('common.status') }}: {{ t(`common.${selectedLoan.status}`) }}</span>
-          <span class="pill">{{ t('loans.dueDay') }}: {{ selectedLoan.dueDay }}</span>
+          <span class="pill" :title="t('loans.graceDaysHelp')">{{ t('loans.dueDay') }}: {{ selectedLoan.dueDay }}</span>
           <span class="pill">{{ t('loans.rate') }}: {{ selectedLoan.monthlyInterestRate }}%</span>
           <span class="pill">{{ t('loans.latePenaltyRate') }}: {{ selectedLoan.latePenaltyRate }}%</span>
           <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedLoan.disbursementDate) }}</span>
@@ -283,6 +328,7 @@ const { state, createLoan, createCollateral, getCustomerName, ensureInitialized 
 const { t, locale } = useI18n()
 const search = ref('')
 const message = ref('')
+const applyLatePenalty = ref(true)
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
@@ -326,7 +372,14 @@ const handleCreateLoan = async () => {
     return
   }
 
-  await createLoan({ ...form, disbursementDate })
+  const payload = {
+    ...form,
+    disbursementDate,
+    latePenaltyRate: applyLatePenalty.value ? form.latePenaltyRate : 0,
+    dueDay: applyLatePenalty.value ? form.dueDay : 0
+  }
+
+  await createLoan(payload)
   form.disbursementDate = formatDateDMY(todayIso)
   message.value = ''
 

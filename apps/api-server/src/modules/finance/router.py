@@ -15,27 +15,34 @@ from src.shared.utils.audit import write_audit
 router = APIRouter(tags=["finance"])
 
 
-def _month_anchor(year: int, month: int, due_day: int) -> date:
+def _month_anchor(year: int, month: int, anchor_day: int) -> date:
     last_day = monthrange(year, month)[1]
-    day = min(max(1, due_day), last_day)
+    day = min(max(1, anchor_day), last_day)
     return date(year, month, day)
 
 
-def _add_months(base_date: date, months: int, due_day: int) -> date:
+def _add_months(base_date: date, months: int, anchor_day: int) -> date:
     month_index = (base_date.month - 1) + months
     year = base_date.year + (month_index // 12)
     month = (month_index % 12) + 1
-    return _month_anchor(year, month, due_day)
+    return _month_anchor(year, month, anchor_day)
 
 
-def _interest_period_for_as_of(as_of_date: date, due_day: int) -> tuple[date, date]:
-    current_anchor = _month_anchor(as_of_date.year, as_of_date.month, due_day)
+def _interest_period_for_as_of(as_of_date: date, disbursement_date: date) -> tuple[date, date] | None:
+    anchor_day = disbursement_date.day
+    current_anchor = _month_anchor(as_of_date.year, as_of_date.month, anchor_day)
     if as_of_date >= current_anchor:
         period_end = current_anchor
     else:
-        period_end = _add_months(current_anchor, -1, due_day)
+        period_end = _add_months(current_anchor, -1, anchor_day)
 
-    period_start = _add_months(period_end, -1, due_day)
+    if period_end <= disbursement_date:
+        return None
+
+    period_start = _add_months(period_end, -1, anchor_day)
+    if period_start < disbursement_date:
+        period_start = disbursement_date
+
     return period_start, period_end
 
 
@@ -49,7 +56,11 @@ def generate_interest(
     generated: list[InterestCharge] = []
 
     for loan in loans:
-        period_start, period_end = _interest_period_for_as_of(payload.as_of_date, loan.due_day)
+        period = _interest_period_for_as_of(payload.as_of_date, loan.disbursement_date)
+        if period is None:
+            continue
+
+        period_start, period_end = period
 
         exists = db.scalar(
             select(InterestCharge).where(

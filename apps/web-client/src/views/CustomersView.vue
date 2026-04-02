@@ -287,7 +287,7 @@
                 <th>{{ t('common.id') }}</th>
                 <th>{{ t('common.type') }}</th>
                 <th>{{ t('customers.loanDisbursementDate') }}</th>
-                <th>{{ t('loans.dueDay') }}</th>
+                <th :title="t('loans.graceDaysHelp')">{{ t('loans.dueDay') }}</th>
                 <th>{{ t('common.principal') }}</th>
                 <th>{{ t('loans.outstanding') }}</th>
                 <th>{{ t('loans.rate') }}</th>
@@ -433,7 +433,7 @@
 
         <div class="stats-inline mt-16">
           <span class="pill">{{ t('common.status') }}: {{ t(`common.${selectedCustomerLoanDetail.status}`) }}</span>
-          <span class="pill">{{ t('loans.dueDay') }}: {{ selectedCustomerLoanDetail.dueDay }}</span>
+          <span class="pill" :title="t('loans.graceDaysHelp')">{{ t('loans.dueDay') }}: {{ selectedCustomerLoanDetail.dueDay }}</span>
           <span class="pill">{{ t('loans.rate') }}: {{ selectedCustomerLoanDetail.monthlyInterestRate }}%</span>
           <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedCustomerLoanDetail.disbursementDate) }}</span>
         </div>
@@ -511,9 +511,16 @@
               {{ t('loans.monthlyInterestRate') }}
               <input v-model.number="loanEditForm.monthlyInterestRate" type="number" min="0" step="0.1" required />
             </label>
-            <label>
+            <label :title="t('loans.graceDaysHelp')">
               {{ t('loans.dueDay') }}
-              <input v-model.number="loanEditForm.dueDay" type="number" min="1" max="28" required />
+              <input
+                v-model.number="loanEditForm.dueDay"
+                type="number"
+                min="0"
+                max="60"
+                required
+                :title="t('loans.graceDaysHelp')"
+              />
             </label>
             <label>
               {{ t('common.status') }}
