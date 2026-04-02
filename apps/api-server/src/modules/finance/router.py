@@ -1,4 +1,5 @@
-from datetime import timedelta
+from calendar import monthrange
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -14,6 +15,30 @@ from src.shared.utils.audit import write_audit
 router = APIRouter(tags=["finance"])
 
 
+def _month_anchor(year: int, month: int, due_day: int) -> date:
+    last_day = monthrange(year, month)[1]
+    day = min(max(1, due_day), last_day)
+    return date(year, month, day)
+
+
+def _add_months(base_date: date, months: int, due_day: int) -> date:
+    month_index = (base_date.month - 1) + months
+    year = base_date.year + (month_index // 12)
+    month = (month_index % 12) + 1
+    return _month_anchor(year, month, due_day)
+
+
+def _interest_period_for_as_of(as_of_date: date, due_day: int) -> tuple[date, date]:
+    current_anchor = _month_anchor(as_of_date.year, as_of_date.month, due_day)
+    if as_of_date >= current_anchor:
+        period_end = current_anchor
+    else:
+        period_end = _add_months(current_anchor, -1, due_day)
+
+    period_start = _add_months(period_end, -1, due_day)
+    return period_start, period_end
+
+
 @router.post("/interest/generate", response_model=list[InterestChargeRead])
 def generate_interest(
     payload: InterestGenerationRequest,
@@ -24,11 +49,23 @@ def generate_interest(
     generated: list[InterestCharge] = []
 
     for loan in loans:
+        period_start, period_end = _interest_period_for_as_of(payload.as_of_date, loan.due_day)
+
+        exists = db.scalar(
+            select(InterestCharge).where(
+                InterestCharge.loan_id == loan.id,
+                InterestCharge.period_start == period_start,
+                InterestCharge.period_end == period_end,
+            )
+        )
+        if exists is not None:
+            continue
+
         amount = round(loan.outstanding_principal * (loan.monthly_interest_rate / 100), 2)
         charge = InterestCharge(
             loan_id=loan.id,
-            period_start=payload.as_of_date - timedelta(days=30),
-            period_end=payload.as_of_date,
+            period_start=period_start,
+            period_end=period_end,
             charge_date=payload.as_of_date,
             amount=amount,
             status="generated",
