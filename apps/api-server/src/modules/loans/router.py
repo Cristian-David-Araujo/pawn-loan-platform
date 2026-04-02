@@ -101,6 +101,7 @@ def create_loan(
         principal_amount=payload.principal_amount,
         outstanding_principal=payload.principal_amount,
         monthly_interest_rate=payload.monthly_interest_rate,
+        late_penalty_rate=payload.late_penalty_rate,
         disbursement_date=payload.disbursement_date,
         due_day=payload.due_day,
         status=LoanStatus.active,

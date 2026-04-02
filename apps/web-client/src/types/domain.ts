@@ -22,6 +22,7 @@ export interface Loan {
   principalAmount: number
   outstandingPrincipal: number
   monthlyInterestRate: number
+  latePenaltyRate: number
   disbursementDate: string
   dueDay: number
   status: LoanStatus

@@ -65,6 +65,7 @@ class Loan(Base):
     principal_amount: Mapped[float] = mapped_column(Float)
     outstanding_principal: Mapped[float] = mapped_column(Float)
     monthly_interest_rate: Mapped[float] = mapped_column(Float)
+    late_penalty_rate: Mapped[float] = mapped_column(Float, default=0)
     disbursement_date: Mapped[date] = mapped_column(Date)
     due_day: Mapped[int] = mapped_column(Integer)
     status: Mapped[LoanStatus] = mapped_column(Enum(LoanStatus), default=LoanStatus.active)

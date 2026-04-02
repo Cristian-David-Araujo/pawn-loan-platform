@@ -25,6 +25,7 @@ interface BackendLoan {
   principal_amount: number
   outstanding_principal: number
   monthly_interest_rate: number
+  late_penalty_rate: number
   disbursement_date: string
   due_day: number
   status: Loan['status']
@@ -75,6 +76,7 @@ interface CreateLoanPayload {
   loanType: LoanType
   principalAmount: number
   monthlyInterestRate: number
+  latePenaltyRate: number
   dueDay: number
 }
 
@@ -142,6 +144,7 @@ const mapLoan = (item: BackendLoan): Loan => ({
   principalAmount: item.principal_amount,
   outstandingPrincipal: item.outstanding_principal,
   monthlyInterestRate: item.monthly_interest_rate,
+  latePenaltyRate: item.late_penalty_rate,
   disbursementDate: item.disbursement_date,
   dueDay: item.due_day,
   status: item.status
@@ -289,6 +292,7 @@ const createLoan = async (payload: CreateLoanPayload) => {
       loan_type: payload.loanType,
       principal_amount: payload.principalAmount,
       monthly_interest_rate: payload.monthlyInterestRate,
+      late_penalty_rate: payload.latePenaltyRate,
       disbursement_date: new Date().toISOString().slice(0, 10),
       due_day: payload.dueDay
     })

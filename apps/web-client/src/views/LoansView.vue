@@ -32,6 +32,10 @@
           <input v-model.number="form.monthlyInterestRate" type="number" min="0" step="0.1" required />
         </label>
         <label>
+          {{ t('loans.latePenaltyRate') }}
+          <input v-model.number="form.latePenaltyRate" type="number" min="0" step="0.1" required />
+        </label>
+        <label>
           {{ t('loans.dueDay') }}
           <input v-model.number="form.dueDay" type="number" min="1" max="28" required />
         </label>
@@ -142,6 +146,7 @@
           <span class="pill">{{ t('common.status') }}: {{ t(`common.${selectedLoan.status}`) }}</span>
           <span class="pill">{{ t('loans.dueDay') }}: {{ selectedLoan.dueDay }}</span>
           <span class="pill">{{ t('loans.rate') }}: {{ selectedLoan.monthlyInterestRate }}%</span>
+          <span class="pill">{{ t('loans.latePenaltyRate') }}: {{ selectedLoan.latePenaltyRate }}%</span>
           <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedLoan.disbursementDate) }}</span>
         </div>
 
@@ -249,6 +254,7 @@ const form = reactive({
   loanType: 'pawn' as 'pawn' | 'personal',
   principalAmount: 1000,
   monthlyInterestRate: 8,
+  latePenaltyRate: 0,
   dueDay: 5
 })
 
