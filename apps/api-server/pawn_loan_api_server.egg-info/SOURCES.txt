@@ -49,6 +49,9 @@ pyproject.toml
 ./src/modules/payments/schemas.py
 ./src/modules/reporting/__init__.py
 ./src/modules/reporting/router.py
+./src/modules/settings/__init__.py
+./src/modules/settings/router.py
+./src/modules/settings/schemas.py
 ./src/shared/__init__.py
 ./src/shared/constants/__init__.py
 ./src/shared/dependencies/__init__.py
@@ -112,6 +115,9 @@ src/modules/payments/router.py
 src/modules/payments/schemas.py
 src/modules/reporting/__init__.py
 src/modules/reporting/router.py
+src/modules/settings/__init__.py
+src/modules/settings/router.py
+src/modules/settings/schemas.py
 src/shared/__init__.py
 src/shared/constants/__init__.py
 src/shared/dependencies/__init__.py
@@ -129,3 +135,4 @@ tests/test_loans.py
 tests/test_payments.py
 tests/test_payments_advanced.py
 tests/test_reporting.py
+tests/test_settings.py

@@ -432,6 +432,32 @@ label {
   font-size: 0.85rem;
 }
 
+.sort-header-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.sort-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.3rem;
+  border-radius: 999px;
+  border: 1px solid #d2deef;
+  background: #ebf1fb;
+  color: #2f4464;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 0.16rem 0.32rem;
+}
+
 .quick-actions {
   display: flex;
   flex-wrap: wrap;

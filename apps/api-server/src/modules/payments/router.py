@@ -28,14 +28,19 @@ from src.shared.utils.audit import write_audit
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
-def _compute_charge_pending(db: Session, charge: InterestCharge, today: date) -> dict[str, float | bool]:
+def _compute_charge_pending(
+    db: Session,
+    charge: InterestCharge,
+    today: date,
+    late_penalty_rate: float,
+) -> dict[str, float | bool]:
     events = list(db.scalars(select(PaymentEvent).where(PaymentEvent.interest_charge_id == charge.id)).all())
     paid_interest = round(sum(item.allocated_to_interest for item in events), 2)
     paid_penalty = round(sum(item.allocated_to_penalty for item in events), 2)
 
     base_pending = round(max(0.0, charge.amount - paid_interest), 2)
     overdue = charge.period_end < today
-    penalty_amount = round(base_pending * 0.02, 2) if overdue and base_pending > 0 else 0.0
+    penalty_amount = round(base_pending * (late_penalty_rate / 100), 2) if overdue and base_pending > 0 else 0.0
     pending_penalty = round(max(0.0, penalty_amount - paid_penalty), 2)
     outstanding = round(base_pending + pending_penalty, 2)
     return {
@@ -54,7 +59,6 @@ def _pending_interest_items_for_customer(db: Session, customer_id: int, today: d
     if not loans:
         return []
 
-    loan_by_id = {loan.id: loan for loan in loans}
     items: list[InterestPendingItem] = []
     for loan in loans:
         charges = list(
@@ -97,7 +101,11 @@ def _pending_interest_items_for_customer(db: Session, customer_id: int, today: d
                 advance_pool = round(advance_pool - advance_applied, 2)
 
             overdue = charge.period_end < today
-            penalty_amount = round(base_pending * 0.02, 2) if overdue and base_pending > 0 else 0.0
+            penalty_amount = (
+                round(base_pending * (loan.late_penalty_rate / 100), 2)
+                if overdue and base_pending > 0
+                else 0.0
+            )
             pending_penalty = round(max(0.0, penalty_amount - paid_penalty), 2)
             outstanding = round(base_pending + pending_penalty, 2)
             if outstanding <= 0:

@@ -13,6 +13,14 @@ class CollateralCreate(BaseModel):
     storage_location: str = ""
 
 
+class CollateralUpdate(BaseModel):
+    loan_id: int
+    description: str
+    appraised_value: float
+    storage_location: str
+    status: str
+
+
 class CollateralRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

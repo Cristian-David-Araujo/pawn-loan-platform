@@ -17,17 +17,50 @@
     <div class="card mt-16">
       <div class="table-toolbar">
         <input v-model="search" class="table-search" type="text" :placeholder="t('customers.searchPlaceholder')" />
+        <select v-model="customerStatusFilter" class="table-select">
+          <option value="all">{{ t('loans.allStatuses') }}</option>
+          <option value="active">{{ t('common.active') }}</option>
+          <option value="archived">archived</option>
+        </select>
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>
       <table>
         <thead>
           <tr>
-            <th>{{ t('common.id') }}</th>
-            <th>{{ t('common.name') }}</th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleCustomerSort('id')">
+                {{ t('common.id') }}
+                <span v-if="getCustomerSortBadge('id')" class="sort-indicator">
+                  {{ getCustomerSortBadge('id') }}
+                </span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleCustomerSort('name')">
+                {{ t('common.name') }}
+                <span v-if="getCustomerSortBadge('name')" class="sort-indicator">
+                  {{ getCustomerSortBadge('name') }}
+                </span>
+              </button>
+            </th>
             <th>{{ t('customers.document') }}</th>
             <th>{{ t('common.phone') }}</th>
-            <th>{{ t('common.city') }}</th>
-            <th>{{ t('common.status') }}</th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleCustomerSort('city')">
+                {{ t('common.city') }}
+                <span v-if="getCustomerSortBadge('city')" class="sort-indicator">
+                  {{ getCustomerSortBadge('city') }}
+                </span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-header-btn" type="button" @click="toggleCustomerSort('status')">
+                {{ t('common.status') }}
+                <span v-if="getCustomerSortBadge('status')" class="sort-indicator">
+                  {{ getCustomerSortBadge('status') }}
+                </span>
+              </button>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -259,10 +292,16 @@
                 <th>{{ t('loans.outstanding') }}</th>
                 <th>{{ t('loans.rate') }}</th>
                 <th>{{ t('common.status') }}</th>
+                <th>{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="loan in selectedCustomerLoans" :key="loan.id">
+              <tr
+                v-for="loan in selectedCustomerLoans"
+                :key="loan.id"
+                class="clickable-row"
+                @click="openCustomerLoanDetail(loan.id)"
+              >
                 <td>#{{ loan.id }}</td>
                 <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
                 <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
@@ -271,6 +310,11 @@
                 <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
                 <td>{{ loan.monthlyInterestRate }}%</td>
                 <td>{{ t(`common.${loan.status}`) }}</td>
+                <td>
+                  <button class="btn btn-secondary" type="button" @click.stop="openLoanEditModal(loan)">
+                    {{ t('customers.editLoan') }}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
@@ -326,24 +370,209 @@
               <tr>
                 <th>{{ t('common.id') }}</th>
                 <th>{{ t('common.loan') }}</th>
+                <th>{{ t('customers.associatedLoanType') }}</th>
+                <th>{{ t('customers.associatedLoanStatus') }}</th>
                 <th>{{ t('common.description') }}</th>
                 <th>{{ t('collateral.appraisedValue') }}</th>
                 <th>{{ t('collateral.custodyCode') }}</th>
                 <th>{{ t('common.status') }}</th>
+                <th>{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="item in selectedCustomerCollateral" :key="item.id">
                 <td>#{{ item.id }}</td>
                 <td>#{{ item.loanId }}</td>
+                <td>{{ getLoanTypeLabel(item.loanId) }}</td>
+                <td>{{ getLoanStatusLabel(item.loanId) }}</td>
                 <td>{{ item.description }}</td>
                 <td>{{ formatCurrency(item.appraisedValue) }}</td>
                 <td>{{ item.custodyCode }}</td>
+                <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+                <td>
+                  <button class="btn btn-secondary" type="button" @click="openCollateralEditModal(item)">
+                    {{ t('customers.editCollateral') }}
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showCustomerLoanDetailModal && selectedCustomerLoanDetail" class="modal-backdrop" @click.self="closeCustomerLoanDetail">
+      <div class="modal-panel card modal-panel-lg">
+        <div class="modal-header">
+          <h3>{{ t('loans.loanDetail') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeCustomerLoanDetail">{{ t('common.close') }}</button>
+        </div>
+
+        <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedCustomerLoanDetail.id }) }}</p>
+
+        <div class="grid grid-4 mt-16">
+          <div class="card stat-card stat-accent-indigo">
+            <p class="stat-label">{{ t('common.customer') }}</p>
+            <p class="stat-value">{{ selectedCustomer?.fullName }}</p>
+          </div>
+          <div class="card stat-card stat-accent-blue">
+            <p class="stat-label">{{ t('common.type') }}</p>
+            <p class="stat-value">
+              {{ selectedCustomerLoanDetail.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}
+            </p>
+          </div>
+          <div class="card stat-card stat-accent-green">
+            <p class="stat-label">{{ t('common.principal') }}</p>
+            <p class="stat-value">{{ formatCurrency(selectedCustomerLoanDetail.principalAmount) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-amber">
+            <p class="stat-label">{{ t('loans.outstanding') }}</p>
+            <p class="stat-value">{{ formatCurrency(selectedCustomerLoanDetail.outstandingPrincipal) }}</p>
+          </div>
+        </div>
+
+        <div class="stats-inline mt-16">
+          <span class="pill">{{ t('common.status') }}: {{ t(`common.${selectedCustomerLoanDetail.status}`) }}</span>
+          <span class="pill">{{ t('loans.dueDay') }}: {{ selectedCustomerLoanDetail.dueDay }}</span>
+          <span class="pill">{{ t('loans.rate') }}: {{ selectedCustomerLoanDetail.monthlyInterestRate }}%</span>
+          <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedCustomerLoanDetail.disbursementDate) }}</span>
+        </div>
+
+        <div class="mt-16">
+          <h3>{{ t('loans.loanPayments') }}</h3>
+          <p class="muted" v-if="!selectedCustomerLoanPayments.length">{{ t('loans.noLoanPayments') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.date') }}</th>
+                <th>{{ t('common.total') }}</th>
+                <th>{{ t('payments.penalty') }}</th>
+                <th>{{ t('common.interest') }}</th>
+                <th>{{ t('common.fees') }}</th>
+                <th>{{ t('common.principal') }}</th>
+                <th>{{ t('common.method') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="payment in selectedCustomerLoanPayments" :key="payment.id">
+                <td>#{{ payment.id }}</td>
+                <td>{{ formatDateDMY(payment.paymentDate) }}</td>
+                <td>{{ formatCurrency(payment.totalAmount) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
+                <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                <td>{{ paymentMethodLabel(payment.paymentMethod) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="mt-16">
+          <h3>{{ t('loans.loanCollateral') }}</h3>
+          <p class="muted" v-if="!selectedCustomerLoanCollateral.length">{{ t('loans.noLoanCollateral') }}</p>
+          <table v-else>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.description') }}</th>
+                <th>{{ t('collateral.appraisedValue') }}</th>
+                <th>{{ t('collateral.custodyCode') }}</th>
+                <th>{{ t('collateral.location') }}</th>
+                <th>{{ t('common.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in selectedCustomerLoanCollateral" :key="item.id">
+                <td>#{{ item.id }}</td>
+                <td>{{ item.description }}</td>
+                <td>{{ formatCurrency(item.appraisedValue) }}</td>
+                <td>{{ item.custodyCode }}</td>
+                <td>{{ item.storageLocation }}</td>
                 <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
               </tr>
             </tbody>
           </table>
         </div>
+      </div>
+    </div>
+
+    <div v-if="showLoanEditModal" class="modal-backdrop" @click.self="closeLoanEditModal">
+      <div class="modal-panel card">
+        <div class="modal-header">
+          <h3>{{ t('customers.editLoan') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeLoanEditModal">{{ t('common.close') }}</button>
+        </div>
+
+        <form class="form mt-16" @submit.prevent="handleUpdateLoan">
+          <div class="grid grid-2">
+            <label>
+              {{ t('loans.monthlyInterestRate') }}
+              <input v-model.number="loanEditForm.monthlyInterestRate" type="number" min="0" step="0.1" required />
+            </label>
+            <label>
+              {{ t('loans.dueDay') }}
+              <input v-model.number="loanEditForm.dueDay" type="number" min="1" max="28" required />
+            </label>
+            <label>
+              {{ t('common.status') }}
+              <select v-model="loanEditForm.status" required>
+                <option value="active">{{ t('common.active') }}</option>
+                <option value="overdue">{{ t('common.overdue') }}</option>
+                <option value="closed">{{ t('common.closed') }}</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="isSaving">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <div v-if="showCollateralEditModal" class="modal-backdrop" @click.self="closeCollateralEditModal">
+      <div class="modal-panel card">
+        <div class="modal-header">
+          <h3>{{ t('customers.editCollateral') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closeCollateralEditModal">{{ t('common.close') }}</button>
+        </div>
+
+        <form class="form mt-16" @submit.prevent="handleUpdateCollateral">
+          <div class="grid grid-2">
+            <label>
+              {{ t('common.loan') }}
+              <select v-model.number="collateralEditForm.loanId" required>
+                <option v-for="loan in collateralAssignableLoans" :key="loan.id" :value="loan.id">#{{ loan.id }}</option>
+              </select>
+            </label>
+            <label>
+              {{ t('common.description') }}
+              <input v-model="collateralEditForm.description" required />
+            </label>
+            <label>
+              {{ t('collateral.appraisedValue') }}
+              <input v-model.number="collateralEditForm.appraisedValue" type="number" min="1" required />
+            </label>
+            <label>
+              {{ t('collateral.storageLocation') }}
+              <input v-model="collateralEditForm.storageLocation" required />
+            </label>
+            <label>
+              {{ t('common.status') }}
+              <select v-model="collateralEditForm.status" required>
+                <option value="in-custody">{{ t('common.inCustody') }}</option>
+                <option value="released">{{ t('common.released') }}</option>
+                <option value="liquidated">{{ t('common.liquidated') }}</option>
+              </select>
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="isSaving">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
       </div>
     </div>
   </section>
@@ -404,19 +633,37 @@ interface PaymentEvent {
   payment_method: string
 }
 
-const { state, createCustomer, updateCustomer, getCustomerById, ensureInitialized } = useMockPlatformStore()
+type SortDirection = 'asc' | 'desc'
+type CustomerSortKey = 'name' | 'id' | 'city' | 'status'
+
+interface SortCriterion<T extends string> {
+  key: T
+  direction: SortDirection
+}
+
+const { state, createCustomer, updateCustomer, updateLoan, updateCollateral, getCustomerById, ensureInitialized } =
+  useMockPlatformStore()
 const { t, locale } = useI18n()
+const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const message = ref('')
 const search = ref('')
+const customerStatusFilter = ref<'all' | 'active' | 'archived'>('all')
+const customerSortPriority = ref<SortCriterion<CustomerSortKey>[]>([{ key: 'name', direction: 'asc' }])
 const selectedCustomerId = ref<number | null>(null)
 const showCreateModal = ref(false)
 const showDetailModal = ref(false)
+const showCustomerLoanDetailModal = ref(false)
+const showLoanEditModal = ref(false)
+const showCollateralEditModal = ref(false)
 const isSaving = ref(false)
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
 const pendingInterestData = ref<InterestPendingResponse | null>(null)
 const principalContextData = ref<PrincipalContextResponse | null>(null)
 const paymentEvents = ref<PaymentEvent[]>([])
+const selectedLoanForEditId = ref<number | null>(null)
+const selectedLoanDetailId = ref<number | null>(null)
+const selectedCollateralForEditId = ref<number | null>(null)
 
 onMounted(async () => {
   await ensureInitialized()
@@ -437,6 +684,20 @@ const editForm = reactive({
   address: '',
   city: '',
   status: 'active' as 'active' | 'archived'
+})
+
+const loanEditForm = reactive({
+  monthlyInterestRate: 0,
+  dueDay: 1,
+  status: 'active' as 'active' | 'overdue' | 'closed'
+})
+
+const collateralEditForm = reactive({
+  loanId: 0,
+  description: '',
+  appraisedValue: 0,
+  storageLocation: '',
+  status: 'in-custody' as 'in-custody' | 'released' | 'liquidated'
 })
 
 const selectedCustomer = computed(() =>
@@ -461,6 +722,36 @@ const selectedCustomerPayments = computed(() =>
 
 const selectedCustomerCollateral = computed(() =>
   state.collateralItems.filter((item: CollateralItem) => selectedCustomerLoanIds.value.has(item.loanId))
+)
+
+const selectedCustomerLoanDetail = computed(() => {
+  if (selectedLoanDetailId.value === null) {
+    return null
+  }
+
+  return selectedCustomerLoans.value.find((loan: Loan) => loan.id === selectedLoanDetailId.value) ?? null
+})
+
+const selectedCustomerLoanPayments = computed(() => {
+  if (!selectedCustomerLoanDetail.value) {
+    return []
+  }
+
+  return selectedCustomerPayments.value
+    .filter((payment: Payment) => payment.loanId === selectedCustomerLoanDetail.value?.id)
+    .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+})
+
+const selectedCustomerLoanCollateral = computed(() => {
+  if (!selectedCustomerLoanDetail.value) {
+    return []
+  }
+
+  return selectedCustomerCollateral.value.filter((item: CollateralItem) => item.loanId === selectedCustomerLoanDetail.value?.id)
+})
+
+const collateralAssignableLoans = computed(() =>
+  selectedCustomerLoans.value.filter((loan: Loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
 )
 
 const pendingInterestItems = computed(() => pendingInterestData.value?.groups.flatMap((group) => group.items) ?? [])
@@ -493,7 +784,10 @@ const firstLoanDisbursementDate = computed(() => {
 })
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+    style: 'currency',
+    currency: currencyCode.value
+  }).format(
     amount
   )
 
@@ -531,6 +825,41 @@ const openCustomerDetail = (customerId: number) => {
 
 const closeDetailModal = () => {
   showDetailModal.value = false
+}
+
+const openCustomerLoanDetail = (loanId: number) => {
+  selectedLoanDetailId.value = loanId
+  showCustomerLoanDetailModal.value = true
+}
+
+const closeCustomerLoanDetail = () => {
+  showCustomerLoanDetailModal.value = false
+}
+
+const openLoanEditModal = (loan: Loan) => {
+  selectedLoanForEditId.value = loan.id
+  loanEditForm.monthlyInterestRate = loan.monthlyInterestRate
+  loanEditForm.dueDay = loan.dueDay
+  loanEditForm.status = loan.status
+  showLoanEditModal.value = true
+}
+
+const closeLoanEditModal = () => {
+  showLoanEditModal.value = false
+}
+
+const openCollateralEditModal = (item: CollateralItem) => {
+  selectedCollateralForEditId.value = item.id
+  collateralEditForm.loanId = item.loanId
+  collateralEditForm.description = item.description
+  collateralEditForm.appraisedValue = item.appraisedValue
+  collateralEditForm.storageLocation = item.storageLocation
+  collateralEditForm.status = item.status
+  showCollateralEditModal.value = true
+}
+
+const closeCollateralEditModal = () => {
+  showCollateralEditModal.value = false
 }
 
 const loadCustomerFinancialData = async (customerId: number) => {
@@ -603,6 +932,72 @@ const handleUpdateCustomer = async () => {
   }
 }
 
+const handleUpdateLoan = async () => {
+  if (selectedLoanForEditId.value === null || isSaving.value) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const result = await updateLoan({
+      id: selectedLoanForEditId.value,
+      monthlyInterestRate: loanEditForm.monthlyInterestRate,
+      dueDay: loanEditForm.dueDay,
+      status: loanEditForm.status
+    })
+
+    message.value = t(result.messageKey)
+    closeLoanEditModal()
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const handleUpdateCollateral = async () => {
+  if (selectedCollateralForEditId.value === null || isSaving.value) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const result = await updateCollateral({
+      id: selectedCollateralForEditId.value,
+      loanId: collateralEditForm.loanId,
+      description: collateralEditForm.description,
+      appraisedValue: collateralEditForm.appraisedValue,
+      storageLocation: collateralEditForm.storageLocation,
+      status: collateralEditForm.status
+    })
+
+    message.value = t(result.messageKey)
+    closeCollateralEditModal()
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const getLoanById = (loanId: number) => selectedCustomerLoans.value.find((loan) => loan.id === loanId) ?? null
+
+const getLoanTypeLabel = (loanId: number) => {
+  const loan = getLoanById(loanId)
+  if (!loan) {
+    return '-'
+  }
+  return loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal')
+}
+
+const getLoanStatusLabel = (loanId: number) => {
+  const loan = getLoanById(loanId)
+  if (!loan) {
+    return '-'
+  }
+  return t(`common.${loan.status}`)
+}
+
 const paymentMethodLabel = (method: string) => {
   if (method === 'cash') {
     return t('common.cash')
@@ -626,16 +1021,88 @@ const paymentTypeLabel = (paymentType: string) => {
   return paymentType
 }
 
-const filteredCustomers = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  if (!query) {
-    return state.customers
+const getSortDirectionSymbol = (direction: SortDirection) => (direction === 'asc' ? '↑' : '↓')
+
+const getCustomerSortMeta = (key: CustomerSortKey) => {
+  const index = customerSortPriority.value.findIndex((item) => item.key === key)
+  if (index === -1) {
+    return null
   }
 
-  return state.customers.filter((customer: Customer) =>
-    [customer.fullName, customer.documentNumber, customer.phone, customer.city].some((value) =>
+  return {
+    direction: customerSortPriority.value[index].direction,
+    priority: index + 1
+  }
+}
+
+const getCustomerSortBadge = (key: CustomerSortKey) => {
+  const meta = getCustomerSortMeta(key)
+  if (!meta) {
+    return ''
+  }
+
+  return `${getSortDirectionSymbol(meta.direction)}${meta.priority}`
+}
+
+const toggleCustomerSort = (key: CustomerSortKey) => {
+  const index = customerSortPriority.value.findIndex((item) => item.key === key)
+
+  if (index === -1) {
+    customerSortPriority.value = [{ key, direction: 'asc' }, ...customerSortPriority.value]
+    return
+  }
+
+  const current = customerSortPriority.value[index]
+  const next = [...customerSortPriority.value]
+
+  if (current.direction === 'asc') {
+    const updated = { key, direction: 'desc' as SortDirection }
+    next.splice(index, 1)
+    customerSortPriority.value = [updated, ...next]
+    return
+  }
+
+  next.splice(index, 1)
+  customerSortPriority.value = next.length ? next : [{ key: 'name', direction: 'asc' }]
+}
+
+const filteredCustomers = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  const filtered = state.customers.filter((customer: Customer) => {
+    const statusMatches = customerStatusFilter.value === 'all' || customer.status === customerStatusFilter.value
+    if (!statusMatches) {
+      return false
+    }
+
+    if (!query) {
+      return true
+    }
+
+    return [customer.fullName, customer.documentNumber, customer.phone, customer.city].some((value) =>
       value.toLowerCase().includes(query)
     )
-  )
+  })
+
+  return [...filtered].sort((a, b) => {
+    for (const criterion of customerSortPriority.value) {
+      let result = 0
+
+      if (criterion.key === 'id') {
+        result = a.id - b.id
+      } else if (criterion.key === 'city') {
+        result = a.city.localeCompare(b.city)
+      } else if (criterion.key === 'status') {
+        result = a.status.localeCompare(b.status)
+      } else {
+        result = a.fullName.localeCompare(b.fullName)
+      }
+
+      if (result !== 0) {
+        return criterion.direction === 'asc' ? result : -result
+      }
+    }
+
+    return 0
+  })
 })
 </script>

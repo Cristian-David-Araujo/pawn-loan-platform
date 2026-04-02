@@ -76,6 +76,7 @@ import {
   LayoutDashboard,
   PanelLeft,
   ReceiptText,
+  Settings,
   Shield,
   Users
 } from 'lucide-vue-next'
@@ -89,7 +90,8 @@ const navItems = [
   { to: '/customers', labelKey: 'app.customers', icon: Users },
   { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
   { to: '/payments', labelKey: 'app.payments', icon: ReceiptText },
-  { to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 }
+  { to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 },
+  { to: '/settings', labelKey: 'app.settings', icon: Settings }
 ]
 
 const selectedLocale = ref(locale.value as AppLocale)

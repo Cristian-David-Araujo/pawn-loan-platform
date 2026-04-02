@@ -14,7 +14,8 @@ export const messages = {
       loans: 'Loans',
       collateral: 'Collateral',
       payments: 'Payments',
-      reporting: 'Reporting'
+      reporting: 'Reporting',
+      settings: 'Settings'
     },
     common: {
       id: 'ID',
@@ -46,7 +47,11 @@ export const messages = {
       cash: 'Cash',
       bankTransfer: 'Bank transfer',
       other: 'Other',
-      close: 'Close'
+      close: 'Close',
+      ascending: 'Ascending',
+      descending: 'Descending',
+      recentFirst: 'Recent first',
+      oldestFirst: 'Oldest first',
     },
     dashboard: {
       title: 'Dashboard',
@@ -100,6 +105,10 @@ export const messages = {
       customerPaymentTraceability: 'Payment traceability events',
       noPaymentEvents: 'No payment events for this customer.',
       advancePayment: 'Advance payment',
+      editLoan: 'Edit loan',
+      editCollateral: 'Edit collateral',
+      associatedLoanType: 'Associated loan type',
+      associatedLoanStatus: 'Associated loan status',
       searchPlaceholder: 'Search customer by name, document, phone, city...',
       totalRecords: 'Records: {count}'
     },
@@ -109,10 +118,18 @@ export const messages = {
       loanType: 'Loan type',
       principalAmount: 'Principal amount',
       monthlyInterestRate: 'Monthly interest rate (%)',
+      latePenaltyRate: 'Late penalty rate (%)',
       dueDay: 'Due day',
+      disbursementDate: 'Disbursement date',
       createLoan: 'Create loan',
       outstanding: 'Outstanding',
       rate: 'Rate',
+      loanDetail: 'Loan detail',
+      selectedLoan: 'Selected loan: #{id}',
+      loanPayments: 'Loan payments',
+      noLoanPayments: 'This loan has no payments.',
+      loanCollateral: 'Loan collateral',
+      noLoanCollateral: 'This loan has no collateral records.',
       noCollateralLinked: 'No collateral linked',
       collateralLinkedCount: 'Linked collateral: {count}',
       searchPlaceholder: 'Search loans by customer or id...',
@@ -180,6 +197,15 @@ export const messages = {
       allMethods: 'All methods',
       totalPayments: 'Payments: {count}'
     },
+    settings: {
+      title: 'Settings',
+      subtitle: 'Manage global software configuration.',
+      currencyCode: 'Currency',
+      timezone: 'Timezone',
+      dateFormat: 'Date format',
+      defaultLatePenaltyRate: 'Default late penalty rate (%)',
+      saveSettings: 'Save settings'
+    },
     reporting: {
       title: 'Reporting',
       subtitle: 'Basic operational reports with mock data.',
@@ -203,6 +229,10 @@ export const messages = {
       customerDocumentExists: 'Customer document already exists.',
       paymentRegistered: 'Payment registered.',
       allocationMustEqualTotal: 'Allocation must equal total amount.',
+      settingsUpdated: 'Settings updated.',
+      loanUpdated: 'Loan updated.',
+      collateralUpdated: 'Collateral updated.',
+      invalidDateFormat: 'Invalid date format. Use the configured global format.',
       operationFailed: 'Operation failed. Please try again.',
       unknownCustomer: 'Unknown customer'
     }
@@ -222,7 +252,8 @@ export const messages = {
       loans: 'Prestamos',
       collateral: 'Garantias',
       payments: 'Pagos',
-      reporting: 'Reportes'
+      reporting: 'Reportes',
+      settings: 'Configuraciones'
     },
     common: {
       id: 'ID',
@@ -254,7 +285,11 @@ export const messages = {
       cash: 'Efectivo',
       bankTransfer: 'Transferencia bancaria',
       other: 'Otro',
-      close: 'Cerrar'
+      close: 'Cerrar',
+      ascending: 'Ascendente',
+      descending: 'Descendente',
+      recentFirst: 'Mas reciente primero',
+      oldestFirst: 'Mas antiguo primero',
     },
     dashboard: {
       title: 'Panel',
@@ -308,6 +343,10 @@ export const messages = {
       customerPaymentTraceability: 'Eventos de trazabilidad de pagos',
       noPaymentEvents: 'No hay eventos de pago para este cliente.',
       advancePayment: 'Pago por adelanto',
+      editLoan: 'Editar prestamo',
+      editCollateral: 'Editar garantia',
+      associatedLoanType: 'Tipo de prestamo asociado',
+      associatedLoanStatus: 'Estado del prestamo asociado',
       searchPlaceholder: 'Buscar cliente por nombre, documento, telefono, ciudad...',
       totalRecords: 'Registros: {count}'
     },
@@ -317,10 +356,18 @@ export const messages = {
       loanType: 'Tipo de prestamo',
       principalAmount: 'Monto de capital',
       monthlyInterestRate: 'Tasa de interes mensual (%)',
+      latePenaltyRate: 'Tasa de mora (%)',
       dueDay: 'Dia de vencimiento',
+      disbursementDate: 'Fecha del prestamo',
       createLoan: 'Crear prestamo',
       outstanding: 'Pendiente',
       rate: 'Tasa',
+      loanDetail: 'Detalle del prestamo',
+      selectedLoan: 'Prestamo seleccionado: #{id}',
+      loanPayments: 'Pagos del prestamo',
+      noLoanPayments: 'Este prestamo no tiene pagos.',
+      loanCollateral: 'Garantias del prestamo',
+      noLoanCollateral: 'Este prestamo no tiene garantias registradas.',
       noCollateralLinked: 'Sin garantia asociada',
       collateralLinkedCount: 'Garantias asociadas: {count}',
       searchPlaceholder: 'Buscar prestamos por cliente o id...',
@@ -388,6 +435,15 @@ export const messages = {
       allMethods: 'Todos los metodos',
       totalPayments: 'Pagos: {count}'
     },
+    settings: {
+      title: 'Configuraciones',
+      subtitle: 'Administra la configuracion global del software.',
+      currencyCode: 'Moneda',
+      timezone: 'Zona horaria',
+      dateFormat: 'Formato de fecha',
+      defaultLatePenaltyRate: 'Tasa de mora por defecto (%)',
+      saveSettings: 'Guardar configuraciones'
+    },
     reporting: {
       title: 'Reportes',
       subtitle: 'Reportes operativos basicos con datos mock.',
@@ -411,6 +467,10 @@ export const messages = {
       customerDocumentExists: 'El documento del cliente ya existe.',
       paymentRegistered: 'Pago registrado.',
       allocationMustEqualTotal: 'La asignacion debe ser igual al monto total.',
+      settingsUpdated: 'Configuraciones actualizadas.',
+      loanUpdated: 'Prestamo actualizado.',
+      collateralUpdated: 'Garantia actualizada.',
+      invalidDateFormat: 'Formato de fecha invalido. Usa el formato global configurado.',
       operationFailed: 'La operacion fallo. Intentalo nuevamente.',
       unknownCustomer: 'Cliente desconocido'
     }

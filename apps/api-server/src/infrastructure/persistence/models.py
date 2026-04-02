@@ -65,6 +65,7 @@ class Loan(Base):
     principal_amount: Mapped[float] = mapped_column(Float)
     outstanding_principal: Mapped[float] = mapped_column(Float)
     monthly_interest_rate: Mapped[float] = mapped_column(Float)
+    late_penalty_rate: Mapped[float] = mapped_column(Float, default=0)
     disbursement_date: Mapped[date] = mapped_column(Date)
     due_day: Mapped[int] = mapped_column(Integer)
     status: Mapped[LoanStatus] = mapped_column(Enum(LoanStatus), default=LoanStatus.active)
@@ -147,3 +148,14 @@ class AuditLog(Base):
     old_data: Mapped[str] = mapped_column(Text, default="")
     new_data: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
+
+
+class GlobalSettings(Base):
+    __tablename__ = "global_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    currency_code: Mapped[str] = mapped_column(String(3), default="COP")
+    timezone: Mapped[str] = mapped_column(String(80), default="America/Bogota")
+    date_format: Mapped[str] = mapped_column(String(20), default="DD/MM/YYYY")
+    default_late_penalty_rate: Mapped[float] = mapped_column(Float, default=0)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)

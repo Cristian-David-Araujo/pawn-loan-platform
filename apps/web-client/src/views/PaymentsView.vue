@@ -10,7 +10,7 @@
       <label>
         {{ t('common.customer') }}
         <select v-model.number="selectedCustomerId" @change="loadCustomerPaymentData" required>
-          <option v-for="customer in state.customers" :key="customer.id" :value="customer.id">
+          <option v-for="customer in sortedCustomers" :key="customer.id" :value="customer.id">
             {{ customer.fullName }} (#{{ customer.id }})
           </option>
         </select>
@@ -197,7 +197,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="event in paymentHistory" :key="event.id">
+          <tr v-for="event in sortedPaymentHistory" :key="event.id">
             <td>{{ formatDateDMY(event.payment_date) }}</td>
             <td>{{ event.payment_type }}</td>
             <td>#{{ event.loan_id }}</td>
@@ -208,7 +208,7 @@
             <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
             <td>{{ event.payment_method }}</td>
           </tr>
-          <tr v-if="!paymentHistory.length">
+          <tr v-if="!sortedPaymentHistory.length">
             <td colspan="9">{{ t('payments.noHistory') }}</td>
           </tr>
         </tbody>
@@ -290,6 +290,7 @@ interface PaymentEvent {
 
 const { state, ensureInitialized, refreshAll } = useMockPlatformStore()
 const { t, locale } = useI18n()
+const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
 const activeTab = ref<'interest' | 'principal'>('interest')
 const selectedCustomerId = ref<number | null>(null)
@@ -315,12 +316,24 @@ const selectedCustomer = computed(() =>
   selectedCustomerId.value === null ? null : state.customers.find((item) => item.id === selectedCustomerId.value) ?? null
 )
 
-const flatPendingItems = computed(() => pendingInterest.value?.groups.flatMap((group) => group.items) ?? [])
+const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
 
-const principalContextItems = computed(() => principalContext.value?.items ?? [])
+const flatPendingItems = computed(() =>
+  [...(pendingInterest.value?.groups.flatMap((group) => group.items) ?? [])].sort(
+    (a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+  )
+)
+
+const principalContextItems = computed(() =>
+  [...(principalContext.value?.items ?? [])].sort((a, b) => new Date(b.next_due_date).getTime() - new Date(a.next_due_date).getTime())
+)
 
 const selectedPrincipalLoan = computed(
   () => principalContextItems.value.find((item) => item.loan_id === selectedPrincipalLoanId.value) ?? null
+)
+
+const sortedPaymentHistory = computed(() =>
+  [...paymentHistory.value].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
 )
 
 const totalPendingOutstanding = computed(() =>
@@ -342,7 +355,10 @@ const partialAmount = computed(() => Math.max(0, suggestedSelectedAmount.value -
 const advanceAmount = computed(() => Math.max(0, interestAmountToPay.value - suggestedSelectedAmount.value))
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+    style: 'currency',
+    currency: currencyCode.value
+  }).format(
     amount
   )
 
@@ -475,8 +491,8 @@ const submitPrincipalPayment = async () => {
 
 onMounted(async () => {
   await ensureInitialized()
-  if (state.customers.length) {
-    selectedCustomerId.value = state.customers[0].id
+  if (sortedCustomers.value.length) {
+    selectedCustomerId.value = sortedCustomers.value[0].id
     await loadCustomerPaymentData()
   }
 })

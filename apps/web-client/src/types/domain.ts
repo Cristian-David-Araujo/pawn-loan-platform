@@ -22,6 +22,7 @@ export interface Loan {
   principalAmount: number
   outstandingPrincipal: number
   monthlyInterestRate: number
+  latePenaltyRate: number
   disbursementDate: string
   dueDay: number
   status: LoanStatus
@@ -47,4 +48,12 @@ export interface Payment {
   allocatedToFees: number
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
+}
+
+export interface GlobalSettings {
+  id: number
+  currencyCode: string
+  timezone: string
+  dateFormat: string
+  defaultLatePenaltyRate: number
 }

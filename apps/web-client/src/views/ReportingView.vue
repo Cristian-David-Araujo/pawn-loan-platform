@@ -9,11 +9,11 @@
     <div class="card mt-16 form-inline">
       <label>
         {{ t('reporting.fromDate') }}
-        <input v-model="fromDate" type="date" />
+        <input v-model="fromDate" :placeholder="datePlaceholder" />
       </label>
       <label>
         {{ t('reporting.toDate') }}
-        <input v-model="toDate" type="date" />
+        <input v-model="toDate" :placeholder="datePlaceholder" />
       </label>
       <button class="btn btn-secondary" type="button" @click="resetDates">
         <RotateCcw :size="16" />
@@ -75,32 +75,56 @@ import { useI18n } from 'vue-i18n'
 import { ChartNoAxesCombined, RotateCcw } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 
 const { state, getCustomerName, ensureInitialized } = useMockPlatformStore()
 const { t, locale } = useI18n()
+const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const today = new Date().toISOString().slice(0, 10)
 const fromDate = ref('')
-const toDate = ref(today)
+const toDate = ref(formatDateDMY(today))
+const datePlaceholder = computed(() => getGlobalDateFormat())
 
 onMounted(async () => {
   await ensureInitialized()
 })
 
-const activeLoans = computed(() => state.loans.filter((loan) => loan.status === 'active'))
-const overdueLoans = computed(() => state.loans.filter((loan) => loan.status === 'overdue'))
+const activeLoans = computed(() =>
+  [...state.loans.filter((loan) => loan.status === 'active')].sort(
+    (a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime()
+  )
+)
+const overdueLoans = computed(() =>
+  [...state.loans.filter((loan) => loan.status === 'overdue')].sort(
+    (a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime()
+  )
+)
 const custodyItems = computed(() => state.collateralItems.filter((item) => item.status === 'in-custody'))
 const filteredPayments = computed(() => {
-  return state.payments.filter((payment) => {
-    const afterFrom = !fromDate.value || payment.paymentDate >= fromDate.value
-    const beforeTo = !toDate.value || payment.paymentDate <= toDate.value
+  const fromDateIso = toIsoDate(fromDate.value)
+  const toDateIso = toIsoDate(toDate.value)
+
+  return state.payments
+    .filter((payment) => {
+    const paymentIso = toIsoDate(payment.paymentDate)
+    if (!paymentIso) {
+      return false
+    }
+
+    const afterFrom = !fromDate.value || !fromDateIso || paymentIso >= fromDateIso
+    const beforeTo = !toDate.value || !toDateIso || paymentIso <= toDateIso
     return afterFrom && beforeTo
   })
+    .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
 })
 
 const totalCollected = computed(() => filteredPayments.value.reduce((sum, payment) => sum + payment.totalAmount, 0))
 
 const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: 'USD' }).format(
+  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+    style: 'currency',
+    currency: currencyCode.value
+  }).format(
     amount
   )
 
@@ -111,6 +135,6 @@ const getCustomerLabel = (customerId: number) => {
 
 const resetDates = () => {
   fromDate.value = ''
-  toDate.value = today
+  toDate.value = formatDateDMY(today)
 }
 </script>
