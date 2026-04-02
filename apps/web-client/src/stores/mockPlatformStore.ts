@@ -101,7 +101,8 @@ const state = reactive({
   collateralItems: [] as CollateralItem[],
   payments: [] as Payment[],
   initialized: false,
-  loading: false
+  loading: false,
+  loadError: ''
 })
 
 const mapCustomer = (item: BackendCustomer): Customer => ({
@@ -165,6 +166,7 @@ const splitName = (fullName: string) => {
 
 const refreshAll = async () => {
   state.loading = true
+  state.loadError = ''
   try {
     const [customers, loans, collateralItems, payments] = await Promise.all([
       apiClient.request<BackendCustomer[]>('/customers'),
@@ -178,14 +180,31 @@ const refreshAll = async () => {
     state.collateralItems = collateralItems.map(mapCollateral)
     state.payments = payments.map(mapPayment)
     state.initialized = true
+  } catch (error) {
+    state.initialized = false
+    state.loadError = error instanceof Error ? error.message : 'Unable to load data'
+    throw error
   } finally {
     state.loading = false
   }
 }
 
 const ensureInitialized = async () => {
-  if (!state.initialized && !state.loading) {
-    await refreshAll()
+  if (state.initialized || state.loading) {
+    return
+  }
+
+  const maxAttempts = 5
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await refreshAll()
+      return
+    } catch {
+      if (attempt === maxAttempts) {
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+    }
   }
 }
 

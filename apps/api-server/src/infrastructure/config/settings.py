@@ -4,7 +4,18 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-ROOT_ENV_FILE = Path(__file__).resolve().parents[5] / ".env"
+def _resolve_root_env_file() -> str:
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        candidate = parent / ".env"
+        if candidate.exists():
+            return str(candidate)
+
+    # Fallback for environments where .env is not present yet
+    return str(current.parents[3] / ".env")
+
+
+ROOT_ENV_FILE = _resolve_root_env_file()
 
 
 class Settings(BaseSettings):
