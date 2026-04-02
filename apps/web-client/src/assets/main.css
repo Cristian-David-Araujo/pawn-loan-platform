@@ -360,6 +360,32 @@ a:focus-visible {
   gap: 1rem;
 }
 
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+}
+
+.form-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-section-title {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
 .form-inline {
   display: flex;
   flex-wrap: wrap;

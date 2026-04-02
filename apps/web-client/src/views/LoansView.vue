@@ -7,7 +7,11 @@
     </PageHeader>
 
     <form class="card form mt-16" @submit.prevent="handleCreateLoan">
-      <div class="grid grid-3">
+      <div class="form-section">
+        <div class="form-section-head">
+          <h3 class="form-section-title">{{ t('loans.loanDataSection') }}</h3>
+        </div>
+        <div class="grid grid-3">
         <label>
           {{ t('common.customer') }}
           <select v-model.number="form.customerId" required>
@@ -41,41 +45,6 @@
             :title="t('loans.monthlyInterestRateHelp')"
           />
         </label>
-        <label class="checkbox-row" :title="t('loans.applyLatePenaltyHelp')">
-          <input v-model="applyLatePenalty" type="checkbox" />
-          <span class="field-label-row">
-            {{ t('loans.applyLatePenalty') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-        </label>
-        <label v-if="applyLatePenalty" :title="t('loans.latePenaltyRateHelp')">
-          <span class="field-label-row">
-            {{ t('loans.latePenaltyRate') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-          <input
-            v-model.number="form.latePenaltyRate"
-            type="number"
-            min="0"
-            step="0.1"
-            required
-            :title="t('loans.latePenaltyRateHelp')"
-          />
-        </label>
-        <label v-if="applyLatePenalty" :title="t('loans.graceDaysHelp')">
-          <span class="field-label-row">
-            {{ t('loans.dueDay') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-          <input
-            v-model.number="form.dueDay"
-            type="number"
-            min="0"
-            max="60"
-            required
-            :title="t('loans.graceDaysHelp')"
-          />
-        </label>
         <label :title="t('loans.disbursementDateHelp')">
           <span class="field-label-row">
             {{ t('loans.disbursementDate') }}
@@ -88,8 +57,58 @@
             :title="t('loans.disbursementDateHelp')"
           />
         </label>
+        </div>
       </div>
-      <label class="checkbox-row" :title="t('loans.applyCollateralHelp')">
+
+      <div class="form-section">
+        <div class="form-section-head">
+          <h3 class="form-section-title">{{ t('loans.latePenaltySection') }}</h3>
+        </div>
+        <label class="checkbox-row" :title="t('loans.applyLatePenaltyHelp')">
+          <input v-model="applyLatePenalty" type="checkbox" />
+          <span class="field-label-row">
+            {{ t('loans.applyLatePenalty') }}
+            <span class="field-help" aria-hidden="true">ⓘ</span>
+          </span>
+        </label>
+        <div v-if="applyLatePenalty" class="grid grid-3">
+          <label :title="t('loans.latePenaltyRateHelp')">
+            <span class="field-label-row">
+              {{ t('loans.latePenaltyRate') }}
+              <span class="field-help" aria-hidden="true">ⓘ</span>
+            </span>
+            <input
+              v-model.number="form.latePenaltyRate"
+              type="number"
+              min="0"
+              step="0.1"
+              required
+              :title="t('loans.latePenaltyRateHelp')"
+            />
+          </label>
+          <label :title="t('loans.graceDaysHelp')">
+            <span class="field-label-row">
+              {{ t('loans.dueDay') }}
+              <span class="field-help" aria-hidden="true">ⓘ</span>
+            </span>
+            <input
+              v-model.number="form.dueDay"
+              type="number"
+              min="0"
+              max="60"
+              required
+              :title="t('loans.graceDaysHelp')"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="form-section">
+        <div class="form-section-head">
+          <h3 class="form-section-title">{{ t('loans.collateralSection') }}</h3>
+          <p class="muted">{{ t('loans.collateralSectionHint') }}</p>
+        </div>
+        <label class="checkbox-row" :title="t('loans.applyCollateralHelp')">
         <input v-model="applyCollateralAssociation" type="checkbox" />
         <span class="field-label-row">
           {{ t('loans.applyCollateral') }}
@@ -142,11 +161,14 @@
           </tr>
         </tbody>
       </table>
+      </div>
 
-      <button class="btn" type="submit">
-        <FilePlus2 :size="16" />
-        {{ t('loans.createLoan') }}
-      </button>
+      <div class="form-actions">
+        <button class="btn" type="submit">
+          <FilePlus2 :size="16" />
+          {{ t('loans.createLoan') }}
+        </button>
+      </div>
     </form>
 
     <div class="card mt-16">
