@@ -54,6 +54,20 @@ From the repository root:
 docker compose up --build -d
 ```
 
+## Production Deployment
+
+Production deployment files are included in this repository:
+
+- `docker-compose.prod.yml`
+- `.env.production.example`
+- `deploy/digitalocean/Caddyfile`
+- `apps/api-server/Dockerfile.prod`
+- `apps/web-client/Dockerfile.prod`
+
+For a full step-by-step DigitalOcean guide, see:
+
+- `docs/deployment-digitalocean.md`
+
 Stop services:
 
 ```bash
