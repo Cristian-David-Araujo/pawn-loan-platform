@@ -7,6 +7,8 @@
 **/.env.*
 !.env.example
 !**/.env.example
+!.env.production.example
+!**/.env.production.example
 
 # Secret files and private keys
 *.pem
