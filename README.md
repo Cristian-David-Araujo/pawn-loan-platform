@@ -48,6 +48,12 @@ The platform is configured to read shared runtime variables from root `.env` onl
 - `DB_INIT_ON_STARTUP`, `DB_SEED_ON_STARTUP`, `DB_SEED_FORCE`
 - `AUTO_INTEREST_GENERATION_ENABLED`, `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES`
 
+#### Interest generation variables
+
+- `AUTO_INTEREST_GENERATION_ENABLED=true|false`: enables/disables periodic automatic interest generation in the API process.
+- `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES=1440`: scheduler interval in minutes (default is daily).
+- `DB_INIT_ON_STARTUP=true`: required so settings and tables are available on startup.
+
 ## Run with Docker (recommended)
 
 From the repository root:
@@ -97,9 +103,17 @@ docker compose up --build web-client
 	- `/auth`, `/users`
 	- `/customers`
 	- `/loan-applications`, `/loans`
+	- `/interest`
 	- `/collateral-items`
 	- `/payments`
 	- `/reports`
+
+### Interest charge generation
+
+- Charges are generated automatically when creating a loan if its disbursement date is in the past and there are due periods.
+- Charges are generated periodically by an in-process scheduler controlled by `AUTO_INTEREST_GENERATION_ENABLED` and `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES`.
+- Charges can still be generated manually through `POST /api/v1/interest/generate`.
+- The generation cycle uses each loan disbursement day as the monthly anchor and avoids duplicate periods.
 
 Default development admin credentials (unless overridden in env):
 
