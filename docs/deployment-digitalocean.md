@@ -123,6 +123,24 @@ Stop services:
 docker compose --env-file .env.production -f docker-compose.prod.yml down
 ```
 
+Full teardown (remove containers, network, and volumes):
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml down --volumes --remove-orphans
+```
+
+Optional: also remove images built by this compose project:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml down --volumes --remove-orphans --rmi local
+```
+
+Optional: remove unused Docker resources system-wide (use with caution):
+
+```bash
+docker system prune -af --volumes
+```
+
 Update to latest code:
 
 ```bash
