@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     db_seed_on_startup: bool = True
     db_seed_force: bool = False
 
+    auto_interest_generation_enabled: bool = True
+    auto_interest_generation_interval_minutes: int = 1440
+
     model_config = SettingsConfigDict(env_file=str(ROOT_ENV_FILE), extra="ignore")
 
 

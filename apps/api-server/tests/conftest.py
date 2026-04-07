@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from src.api.v1.router import api_router
+from src.infrastructure.config.settings import get_settings
 from src.infrastructure.persistence.database import Base
 from src.infrastructure.persistence.models import User
 from src.infrastructure.security.password import get_password_hash
@@ -37,6 +38,8 @@ def db_session() -> Generator[Session, None, None]:
 
 @pytest.fixture
 def app(db_session: Session) -> FastAPI:
+    get_settings().auto_interest_generation_enabled = False
+
     app = FastAPI()
     app.include_router(api_router, prefix="/api/v1")
 

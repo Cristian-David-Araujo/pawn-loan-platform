@@ -1,6 +1,10 @@
 from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from src.infrastructure.persistence.models import InterestCharge
+from src.infrastructure.tasks.interest_scheduler import run_interest_generation_cycle
 
 
 def test_generate_interest_for_active_loans(client: TestClient, auth_headers: dict[str, str], create_loan) -> None:
@@ -222,3 +226,19 @@ def test_pending_interest_penalty_uses_configured_loan_rate(
 
     assert all(item["penalty_amount"] == 0 for item in zero_penalty_items)
     assert any(item["penalty_amount"] > 0 for item in configured_penalty_items)
+
+
+def test_auto_interest_generation_cycle_creates_due_charges(
+    db_session,
+    create_loan,
+) -> None:
+    create_loan(principal=1000)
+
+    generated = run_interest_generation_cycle(
+        as_of_date=date.today() + timedelta(days=40),
+        db_session=db_session,
+    )
+    assert generated == 1
+
+    charges = list(db_session.scalars(select(InterestCharge)).all())
+    assert len(charges) == 1
