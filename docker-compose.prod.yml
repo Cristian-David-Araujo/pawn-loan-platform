@@ -50,9 +50,9 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_ROLE: ${ADMIN_ROLE}
-      DB_INIT_ON_STARTUP: ${DB_INIT_ON_STARTUP}
-      DB_SEED_ON_STARTUP: ${DB_SEED_ON_STARTUP}
-      DB_SEED_FORCE: ${DB_SEED_FORCE}
+      DB_INIT_ON_STARTUP: ${DB_INIT_ON_STARTUP:-true}
+      DB_SEED_ON_STARTUP: ${DB_SEED_ON_STARTUP:-false}
+      DB_SEED_FORCE: ${DB_SEED_FORCE:-false}
     depends_on:
       postgres:
         condition: service_healthy
