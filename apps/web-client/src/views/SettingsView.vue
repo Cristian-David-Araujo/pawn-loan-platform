@@ -93,7 +93,7 @@ const form = reactive({
   timezone: 'America/Bogota',
   dateFormat: 'DD/MM/YYYY',
   defaultLatePenaltyRate: 0,
-  interestGenerationLeadDays: 0
+  interestGenerationLeadDays: 10
 })
 
 onMounted(async () => {
