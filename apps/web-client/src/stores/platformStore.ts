@@ -74,6 +74,8 @@ interface CreateCustomerPayload {
 interface UpdateCustomerPayload {
   id: number
   fullName: string
+  documentType: string
+  documentNumber: string
   phone: string
   email: string
   address: string
@@ -304,6 +306,8 @@ const updateCustomer = async (payload: UpdateCustomerPayload) => {
     method: 'PUT',
     body: JSON.stringify({
       ...nameParts,
+      document_type: payload.documentType,
+      document_number: payload.documentNumber,
       phone: payload.phone,
       email: payload.email,
       address: payload.address,

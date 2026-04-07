@@ -1,11 +1,12 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import Loan, LoanApplication, User
+from src.infrastructure.persistence.models import GlobalSettings, Loan, LoanApplication, User
+from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
 from src.modules.loans.schemas import (
     CloseLoanRequest,
     LoanApplicationCreate,
@@ -110,13 +111,27 @@ def create_loan(
     db.commit()
     db.refresh(loan)
 
+    settings = db.get(GlobalSettings, 1)
+    lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
+    effective_as_of_date = date.today() + timedelta(days=lead_days)
+    generated_interest = generate_missing_interest_charges_for_loan(
+        db=db,
+        loan=loan,
+        as_of_date=effective_as_of_date,
+        charge_date=date.today(),
+    )
+    if generated_interest:
+        db.commit()
+        for charge in generated_interest:
+            db.refresh(charge)
+
     write_audit(
         db,
         action="create_loan",
         entity_type="Loan",
         entity_id=str(loan.id),
         user=current_user,
-        new_data=f"principal={loan.principal_amount}",
+        new_data=f"principal={loan.principal_amount},interest_charges_generated={len(generated_interest)}",
     )
 
     return loan

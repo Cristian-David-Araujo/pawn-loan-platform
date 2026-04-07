@@ -173,8 +173,12 @@
               <input v-model="editForm.fullName" required />
             </label>
             <label>
-              {{ t('customers.document') }}
-              <input :value="`${selectedCustomer.documentType} / ${selectedCustomer.documentNumber}`" disabled />
+              {{ t('customers.documentType') }}
+              <input v-model="editForm.documentType" required />
+            </label>
+            <label>
+              {{ t('customers.documentNumber') }}
+              <input v-model="editForm.documentNumber" required />
             </label>
             <label>
               {{ t('common.status') }}
@@ -686,6 +690,8 @@ const form = reactive({
 
 const editForm = reactive({
   fullName: '',
+  documentType: 'ID',
+  documentNumber: '',
   phone: '',
   email: '',
   address: '',
@@ -804,6 +810,8 @@ const syncEditForm = () => {
   }
 
   editForm.fullName = selectedCustomer.value.fullName
+  editForm.documentType = selectedCustomer.value.documentType
+  editForm.documentNumber = selectedCustomer.value.documentNumber
   editForm.phone = selectedCustomer.value.phone
   editForm.email = selectedCustomer.value.email
   editForm.address = selectedCustomer.value.address
@@ -921,6 +929,8 @@ const handleUpdateCustomer = async () => {
     const result = await updateCustomer({
       id: selectedCustomer.value.id,
       fullName: editForm.fullName,
+      documentType: editForm.documentType,
+      documentNumber: editForm.documentNumber,
       phone: editForm.phone,
       email: editForm.email,
       address: editForm.address,

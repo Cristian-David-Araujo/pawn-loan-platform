@@ -22,6 +22,8 @@ class CustomerCreate(CustomerBase):
 class CustomerUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
+    document_type: str | None = None
+    document_number: str | None = None
     phone: str | None = None
     email: str | None = None
     address: str | None = None
