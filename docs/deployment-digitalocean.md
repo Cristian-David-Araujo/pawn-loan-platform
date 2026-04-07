@@ -89,7 +89,7 @@ From repository root:
 docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
 ```
 
-Production compose includes a one-shot `db-bootstrap` service that initializes schema/admin data before the API starts. This keeps deployment automatic and avoids manual DB bootstrap commands in normal operation.
+Production compose includes a one-shot `db-bootstrap` service that initializes schema/admin data before the API starts. The API also keeps `DB_INIT_ON_STARTUP=true` as a safe fallback, so deployments remain automatic without manual DB bootstrap commands.
 
 Check status:
 
