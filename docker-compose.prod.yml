@@ -33,6 +33,28 @@ services:
       retries: 10
       start_period: 10s
 
+  db-bootstrap:
+    build:
+      context: ./apps/api-server
+      dockerfile: Dockerfile.prod
+    container_name: pawn-db-bootstrap-prod
+    restart: "no"
+    env_file:
+      - ./.env.production
+    environment:
+      APP_ENV: ${APP_ENV}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_ROLE: ${ADMIN_ROLE}
+    command: ["python", "-m", "src.infrastructure.tasks.bootstrap_db"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api-server:
     build:
       context: ./apps/api-server
@@ -50,12 +72,14 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_ROLE: ${ADMIN_ROLE}
-      DB_INIT_ON_STARTUP: ${DB_INIT_ON_STARTUP:-true}
+      DB_INIT_ON_STARTUP: ${DB_INIT_ON_STARTUP:-false}
       DB_SEED_ON_STARTUP: ${DB_SEED_ON_STARTUP:-false}
       DB_SEED_FORCE: ${DB_SEED_FORCE:-false}
     depends_on:
       postgres:
         condition: service_healthy
+      db-bootstrap:
+        condition: service_completed_successfully
     healthcheck:
       test:
         [
