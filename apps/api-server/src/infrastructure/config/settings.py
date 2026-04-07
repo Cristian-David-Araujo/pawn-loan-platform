@@ -1,6 +1,21 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _resolve_root_env_file() -> str:
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        candidate = parent / ".env"
+        if candidate.exists():
+            return str(candidate)
+
+    # Fallback for environments where .env is not present yet
+    return str(current.parents[3] / ".env")
+
+
+ROOT_ENV_FILE = _resolve_root_env_file()
 
 
 class Settings(BaseSettings):
@@ -21,7 +36,7 @@ class Settings(BaseSettings):
     db_seed_on_startup: bool = True
     db_seed_force: bool = False
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=str(ROOT_ENV_FILE), extra="ignore")
 
 
 @lru_cache

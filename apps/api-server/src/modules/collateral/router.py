@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import CollateralItem, Loan, User
-from src.modules.collateral.schemas import CollateralCreate, CollateralRead
+from src.modules.collateral.schemas import CollateralCreate, CollateralRead, CollateralUpdate
 from src.shared.dependencies.auth import get_current_user
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
@@ -24,6 +25,10 @@ def create_collateral_item(
     loan = db.get(Loan, payload.loan_id)
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    if loan.loan_type != "pawn":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Collateral is only allowed for pawn loans")
+    if loan.status == LoanStatus.closed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot register collateral for closed loan")
 
     item = CollateralItem(
         **payload.model_dump(),
@@ -64,6 +69,45 @@ def list_collateral_items(
     _: User = Depends(get_current_user),
 ) -> list[CollateralItem]:
     return list(db.query(CollateralItem).order_by(CollateralItem.id.desc()).all())
+
+
+@router.put("/{item_id}", response_model=CollateralRead)
+def update_collateral_item(
+    item_id: int,
+    payload: CollateralUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> CollateralItem:
+    item = db.get(CollateralItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collateral item not found")
+
+    loan = db.get(Loan, payload.loan_id)
+    if loan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    if loan.loan_type != "pawn":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Collateral is only allowed for pawn loans")
+    if loan.status == LoanStatus.closed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot register collateral for closed loan")
+
+    item.loan_id = payload.loan_id
+    item.description = payload.description
+    item.appraised_value = payload.appraised_value
+    item.storage_location = payload.storage_location
+    item.status = payload.status
+    db.commit()
+    db.refresh(item)
+
+    write_audit(
+        db,
+        action="update_collateral_item",
+        entity_type="CollateralItem",
+        entity_id=str(item.id),
+        user=current_user,
+        new_data=f"loan_id={item.loan_id},status={item.status}",
+    )
+
+    return item
 
 
 @router.post("/{item_id}/release", response_model=CollateralRead)

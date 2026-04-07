@@ -4,7 +4,7 @@ from src.infrastructure.config.settings import get_settings
 from src.infrastructure.persistence.database import Base, SessionLocal, engine
 from src.infrastructure.persistence.models import User
 from src.infrastructure.persistence.seed import seed_database
-from src.infrastructure.security.password import get_password_hash
+from src.infrastructure.security.password import get_password_hash, verify_password
 
 
 def init_database(seed: bool | None = None, force_seed: bool | None = None) -> None:
@@ -26,6 +26,24 @@ def init_database(seed: bool | None = None, force_seed: bool | None = None) -> N
                 )
             )
             db.commit()
+        else:
+            should_update_admin = False
+
+            if not verify_password(settings.admin_password, existing_admin.hashed_password):
+                existing_admin.hashed_password = get_password_hash(settings.admin_password)
+                should_update_admin = True
+
+            if existing_admin.role != settings.admin_role:
+                existing_admin.role = settings.admin_role
+                should_update_admin = True
+
+            if not existing_admin.is_active:
+                existing_admin.is_active = True
+                should_update_admin = True
+
+            if should_update_admin:
+                db.add(existing_admin)
+                db.commit()
 
         if should_seed:
             seed_database(db, force=should_force_seed)

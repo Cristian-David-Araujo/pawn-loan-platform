@@ -7,6 +7,7 @@ from src.domain.enums.loan import LoanStatus, LoanType
 from src.infrastructure.persistence.models import (
     CollateralItem,
     Customer,
+    GlobalSettings,
     InterestCharge,
     Loan,
     LoanApplication,
@@ -31,8 +32,22 @@ def seed_database(db: Session, force: bool = False) -> bool:
         db.query(Loan).delete()
         db.query(LoanApplication).delete()
         db.query(Customer).delete()
+        db.query(GlobalSettings).delete()
 
     users = _ensure_users(db)
+
+    if db.get(GlobalSettings, 1) is None:
+        db.add(
+            GlobalSettings(
+                id=1,
+                currency_code="COP",
+                timezone="America/Bogota",
+                date_format="DD/MM/YYYY",
+                default_late_penalty_rate=0,
+                interest_generation_lead_days=0,
+            )
+        )
+        db.flush()
 
     customer_1 = Customer(
         first_name="Ana",
@@ -104,6 +119,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
         principal_amount=1500,
         outstanding_principal=1200,
         monthly_interest_rate=8,
+        late_penalty_rate=0,
         disbursement_date=today - timedelta(days=45),
         due_day=5,
         status=LoanStatus.active,
@@ -115,6 +131,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
         principal_amount=1000,
         outstanding_principal=950,
         monthly_interest_rate=7,
+        late_penalty_rate=0,
         disbursement_date=today - timedelta(days=65),
         due_day=20,
         status=LoanStatus.overdue,
@@ -125,6 +142,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
         principal_amount=700,
         outstanding_principal=0,
         monthly_interest_rate=6,
+        late_penalty_rate=0,
         disbursement_date=today - timedelta(days=120),
         due_day=10,
         status=LoanStatus.closed,
@@ -135,6 +153,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
         principal_amount=900,
         outstanding_principal=900,
         monthly_interest_rate=6.5,
+        late_penalty_rate=0,
         disbursement_date=today - timedelta(days=15),
         due_day=12,
         status=LoanStatus.active,

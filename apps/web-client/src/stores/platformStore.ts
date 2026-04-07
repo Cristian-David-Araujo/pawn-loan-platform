@@ -1,7 +1,8 @@
 import { computed, reactive } from 'vue'
 
 import { apiClient } from '../services/api'
-import type { CollateralItem, Customer, Loan, LoanType, Payment } from '../types/domain'
+import type { CollateralItem, Customer, GlobalSettings, Loan, LoanType, Payment } from '../types/domain'
+import { setGlobalDateFormat } from '../utils/date'
 
 interface BackendCustomer {
   id: number
@@ -25,6 +26,7 @@ interface BackendLoan {
   principal_amount: number
   outstanding_principal: number
   monthly_interest_rate: number
+  late_penalty_rate: number
   disbursement_date: string
   due_day: number
   status: Loan['status']
@@ -52,6 +54,15 @@ interface BackendPayment {
   payment_method: Payment['paymentMethod']
 }
 
+interface BackendGlobalSettings {
+  id: number
+  currency_code: string
+  timezone: string
+  date_format: string
+  default_late_penalty_rate: number
+  interest_generation_lead_days?: number
+}
+
 interface CreateCustomerPayload {
   fullName: string
   documentType: string
@@ -75,7 +86,9 @@ interface CreateLoanPayload {
   loanType: LoanType
   principalAmount: number
   monthlyInterestRate: number
+  latePenaltyRate: number
   dueDay: number
+  disbursementDate: string
 }
 
 interface CreateCollateralPayload {
@@ -83,6 +96,22 @@ interface CreateCollateralPayload {
   description: string
   appraisedValue: number
   storageLocation: string
+}
+
+interface UpdateLoanPayload {
+  id: number
+  monthlyInterestRate: number
+  dueDay: number
+  status: Loan['status']
+}
+
+interface UpdateCollateralPayload {
+  id: number
+  loanId: number
+  description: string
+  appraisedValue: number
+  storageLocation: string
+  status: CollateralItem['status']
 }
 
 interface CreatePaymentPayload {
@@ -95,13 +124,23 @@ interface CreatePaymentPayload {
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
 }
 
+interface UpdateGlobalSettingsPayload {
+  currencyCode: string
+  timezone: string
+  dateFormat: string
+  defaultLatePenaltyRate: number
+  interestGenerationLeadDays: number
+}
+
 const state = reactive({
   customers: [] as Customer[],
   loans: [] as Loan[],
   collateralItems: [] as CollateralItem[],
   payments: [] as Payment[],
+  globalSettings: null as GlobalSettings | null,
   initialized: false,
-  loading: false
+  loading: false,
+  loadError: ''
 })
 
 const mapCustomer = (item: BackendCustomer): Customer => ({
@@ -125,6 +164,7 @@ const mapLoan = (item: BackendLoan): Loan => ({
   principalAmount: item.principal_amount,
   outstandingPrincipal: item.outstanding_principal,
   monthlyInterestRate: item.monthly_interest_rate,
+  latePenaltyRate: item.late_penalty_rate,
   disbursementDate: item.disbursement_date,
   dueDay: item.due_day,
   status: item.status
@@ -152,6 +192,15 @@ const mapPayment = (item: BackendPayment): Payment => ({
   paymentMethod: item.payment_method
 })
 
+const mapGlobalSettings = (item: BackendGlobalSettings): GlobalSettings => ({
+  id: item.id,
+  currencyCode: item.currency_code,
+  timezone: item.timezone,
+  dateFormat: item.date_format,
+  defaultLatePenaltyRate: item.default_late_penalty_rate,
+  interestGenerationLeadDays: item.interest_generation_lead_days ?? 0
+})
+
 const splitName = (fullName: string) => {
   const parts = fullName.trim().split(/\s+/)
   if (parts.length <= 1) {
@@ -165,27 +214,48 @@ const splitName = (fullName: string) => {
 
 const refreshAll = async () => {
   state.loading = true
+  state.loadError = ''
   try {
-    const [customers, loans, collateralItems, payments] = await Promise.all([
+    const [customers, loans, collateralItems, payments, globalSettings] = await Promise.all([
       apiClient.request<BackendCustomer[]>('/customers'),
       apiClient.request<BackendLoan[]>('/loans'),
       apiClient.request<BackendCollateral[]>('/collateral-items'),
-      apiClient.request<BackendPayment[]>('/payments')
+      apiClient.request<BackendPayment[]>('/payments'),
+      apiClient.request<BackendGlobalSettings>('/settings')
     ])
 
     state.customers = customers.map(mapCustomer)
     state.loans = loans.map(mapLoan)
     state.collateralItems = collateralItems.map(mapCollateral)
     state.payments = payments.map(mapPayment)
+    state.globalSettings = mapGlobalSettings(globalSettings)
+    setGlobalDateFormat(state.globalSettings.dateFormat)
     state.initialized = true
+  } catch (error) {
+    state.initialized = false
+    state.loadError = error instanceof Error ? error.message : 'Unable to load data'
+    throw error
   } finally {
     state.loading = false
   }
 }
 
 const ensureInitialized = async () => {
-  if (!state.initialized && !state.loading) {
-    await refreshAll()
+  if (state.initialized || state.loading) {
+    return
+  }
+
+  const maxAttempts = 60
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await refreshAll()
+      return
+    } catch {
+      if (attempt === maxAttempts) {
+        return
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000))
+    }
   }
 }
 
@@ -247,19 +317,21 @@ const updateCustomer = async (payload: UpdateCustomerPayload) => {
 }
 
 const createLoan = async (payload: CreateLoanPayload) => {
-  await apiClient.request<BackendLoan>('/loans', {
+  const created = await apiClient.request<BackendLoan>('/loans', {
     method: 'POST',
     body: JSON.stringify({
       customer_id: payload.customerId,
       loan_type: payload.loanType,
       principal_amount: payload.principalAmount,
       monthly_interest_rate: payload.monthlyInterestRate,
-      disbursement_date: new Date().toISOString().slice(0, 10),
+      late_penalty_rate: payload.latePenaltyRate,
+      disbursement_date: payload.disbursementDate,
       due_day: payload.dueDay
     })
   })
 
   await refreshAll()
+  return mapLoan(created)
 }
 
 const createCollateral = async (payload: CreateCollateralPayload) => {
@@ -305,6 +377,53 @@ const createPayment = async (payload: CreatePaymentPayload) => {
   return { ok: true, messageKey: 'messages.paymentRegistered' }
 }
 
+const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
+  await apiClient.request<BackendGlobalSettings>('/settings', {
+    method: 'PUT',
+    body: JSON.stringify({
+      currency_code: payload.currencyCode,
+      timezone: payload.timezone,
+      date_format: payload.dateFormat,
+      default_late_penalty_rate: payload.defaultLatePenaltyRate,
+      interest_generation_lead_days: payload.interestGenerationLeadDays
+    })
+  })
+
+  setGlobalDateFormat(payload.dateFormat)
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.settingsUpdated' }
+}
+
+const updateLoan = async (payload: UpdateLoanPayload) => {
+  await apiClient.request<BackendLoan>(`/loans/${payload.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      monthly_interest_rate: payload.monthlyInterestRate,
+      due_day: payload.dueDay,
+      status: payload.status
+    })
+  })
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.loanUpdated' }
+}
+
+const updateCollateral = async (payload: UpdateCollateralPayload) => {
+  await apiClient.request<BackendCollateral>(`/collateral-items/${payload.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      loan_id: payload.loanId,
+      description: payload.description,
+      appraised_value: payload.appraisedValue,
+      storage_location: payload.storageLocation,
+      status: payload.status === 'in-custody' ? 'in_custody' : payload.status
+    })
+  })
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.collateralUpdated' }
+}
+
 const dashboardStats = computed(() => {
   const activeLoans = state.loans.filter((item) => item.status === 'active').length
   const overdueLoans = state.loans.filter((item) => item.status === 'overdue').length
@@ -321,7 +440,7 @@ const dashboardStats = computed(() => {
   }
 })
 
-export const useMockPlatformStore = () => ({
+export const usePlatformStore = () => ({
   state,
   dashboardStats,
   getCustomerName,
@@ -331,6 +450,9 @@ export const useMockPlatformStore = () => ({
   createCustomer,
   updateCustomer,
   createLoan,
+  updateLoan,
   createCollateral,
-  createPayment
+  updateCollateral,
+  createPayment,
+  updateGlobalSettings
 })

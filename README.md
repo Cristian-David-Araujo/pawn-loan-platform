@@ -1,100 +1,108 @@
-# Pawn and Personal Loan Management Platform
+# Pawn & Personal Loan Management Platform
 
-Monorepo scaffold for a pawn-backed and personal loan platform.
+Monorepo for a pawn-backed and personal loan platform with a FastAPI backend, Vue 3 frontend, and PostgreSQL database.
 
-## Tech Stack
+## Stack
 
-- Backend: FastAPI (Python)
+- Backend: FastAPI + SQLAlchemy (Python 3.12)
 - Frontend: Vue 3 + Vite + TypeScript
-- Database: PostgreSQL
-- Runtime: Docker + Docker Compose
+- Database: PostgreSQL 16
+- Orchestration: Docker Compose
 
-## Repository Structure
+## Project Layout
 
 ```text
 pawn-loan-platform/
 ├── apps/
-│   ├── web-client/
-│   └── api-server/
-├── database/
-├── infrastructure/
+│   ├── api-server/      # FastAPI backend
+│   └── web-client/      # Vue application
 ├── docs/
-├── .github/
 ├── docker-compose.yml
 └── README.md
 ```
 
-## Docker Services
+## Prerequisites
 
-- `web-client`: Vue development server on port `5173`
-- `api-server`: FastAPI development server on port `8000`
-- `postgres`: PostgreSQL on port `5432`
+- Docker + Docker Compose plugin
+- (Optional for local/non-Docker runs) Python 3.12 and Node.js 20+
 
-## Environment Files
+## Environment Setup
 
-- Root source of truth: `.env`
-- App-local files:
-	- `apps/api-server/.env`
-	- `apps/web-client/.env`
-
-Versioned templates:
-
-- `.env.example`
-- `apps/api-server/.env.example`
-- `apps/web-client/.env.example`
-
-`docker-compose.yml` is configured to reference the root `.env` so shared settings are centralized.
-
-Create local env files from templates:
+Use a single global environment file at the repository root:
 
 ```bash
 cp .env.example .env
-cp apps/api-server/.env.example apps/api-server/.env
-cp apps/web-client/.env.example apps/web-client/.env
 ```
 
-## Run with Docker Compose
+The platform is configured to read shared runtime variables from root `.env` only.
+
+### Important variables (root `.env`)
+
+- `WEB_CLIENT_PORT`, `API_SERVER_PORT`, `POSTGRES_PORT`
+- `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
+- `DATABASE_URL`
+- `VITE_API_BASE_URL`, `VITE_API_USERNAME`, `VITE_API_PASSWORD`
+- `JWT_SECRET_KEY`, `JWT_ALGORITHM`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`
+- `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_ROLE`
+- `DB_INIT_ON_STARTUP`, `DB_SEED_ON_STARTUP`, `DB_SEED_FORCE`
+
+## Run with Docker (recommended)
 
 From the repository root:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-Run only frontend prototype (no backend dependency required for UI navigation):
+## Production Deployment
 
-```bash
-docker compose up --build web-client
-```
+Production deployment files are included in this repository:
 
-Run or rebuild only backend service:
+- `docker-compose.prod.yml`
+- `.env.production.example`
+- `deploy/digitalocean/Caddyfile`
+- `apps/api-server/Dockerfile.prod`
+- `apps/web-client/Dockerfile.prod`
 
-```bash
-docker compose up --build api-server
-```
+For a full step-by-step DigitalOcean guide, see:
 
-To stop:
+- `docs/deployment-digitalocean.md`
+
+Stop services:
 
 ```bash
 docker compose down
 ```
 
-## Notes
+Start only selected services:
 
-- `web-client` expects `apps/web-client/package.json`.
-- `api-server` expects `apps/api-server/pyproject.toml` or `apps/api-server/requirements.txt`.
-- Shared Docker settings (ports, DB credentials, API URL) are read from `.env`.
-- `.gitignore` is configured to avoid committing secrets. Only `.env.example` files should be committed.
-- If those files are still missing, containers stay running in idle mode to keep the scaffold ready.
-- Current frontend prototype uses local mock state and does not require backend APIs.
+```bash
+docker compose up --build api-server
+docker compose up --build web-client
+```
 
-## Backend Quick Start
+## Service URLs
 
-- FastAPI docs: `http://localhost:8000/docs`
-- Health endpoint: `http://localhost:8000/health`
-- Default bootstrap admin (if not overridden by env):
-	- Username: `admin`
-	- Password: `admin123`
+- Frontend: `http://localhost:5173`
+- API docs (Swagger): `http://localhost:8000/docs`
+- API ReDoc: `http://localhost:8000/redoc`
+- API health: `http://localhost:8000/health`
+
+## Backend Notes
+
+- API base path: `/api/v1`
+- Main route groups:
+	- `/auth`, `/users`
+	- `/customers`
+	- `/loan-applications`, `/loans`
+	- `/collateral-items`
+	- `/payments`
+	- `/reports`
+
+Default development admin credentials (unless overridden in env):
+
+- Username: `admin`
+- Password: `admin123`
 
 Example login payload:
 
@@ -105,38 +113,53 @@ Example login payload:
 }
 ```
 
-Important API groups currently implemented:
+## Database Initialization & Seed
 
-- Authentication: `/api/v1/auth/*`, `/api/v1/users`
-- Customers: `/api/v1/customers`
-- Loans and applications: `/api/v1/loan-applications`, `/api/v1/loans`
-- Collateral: `/api/v1/collateral-items`
-- Payments: `/api/v1/payments`
-- Finance: `/api/v1/interest/generate`, `/api/v1/loans/{id}/balance`, `/api/v1/loans/{id}/ledger`
-- Reporting: `/api/v1/reports/*`
+On API startup, initialization can be controlled with:
 
-## Database Init and Seed (Development Best Practice)
+- `DB_INIT_ON_STARTUP=true`: create/update tables
+- `DB_SEED_ON_STARTUP=true`: insert sample data
+- `DB_SEED_FORCE=false`: do not reset sample data by default
 
-The backend uses an idempotent startup bootstrap:
-
-- Creates tables from SQLAlchemy metadata.
-- Ensures admin user exists.
-- Seeds demo data only when enabled.
-
-Environment flags:
-
-- `DB_INIT_ON_STARTUP=true`
-- `DB_SEED_ON_STARTUP=true`
-- `DB_SEED_FORCE=false`
-
-Manual bootstrap command inside container:
+Manual bootstrap inside the API container:
 
 ```bash
 docker compose exec api-server python -m src.infrastructure.tasks.bootstrap_db --seed
 ```
 
-Force reseed (clears sample business data and recreates it):
+Force reseed:
 
 ```bash
 docker compose exec api-server python -m src.infrastructure.tasks.bootstrap_db --seed --force-seed
+```
+
+## Local Development (without Docker)
+
+### API server
+
+```bash
+cd apps/api-server
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+set -a; source ../../.env; set +a
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Web client
+
+```bash
+cd apps/web-client
+npm install
+set -a; source ../../.env; set +a
+npm run dev -- --host 0.0.0.0 --port 5173
+```
+
+## Testing
+
+Backend tests:
+
+```bash
+cd apps/api-server
+pytest
 ```
