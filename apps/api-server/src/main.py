@@ -38,7 +38,6 @@ def health() -> JSONResponse:
     try:
         with engine.connect() as connection:
             connection.execute(text("SELECT 1"))
-            connection.execute(text("SELECT 1 FROM users LIMIT 1"))
     except SQLAlchemyError as exc:
         return JSONResponse(
             status_code=503,

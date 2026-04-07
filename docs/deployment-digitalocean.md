@@ -89,6 +89,8 @@ From repository root:
 docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
 ```
 
+Production compose includes a one-shot `db-bootstrap` service that initializes schema/admin data before the API starts. This keeps deployment automatic and avoids manual DB bootstrap commands in normal operation.
+
 Check status:
 
 ```bash
@@ -99,6 +101,12 @@ Tail logs:
 
 ```bash
 docker compose --env-file .env.production -f docker-compose.prod.yml logs -f
+```
+
+If API appears unhealthy, check bootstrap logs first:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml logs db-bootstrap
 ```
 
 ## 8) Verify Deployment
