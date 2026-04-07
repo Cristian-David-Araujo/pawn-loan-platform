@@ -15,13 +15,12 @@ def init_database(seed: bool | None = None, force_seed: bool | None = None) -> N
 
     # In production we can run multiple workers; serialize DB bootstrap to avoid
     # races while creating PostgreSQL ENUM types and initial seed data.
+    # Use an explicit transaction so DDL/DML done during bootstrap is persisted
+    # atomically on PostgreSQL.
     if engine.dialect.name == "postgresql":
-        with engine.connect() as connection:
-            connection.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": 9021001})
-            try:
-                _run_bootstrap(connection, settings, should_seed, should_force_seed)
-            finally:
-                connection.execute(text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": 9021001})
+        with engine.begin() as connection:
+            connection.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": 9021001})
+            _run_bootstrap(connection, settings, should_seed, should_force_seed)
         return
 
     _run_bootstrap(None, settings, should_seed, should_force_seed)
