@@ -591,7 +591,7 @@ import { useI18n } from 'vue-i18n'
 import { Save, UserPlus, Users } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
-import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { usePlatformStore } from '../stores/platformStore'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
 import { formatDateDMY } from '../utils/date'
 
@@ -649,7 +649,7 @@ interface SortCriterion<T extends string> {
 }
 
 const { state, createCustomer, updateCustomer, updateLoan, updateCollateral, getCustomerById, ensureInitialized } =
-  useMockPlatformStore()
+  usePlatformStore()
 const { t, locale } = useI18n()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const message = ref('')

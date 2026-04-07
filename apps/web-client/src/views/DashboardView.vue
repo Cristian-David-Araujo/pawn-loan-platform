@@ -36,9 +36,9 @@ import {
 } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
-import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { usePlatformStore } from '../stores/platformStore'
 
-const { state, dashboardStats, ensureInitialized } = useMockPlatformStore()
+const { state, dashboardStats, ensureInitialized } = usePlatformStore()
 const { t, locale } = useI18n()
 const stats = computed(() => dashboardStats.value)
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')

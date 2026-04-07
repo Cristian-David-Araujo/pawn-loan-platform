@@ -225,7 +225,7 @@ import { useI18n } from 'vue-i18n'
 import { CircleDollarSign, ReceiptText, WalletCards } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
-import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY } from '../utils/date'
 
 interface InterestPendingItem {
@@ -288,7 +288,7 @@ interface PaymentEvent {
   notes: string
 }
 
-const { state, ensureInitialized, refreshAll } = useMockPlatformStore()
+const { state, ensureInitialized, refreshAll } = usePlatformStore()
 const { t, locale } = useI18n()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 

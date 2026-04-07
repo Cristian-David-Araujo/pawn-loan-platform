@@ -24,9 +24,6 @@
           <span>{{ t(item.labelKey) }}</span>
         </RouterLink>
       </nav>
-      <div class="sidebar-footer">
-        <span class="badge">{{ t('app.noBackendMode') }}</span>
-      </div>
     </aside>
     <div v-if="mobileMenuOpen" class="sidebar-backdrop" @click="mobileMenuOpen = false"></div>
 
@@ -44,6 +41,11 @@
           </div>
         </div>
         <div class="topbar-actions">
+          <span class="badge">{{ currentUsername }}</span>
+          <button class="btn btn-secondary" type="button" @click="handleLogout">
+            <LogOut :size="15" />
+            {{ t('app.signOut') }}
+          </button>
           <label class="locale-label" for="nav-filter">{{ t('common.search') }}</label>
           <input
             id="nav-filter"
@@ -69,11 +71,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   BarChart3,
   HandCoins,
   LayoutDashboard,
+  LogOut,
   PanelLeft,
   ReceiptText,
   Settings,
@@ -81,9 +84,12 @@ import {
   Users
 } from 'lucide-vue-next'
 import { persistLocale, type AppLocale } from '../i18n'
+import { useAuthState } from '../modules/authentication/authState'
 
 const { t, locale } = useI18n()
 const route = useRoute()
+const router = useRouter()
+const { state: authState, logout } = useAuthState()
 
 const navItems = [
   { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
@@ -97,6 +103,7 @@ const navItems = [
 const selectedLocale = ref(locale.value as AppLocale)
 const navFilter = ref('')
 const mobileMenuOpen = ref(false)
+const currentUsername = computed(() => authState.username || 'admin')
 
 const currentRouteLabel = computed(() => {
   const labelKey = (route.meta.labelKey as string | undefined) ?? 'app.dashboard'
@@ -116,4 +123,11 @@ const onLocaleChange = () => {
   locale.value = selectedLocale.value
   persistLocale(selectedLocale.value)
 }
+
+const handleLogout = () => {
+  logout()
+  mobileMenuOpen.value = false
+  void router.push('/login')
+}
 </script>
+

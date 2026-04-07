@@ -82,9 +82,9 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Save, Settings } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
-import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { usePlatformStore } from '../stores/platformStore'
 
-const { state, ensureInitialized, updateGlobalSettings } = useMockPlatformStore()
+const { state, ensureInitialized, updateGlobalSettings } = usePlatformStore()
 const { t } = useI18n()
 const message = ref('')
 

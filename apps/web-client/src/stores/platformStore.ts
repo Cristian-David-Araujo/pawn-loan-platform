@@ -440,7 +440,7 @@ const dashboardStats = computed(() => {
   }
 })
 
-export const useMockPlatformStore = () => ({
+export const usePlatformStore = () => ({
   state,
   dashboardStats,
   getCustomerName,

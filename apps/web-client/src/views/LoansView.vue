@@ -360,7 +360,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FilePlus2, HandCoins } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
-import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 
 type SortDirection = 'asc' | 'desc'
@@ -377,7 +377,7 @@ interface CollateralQueueItem {
   storageLocation: string
 }
 
-const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = useMockPlatformStore()
+const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = usePlatformStore()
 const { t, locale } = useI18n()
 const search = ref('')
 const message = ref('')

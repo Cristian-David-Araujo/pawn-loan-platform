@@ -334,10 +334,10 @@ import {
 } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
-import { useMockPlatformStore } from '../stores/mockPlatformStore'
+import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 
-const { state, getCustomerName, ensureInitialized } = useMockPlatformStore()
+const { state, getCustomerName, ensureInitialized } = usePlatformStore()
 const { t, locale } = useI18n()
 
 interface ChartEntry {

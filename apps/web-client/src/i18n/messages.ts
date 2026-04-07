@@ -3,7 +3,6 @@ export const messages = {
     app: {
       title: 'Pawn Loan Platform',
       subtitle: 'Loan Operations Prototype',
-      noBackendMode: 'No Backend Mode',
       language: 'Language',
       navigation: 'Navigation',
       menu: 'Menu',
@@ -15,7 +14,17 @@ export const messages = {
       collateral: 'Collateral',
       payments: 'Payments',
       reporting: 'Reporting',
-      settings: 'Settings'
+      settings: 'Settings',
+      signOut: 'Sign out'
+    },
+    auth: {
+      title: 'Administrator Access',
+      subtitle: 'Sign in with your administrator credentials.',
+      username: 'Username',
+      password: 'Password',
+      signIn: 'Sign in',
+      signingIn: 'Signing in...',
+      invalidCredentials: 'Invalid username or password.'
     },
     common: {
       id: 'ID',
@@ -288,6 +297,7 @@ export const messages = {
       loanUpdated: 'Loan updated.',
       collateralUpdated: 'Collateral updated.',
       invalidDateFormat: 'Invalid date format. Use the configured global format.',
+      sessionExpired: 'Your session expired. Please sign in again.',
       operationFailed: 'Operation failed. Please try again.',
       unknownCustomer: 'Unknown customer'
     }
@@ -296,7 +306,6 @@ export const messages = {
     app: {
       title: 'Plataforma de Prestamos Prendarios',
       subtitle: 'Prototipo de Operaciones de Prestamo',
-      noBackendMode: 'Modo Sin Backend',
       language: 'Idioma',
       navigation: 'Navegacion',
       menu: 'Menu',
@@ -308,7 +317,17 @@ export const messages = {
       collateral: 'Garantias',
       payments: 'Pagos',
       reporting: 'Reportes',
-      settings: 'Configuraciones'
+      settings: 'Configuraciones',
+      signOut: 'Cerrar sesion'
+    },
+    auth: {
+      title: 'Acceso de Administrador',
+      subtitle: 'Inicia sesion con tus credenciales de administrador.',
+      username: 'Usuario',
+      password: 'Contrasena',
+      signIn: 'Iniciar sesion',
+      signingIn: 'Ingresando...',
+      invalidCredentials: 'Usuario o contrasena invalidos.'
     },
     common: {
       id: 'ID',
@@ -581,6 +600,7 @@ export const messages = {
       loanUpdated: 'Prestamo actualizado.',
       collateralUpdated: 'Garantia actualizada.',
       invalidDateFormat: 'Formato de fecha invalido. Usa el formato global configurado.',
+      sessionExpired: 'Tu sesion expiro. Inicia sesion nuevamente.',
       operationFailed: 'La operacion fallo. Intentalo nuevamente.',
       unknownCustomer: 'Cliente desconocido'
     }
