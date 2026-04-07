@@ -1,4 +1,5 @@
-from sqlalchemy import select
+from sqlalchemy import select, text
+from sqlalchemy.orm import Session
 
 from src.infrastructure.config.settings import get_settings
 from src.infrastructure.persistence.database import Base, SessionLocal, engine
@@ -8,13 +9,38 @@ from src.infrastructure.security.password import get_password_hash, verify_passw
 
 
 def init_database(seed: bool | None = None, force_seed: bool | None = None) -> None:
-    Base.metadata.create_all(bind=engine)
-
     settings = get_settings()
     should_seed = settings.db_seed_on_startup if seed is None else seed
     should_force_seed = settings.db_seed_force if force_seed is None else force_seed
 
-    with SessionLocal() as db:
+    # In production we can run multiple workers; serialize DB bootstrap to avoid
+    # races while creating PostgreSQL ENUM types and initial seed data.
+    if engine.dialect.name == "postgresql":
+        with engine.connect() as connection:
+            connection.execute(text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": 9021001})
+            try:
+                _run_bootstrap(connection, settings, should_seed, should_force_seed)
+            finally:
+                connection.execute(text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": 9021001})
+        return
+
+    _run_bootstrap(None, settings, should_seed, should_force_seed)
+
+
+def _run_bootstrap(
+    connection,
+    settings,
+    should_seed: bool,
+    should_force_seed: bool,
+) -> None:
+    if connection is None:
+        Base.metadata.create_all(bind=engine)
+        db_context = SessionLocal()
+    else:
+        Base.metadata.create_all(bind=connection)
+        db_context = Session(bind=connection)
+
+    with db_context as db:
         existing_admin = db.scalar(select(User).where(User.username == settings.admin_username))
         if existing_admin is None:
             db.add(
