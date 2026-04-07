@@ -27,7 +27,7 @@ services:
     container_name: pawn-web-client-prod
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "nginx -t -q || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
