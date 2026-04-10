@@ -74,6 +74,8 @@ interface CreateCustomerPayload {
 interface UpdateCustomerPayload {
   id: number
   fullName: string
+  documentType: string
+  documentNumber: string
   phone: string
   email: string
   address: string
@@ -145,7 +147,11 @@ const state = reactive({
 
 const mapCustomer = (item: BackendCustomer): Customer => ({
   id: item.id,
-  fullName: `${item.first_name} ${item.last_name}`,
+  fullName:
+    [item.first_name, item.last_name]
+      .map((part) => part.trim())
+      .filter((part) => part && part !== '-')
+      .join(' ') || item.first_name,
   documentType: item.document_type,
   documentNumber: item.document_number,
   phone: item.phone,
@@ -198,17 +204,17 @@ const mapGlobalSettings = (item: BackendGlobalSettings): GlobalSettings => ({
   timezone: item.timezone,
   dateFormat: item.date_format,
   defaultLatePenaltyRate: item.default_late_penalty_rate,
-  interestGenerationLeadDays: item.interest_generation_lead_days ?? 0
+  interestGenerationLeadDays: item.interest_generation_lead_days ?? 10
 })
 
 const splitName = (fullName: string) => {
   const parts = fullName.trim().split(/\s+/)
   if (parts.length <= 1) {
-    return { first_name: parts[0] ?? fullName, last_name: '-' }
+    return { first_name: parts[0] ?? '', last_name: '' }
   }
   return {
     first_name: parts.slice(0, -1).join(' '),
-    last_name: parts.at(-1) ?? '-'
+    last_name: parts.at(-1) ?? ''
   }
 }
 
@@ -304,6 +310,8 @@ const updateCustomer = async (payload: UpdateCustomerPayload) => {
     method: 'PUT',
     body: JSON.stringify({
       ...nameParts,
+      document_type: payload.documentType,
+      document_number: payload.documentNumber,
       phone: payload.phone,
       email: payload.email,
       address: payload.address,

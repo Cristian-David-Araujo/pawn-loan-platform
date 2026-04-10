@@ -39,12 +39,20 @@ The platform is configured to read shared runtime variables from root `.env` onl
 ### Important variables (root `.env`)
 
 - `WEB_CLIENT_PORT`, `API_SERVER_PORT`, `POSTGRES_PORT`
+- `APP_NAME`, `APP_ENV`
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
 - `DATABASE_URL`
 - `VITE_API_BASE_URL`, `VITE_API_USERNAME`, `VITE_API_PASSWORD`
 - `JWT_SECRET_KEY`, `JWT_ALGORITHM`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`
 - `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_ROLE`
 - `DB_INIT_ON_STARTUP`, `DB_SEED_ON_STARTUP`, `DB_SEED_FORCE`
+- `AUTO_INTEREST_GENERATION_ENABLED`, `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES`
+
+#### Interest generation variables
+
+- `AUTO_INTEREST_GENERATION_ENABLED=true|false`: enables/disables periodic automatic interest generation in the API process.
+- `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES=1440`: scheduler interval in minutes (default is daily).
+- `DB_INIT_ON_STARTUP=true`: required so settings and tables are available on startup.
 
 ## Run with Docker (recommended)
 
@@ -64,9 +72,40 @@ Production deployment files are included in this repository:
 - `apps/api-server/Dockerfile.prod`
 - `apps/web-client/Dockerfile.prod`
 
+### GitFlow + Auto Release + Auto Deploy
+
+This repository includes GitHub Actions workflows to automate release and deployment when changes reach `main`.
+
+- Workflow: `.github/workflows/pr-gitflow-guard.yml`
+- Workflow: `.github/workflows/release-tag-and-deploy.yml`
+- Script: `.github/scripts/calculate_version.sh`
+
+Rules for pull requests targeting `main`:
+
+- Only `release/*`, `hotfix/*`, and `develop` source branches are allowed.
+
+Automatic behavior after a PR to `main` is merged:
+
+- Calculates next semantic version based on GitFlow branch:
+	- `release/x.y.z` or `hotfix/x.y.z`: uses explicit version from branch name.
+	- `release/*` without explicit version: bumps minor.
+	- `hotfix/*` without explicit version: bumps patch.
+	- `develop`: bumps minor.
+- Creates and pushes a Git tag in format `vX.Y.Z`.
+- Deploys latest `main` on DigitalOcean via SSH and runs:
+	- `docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d`
+
+Required GitHub repository secrets:
+
+- `DO_HOST`: Droplet public IP or hostname.
+- `DO_USER`: SSH user (for example `root`).
+- `DO_SSH_KEY`: Private SSH key with access to the droplet.
+- `DO_APP_DIR` (optional): Repository directory in droplet. Defaults to `/opt/pawn-loan-platform`.
+
 For a full step-by-step DigitalOcean guide, see:
 
 - `docs/deployment-digitalocean.md`
+- `docs/ci-cd-digitalocean.md`
 
 Stop services:
 
@@ -95,9 +134,17 @@ docker compose up --build web-client
 	- `/auth`, `/users`
 	- `/customers`
 	- `/loan-applications`, `/loans`
+	- `/interest`
 	- `/collateral-items`
 	- `/payments`
 	- `/reports`
+
+### Interest charge generation
+
+- Charges are generated automatically when creating a loan if its disbursement date is in the past and there are due periods.
+- Charges are generated periodically by an in-process scheduler controlled by `AUTO_INTEREST_GENERATION_ENABLED` and `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES`.
+- Charges can still be generated manually through `POST /api/v1/interest/generate`.
+- The generation cycle uses each loan disbursement day as the monthly anchor and avoids duplicate periods.
 
 Default development admin credentials (unless overridden in env):
 

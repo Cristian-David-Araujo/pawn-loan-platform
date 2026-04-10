@@ -44,7 +44,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
                 timezone="America/Bogota",
                 date_format="DD/MM/YYYY",
                 default_late_penalty_rate=0,
-                interest_generation_lead_days=0,
+                interest_generation_lead_days=10,
             )
         )
         db.flush()

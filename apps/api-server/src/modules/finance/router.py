@@ -1,4 +1,3 @@
-from calendar import monthrange
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,43 +6,13 @@ from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, Payment, User
+from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
 from src.modules.finance.schemas import InterestChargeRead, InterestGenerationRequest, LoanBalanceRead
 from src.shared.dependencies.auth import get_current_user
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
 
 router = APIRouter(tags=["finance"])
-
-
-def _month_anchor(year: int, month: int, anchor_day: int) -> date:
-    last_day = monthrange(year, month)[1]
-    day = min(max(1, anchor_day), last_day)
-    return date(year, month, day)
-
-
-def _add_months(base_date: date, months: int, anchor_day: int) -> date:
-    month_index = (base_date.month - 1) + months
-    year = base_date.year + (month_index // 12)
-    month = (month_index % 12) + 1
-    return _month_anchor(year, month, anchor_day)
-
-
-def _interest_period_for_as_of(as_of_date: date, disbursement_date: date) -> tuple[date, date] | None:
-    anchor_day = disbursement_date.day
-    current_anchor = _month_anchor(as_of_date.year, as_of_date.month, anchor_day)
-    if as_of_date >= current_anchor:
-        period_end = current_anchor
-    else:
-        period_end = _add_months(current_anchor, -1, anchor_day)
-
-    if period_end <= disbursement_date:
-        return None
-
-    period_start = _add_months(period_end, -1, anchor_day)
-    if period_start < disbursement_date:
-        period_start = disbursement_date
-
-    return period_start, period_end
 
 
 @router.post("/interest/generate", response_model=list[InterestChargeRead])
@@ -60,33 +29,14 @@ def generate_interest(
     generated: list[InterestCharge] = []
 
     for loan in loans:
-        period = _interest_period_for_as_of(effective_as_of_date, loan.disbursement_date)
-        if period is None:
-            continue
-
-        period_start, period_end = period
-
-        exists = db.scalar(
-            select(InterestCharge).where(
-                InterestCharge.loan_id == loan.id,
-                InterestCharge.period_start == period_start,
-                InterestCharge.period_end == period_end,
+        generated.extend(
+            generate_missing_interest_charges_for_loan(
+                db=db,
+                loan=loan,
+                as_of_date=effective_as_of_date,
+                charge_date=payload.as_of_date,
             )
         )
-        if exists is not None:
-            continue
-
-        amount = round(loan.outstanding_principal * (loan.monthly_interest_rate / 100), 2)
-        charge = InterestCharge(
-            loan_id=loan.id,
-            period_start=period_start,
-            period_end=period_end,
-            charge_date=payload.as_of_date,
-            amount=amount,
-            status="generated",
-        )
-        db.add(charge)
-        generated.append(charge)
 
     db.commit()
 

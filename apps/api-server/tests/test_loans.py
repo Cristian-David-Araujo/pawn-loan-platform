@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
 
@@ -83,3 +83,30 @@ def test_update_loan_allows_rate_due_day_and_status(
     assert payload["monthly_interest_rate"] == 9.5
     assert payload["due_day"] == 12
     assert payload["status"] == "overdue"
+
+
+def test_create_loan_generates_interest_immediately_for_past_disbursement(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+) -> None:
+    customer = create_customer(document_number="LOAN-CUST-PAST-1")
+    disbursement_date = date.today() - timedelta(days=95)
+
+    loan_payload = {
+        "customer_id": customer["id"],
+        "loan_type": "pawn",
+        "principal_amount": 1000,
+        "monthly_interest_rate": 8.5,
+        "disbursement_date": str(disbursement_date),
+        "due_day": disbursement_date.day,
+    }
+    loan_response = client.post("/api/v1/loans", headers=auth_headers, json=loan_payload)
+    assert loan_response.status_code == 201
+
+    loan_id = loan_response.json()["id"]
+    ledger_response = client.get(f"/api/v1/loans/{loan_id}/ledger", headers=auth_headers)
+    assert ledger_response.status_code == 200
+
+    interest_charges = ledger_response.json()["interest_charges"]
+    assert len(interest_charges) >= 2

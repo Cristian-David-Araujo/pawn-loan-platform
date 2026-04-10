@@ -1,6 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from src.infrastructure.persistence.models import InterestCharge
+from src.infrastructure.tasks.interest_scheduler import run_interest_generation_cycle
 
 
 def test_generate_interest_for_active_loans(client: TestClient, auth_headers: dict[str, str], create_loan) -> None:
@@ -10,7 +14,7 @@ def test_generate_interest_for_active_loans(client: TestClient, auth_headers: di
     response = client.post(
         "/api/v1/interest/generate",
         headers=auth_headers,
-        json={"as_of_date": str(date.today())},
+        json={"as_of_date": str(date.today() + timedelta(days=40))},
     )
     assert response.status_code == 200
     charges = response.json()
@@ -25,7 +29,7 @@ def test_loan_balance_and_ledger(client: TestClient, auth_headers: dict[str, str
     interest_response = client.post(
         "/api/v1/interest/generate",
         headers=auth_headers,
-        json={"as_of_date": str(date.today())},
+        json={"as_of_date": str(date.today() + timedelta(days=40))},
     )
     assert interest_response.status_code == 200
 
@@ -129,6 +133,41 @@ def test_generate_interest_skips_duplicate_period(
     assert len(second.json()) == 0
 
 
+def test_generate_interest_backfills_missing_periods(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+) -> None:
+    customer = create_customer(document_number="LOAN-CYCLE-3")
+    disbursement_date = date.today()
+    next_month = (disbursement_date.replace(day=28) + timedelta(days=4)).replace(day=1)
+    as_of_date = next_month + timedelta(days=70)
+
+    loan_response = client.post(
+        "/api/v1/loans",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "loan_type": "pawn",
+            "principal_amount": 1000,
+            "monthly_interest_rate": 8,
+            "disbursement_date": str(disbursement_date),
+            "due_day": disbursement_date.day,
+        },
+    )
+    assert loan_response.status_code == 201
+
+    response = client.post(
+        "/api/v1/interest/generate",
+        headers=auth_headers,
+        json={"as_of_date": str(as_of_date)},
+    )
+    assert response.status_code == 200
+
+    charges = response.json()
+    assert len(charges) >= 2
+
+
 def test_pending_interest_penalty_uses_configured_loan_rate(
     client: TestClient,
     auth_headers: dict[str, str],
@@ -178,10 +217,28 @@ def test_pending_interest_penalty_uses_configured_loan_rate(
 
     groups = pending.json()["groups"]
     items = [item for group in groups for item in group["items"]]
-    by_loan_id = {item["loan_id"]: item for item in items}
 
     zero_penalty_id = zero_penalty_loan.json()["id"]
     configured_penalty_id = configured_penalty_loan.json()["id"]
 
-    assert by_loan_id[zero_penalty_id]["penalty_amount"] == 0
-    assert by_loan_id[configured_penalty_id]["penalty_amount"] > 0
+    zero_penalty_items = [item for item in items if item["loan_id"] == zero_penalty_id]
+    configured_penalty_items = [item for item in items if item["loan_id"] == configured_penalty_id]
+
+    assert all(item["penalty_amount"] == 0 for item in zero_penalty_items)
+    assert any(item["penalty_amount"] > 0 for item in configured_penalty_items)
+
+
+def test_auto_interest_generation_cycle_creates_due_charges(
+    db_session,
+    create_loan,
+) -> None:
+    create_loan(principal=1000)
+
+    generated = run_interest_generation_cycle(
+        as_of_date=date.today() + timedelta(days=40),
+        db_session=db_session,
+    )
+    assert generated == 1
+
+    charges = list(db_session.scalars(select(InterestCharge)).all())
+    assert len(charges) == 1

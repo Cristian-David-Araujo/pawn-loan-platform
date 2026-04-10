@@ -81,7 +81,15 @@ def update_customer(
     if customer is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
 
-    for field, value in payload.model_dump(exclude_none=True).items():
+    update_data = payload.model_dump(exclude_none=True)
+
+    next_document_number = update_data.get("document_number")
+    if next_document_number and next_document_number != customer.document_number:
+        duplicate = db.scalar(select(Customer).where(Customer.document_number == next_document_number))
+        if duplicate:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Customer already exists")
+
+    for field, value in update_data.items():
         setattr(customer, field, value)
 
     db.commit()
