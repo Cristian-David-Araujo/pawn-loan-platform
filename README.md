@@ -72,9 +72,40 @@ Production deployment files are included in this repository:
 - `apps/api-server/Dockerfile.prod`
 - `apps/web-client/Dockerfile.prod`
 
+### GitFlow + Auto Release + Auto Deploy
+
+This repository includes GitHub Actions workflows to automate release and deployment when changes reach `main`.
+
+- Workflow: `.github/workflows/pr-gitflow-guard.yml`
+- Workflow: `.github/workflows/release-tag-and-deploy.yml`
+- Script: `.github/scripts/calculate_version.sh`
+
+Rules for pull requests targeting `main`:
+
+- Only `release/*`, `hotfix/*`, and `develop` source branches are allowed.
+
+Automatic behavior after a PR to `main` is merged:
+
+- Calculates next semantic version based on GitFlow branch:
+	- `release/x.y.z` or `hotfix/x.y.z`: uses explicit version from branch name.
+	- `release/*` without explicit version: bumps minor.
+	- `hotfix/*` without explicit version: bumps patch.
+	- `develop`: bumps minor.
+- Creates and pushes a Git tag in format `vX.Y.Z`.
+- Deploys latest `main` on DigitalOcean via SSH and runs:
+	- `docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d`
+
+Required GitHub repository secrets:
+
+- `DO_HOST`: Droplet public IP or hostname.
+- `DO_USER`: SSH user (for example `root`).
+- `DO_SSH_KEY`: Private SSH key with access to the droplet.
+- `DO_APP_DIR` (optional): Repository directory in droplet. Defaults to `/opt/pawn-loan-platform`.
+
 For a full step-by-step DigitalOcean guide, see:
 
 - `docs/deployment-digitalocean.md`
+- `docs/ci-cd-digitalocean.md`
 
 Stop services:
 
