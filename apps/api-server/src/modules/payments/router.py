@@ -281,9 +281,11 @@ def pay_interest(
             received_by=current_user.id,
         )
         db.add(payment)
+        db.flush()
 
         event = PaymentEvent(
             payment_type="interest_advance_payment",
+            payment_id=payment.id,
             loan_id=loan.id,
             interest_charge_id=None,
             billing_period=payload.payment_date.strftime("%Y-%m"),
@@ -317,6 +319,7 @@ def pay_interest(
             allocations=[
                 InterestPaymentAllocation(
                     payment_event_id=event.id,
+                    payment_id=payment.id,
                     loan_id=loan.id,
                     interest_charge_id=None,
                     payment_type="interest_advance_payment",
@@ -350,6 +353,7 @@ def pay_interest(
         received_by=current_user.id,
     )
     db.add(payment)
+    db.flush()
 
     remaining = round(payload.total_amount, 2)
     allocations: list[InterestPaymentAllocation] = []
@@ -378,6 +382,7 @@ def pay_interest(
 
         event = PaymentEvent(
             payment_type=payment_type,
+            payment_id=payment.id,
             loan_id=item.loan_id,
             interest_charge_id=item.interest_charge_id,
             billing_period=item.billing_period,
@@ -399,6 +404,7 @@ def pay_interest(
         allocations.append(
             InterestPaymentAllocation(
                 payment_event_id=event.id,
+                payment_id=payment.id,
                 loan_id=item.loan_id,
                 interest_charge_id=item.interest_charge_id,
                 payment_type=payment_type,
@@ -417,6 +423,7 @@ def pay_interest(
 
         event = PaymentEvent(
             payment_type="interest_advance_payment",
+            payment_id=payment.id,
             loan_id=target_loan_id,
             interest_charge_id=None,
             billing_period=payload.payment_date.strftime("%Y-%m"),
@@ -435,6 +442,7 @@ def pay_interest(
         allocations.append(
             InterestPaymentAllocation(
                 payment_event_id=event.id,
+                payment_id=payment.id,
                 loan_id=target_loan_id,
                 interest_charge_id=None,
                 payment_type="interest_advance_payment",
@@ -568,10 +576,12 @@ def pay_principal(
         received_by=current_user.id,
     )
     db.add(payment)
+    db.flush()
 
     payment_type = "full_settlement" if loan.outstanding_principal == 0 else "partial_principal_payment"
     event = PaymentEvent(
         payment_type=payment_type,
+        payment_id=payment.id,
         loan_id=loan.id,
         interest_charge_id=None,
         billing_period="",

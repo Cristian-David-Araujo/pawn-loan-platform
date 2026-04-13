@@ -105,8 +105,10 @@ def test_selected_interest_with_excess_creates_advance(
     linked_allocations = [item for item in payload["allocations"] if item["interest_charge_id"] is not None]
     advance_allocations = [item for item in payload["allocations"] if item["interest_charge_id"] is None]
     assert len(linked_allocations) == 1
+    assert linked_allocations[0]["payment_id"] is not None
     assert linked_allocations[0]["allocated_total"] == 70
     assert len(advance_allocations) == 1
+    assert advance_allocations[0]["payment_id"] == linked_allocations[0]["payment_id"]
     assert advance_allocations[0]["payment_type"] == "interest_advance_payment"
 
     after_payment_count = db_session.query(Payment).count()
