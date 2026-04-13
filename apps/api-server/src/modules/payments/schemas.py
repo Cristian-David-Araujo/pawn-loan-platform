@@ -80,6 +80,7 @@ class InterestPaymentRequest(BaseModel):
 
 class InterestPaymentAllocation(BaseModel):
     payment_event_id: int
+    payment_id: int
     loan_id: int
     interest_charge_id: int | None
     payment_type: str
@@ -138,6 +139,7 @@ class PaymentEventRead(BaseModel):
 
     id: int
     payment_type: str
+    payment_id: int | None
     loan_id: int
     interest_charge_id: int | None
     billing_period: str

@@ -281,9 +281,11 @@ def pay_interest(
             received_by=current_user.id,
         )
         db.add(payment)
+        db.flush()
 
         event = PaymentEvent(
             payment_type="interest_advance_payment",
+            payment_id=payment.id,
             loan_id=loan.id,
             interest_charge_id=None,
             billing_period=payload.payment_date.strftime("%Y-%m"),
@@ -317,6 +319,7 @@ def pay_interest(
             allocations=[
                 InterestPaymentAllocation(
                     payment_event_id=event.id,
+                    payment_id=payment.id,
                     loan_id=loan.id,
                     interest_charge_id=None,
                     payment_type="interest_advance_payment",
@@ -328,92 +331,32 @@ def pay_interest(
             ],
         )
 
-    if payload.pay_all_pending:
-        selected_items = items
-    elif payload.selected_charge_ids:
-        selected = set(payload.selected_charge_ids)
-        selected_items = [item for item in items if item.interest_charge_id in selected]
-    else:
-        loan = db.scalar(
-            select(Loan)
-            .where(Loan.customer_id == payload.customer_id, Loan.status != LoanStatus.closed)
-            .order_by(Loan.id.asc())
-        )
-        if loan is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer has no active loans")
-
-        advance_amount = round(payload.total_amount, 2)
-        payment = Payment(
-            loan_id=loan.id,
-            payment_date=payload.payment_date,
-            total_amount=advance_amount,
-            allocated_to_penalty=0,
-            allocated_to_interest=advance_amount,
-            allocated_to_fees=0,
-            allocated_to_principal=0,
-            payment_method=payload.payment_method,
-            received_by=current_user.id,
-        )
-        db.add(payment)
-
-        event = PaymentEvent(
-            payment_type="interest_advance_payment",
-            loan_id=loan.id,
-            interest_charge_id=None,
-            billing_period=payload.payment_date.strftime("%Y-%m"),
-            total_entered_amount=advance_amount,
-            allocated_to_interest=advance_amount,
-            allocated_to_penalty=0,
-            allocated_to_principal=0,
-            payment_date=payload.payment_date,
-            operator_user_id=current_user.id,
-            payment_method=payload.payment_method,
-            notes=payload.notes,
-        )
-        db.add(event)
-        db.commit()
-        db.refresh(event)
-
-        write_audit(
-            db,
-            action="interest_advance_payment",
-            entity_type="PaymentEvent",
-            entity_id=str(event.id),
-            user=current_user,
-            new_data=f"customer={payload.customer_id},amount={advance_amount}",
-        )
-
-        return InterestPaymentResponse(
-            customer_id=payload.customer_id,
-            total_entered_amount=advance_amount,
-            total_allocated_amount=advance_amount,
-            unallocated_amount=0,
-            allocations=[
-                InterestPaymentAllocation(
-                    payment_event_id=event.id,
-                    loan_id=loan.id,
-                    interest_charge_id=None,
-                    payment_type="interest_advance_payment",
-                    billing_period=event.billing_period,
-                    allocated_to_interest=advance_amount,
-                    allocated_to_penalty=0,
-                    allocated_total=advance_amount,
-                )
-            ],
-        )
-
-    if not selected_items:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No valid pending charges selected")
+    # Business rule: every interest payment must be allocated oldest-first.
+    # Selection hints are accepted for compatibility but allocation order is never overridden.
+    selected_items = items
 
     selected_ids = [item.interest_charge_id for item in selected_items]
     charge_map = {
         charge.id: charge
         for charge in db.scalars(select(InterestCharge).where(InterestCharge.id.in_(selected_ids))).all()
     }
+
+    payment = Payment(
+        loan_id=selected_items[0].loan_id,
+        payment_date=payload.payment_date,
+        total_amount=round(payload.total_amount, 2),
+        allocated_to_penalty=0,
+        allocated_to_interest=0,
+        allocated_to_fees=0,
+        allocated_to_principal=0,
+        payment_method=payload.payment_method,
+        received_by=current_user.id,
+    )
+    db.add(payment)
+    db.flush()
+
     remaining = round(payload.total_amount, 2)
     allocations: list[InterestPaymentAllocation] = []
-
-    force_interest_payment_type = bool(payload.selected_charge_ids) and not payload.pay_all_pending
 
     for item in selected_items:
         if remaining <= 0:
@@ -434,24 +377,12 @@ def pay_interest(
         payment_type = "interest_payment"
         if allocated_total < max_allocatable:
             payment_type = "partial_interest_payment"
-        elif (not force_interest_payment_type) and (not item.overdue and item.due_date > payload.payment_date):
+        elif not item.overdue and item.due_date > payload.payment_date:
             payment_type = "interest_advance_payment"
-
-        payment = Payment(
-            loan_id=item.loan_id,
-            payment_date=payload.payment_date,
-            total_amount=allocated_total,
-            allocated_to_penalty=allocated_penalty,
-            allocated_to_interest=allocated_interest,
-            allocated_to_fees=0,
-            allocated_to_principal=0,
-            payment_method=payload.payment_method,
-            received_by=current_user.id,
-        )
-        db.add(payment)
 
         event = PaymentEvent(
             payment_type=payment_type,
+            payment_id=payment.id,
             loan_id=item.loan_id,
             interest_charge_id=item.interest_charge_id,
             billing_period=item.billing_period,
@@ -473,6 +404,7 @@ def pay_interest(
         allocations.append(
             InterestPaymentAllocation(
                 payment_event_id=event.id,
+                payment_id=payment.id,
                 loan_id=item.loan_id,
                 interest_charge_id=item.interest_charge_id,
                 payment_type=payment_type,
@@ -489,21 +421,9 @@ def pay_interest(
         target_loan_id = selected_items[0].loan_id
         advance_amount = remaining
 
-        payment = Payment(
-            loan_id=target_loan_id,
-            payment_date=payload.payment_date,
-            total_amount=advance_amount,
-            allocated_to_penalty=0,
-            allocated_to_interest=advance_amount,
-            allocated_to_fees=0,
-            allocated_to_principal=0,
-            payment_method=payload.payment_method,
-            received_by=current_user.id,
-        )
-        db.add(payment)
-
         event = PaymentEvent(
             payment_type="interest_advance_payment",
+            payment_id=payment.id,
             loan_id=target_loan_id,
             interest_charge_id=None,
             billing_period=payload.payment_date.strftime("%Y-%m"),
@@ -522,6 +442,7 @@ def pay_interest(
         allocations.append(
             InterestPaymentAllocation(
                 payment_event_id=event.id,
+                payment_id=payment.id,
                 loan_id=target_loan_id,
                 interest_charge_id=None,
                 payment_type="interest_advance_payment",
@@ -537,6 +458,11 @@ def pay_interest(
     total_allocated = round(sum(item.allocated_total for item in allocations), 2)
     if total_allocated <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to allocate payment")
+
+    payment.allocated_to_interest = round(sum(item.allocated_to_interest for item in allocations), 2)
+    payment.allocated_to_penalty = round(sum(item.allocated_to_penalty for item in allocations), 2)
+    payment.allocated_to_principal = 0
+    payment.allocated_to_fees = 0
 
     db.commit()
 
@@ -650,10 +576,12 @@ def pay_principal(
         received_by=current_user.id,
     )
     db.add(payment)
+    db.flush()
 
     payment_type = "full_settlement" if loan.outstanding_principal == 0 else "partial_principal_payment"
     event = PaymentEvent(
         payment_type=payment_type,
+        payment_id=payment.id,
         loan_id=loan.id,
         interest_charge_id=None,
         billing_period="",

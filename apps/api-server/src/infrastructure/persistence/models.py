@@ -123,6 +123,7 @@ class PaymentEvent(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     payment_type: Mapped[str] = mapped_column(String(60), index=True)
+    payment_id: Mapped[int | None] = mapped_column(ForeignKey("payments.id"), nullable=True, index=True)
     loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"), index=True)
     interest_charge_id: Mapped[int | None] = mapped_column(ForeignKey("interest_charges.id"), nullable=True)
     billing_period: Mapped[str] = mapped_column(String(30), default="")

@@ -90,6 +90,7 @@ src/infrastructure/logging/__init__.py
 src/infrastructure/persistence/__init__.py
 src/infrastructure/persistence/database.py
 src/infrastructure/persistence/init_db.py
+src/infrastructure/persistence/migrations.py
 src/infrastructure/persistence/models.py
 src/infrastructure/persistence/seed.py
 src/infrastructure/security/__init__.py

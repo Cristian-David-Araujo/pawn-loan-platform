@@ -3,7 +3,7 @@ from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from src.infrastructure.persistence.models import InterestCharge, Loan
+from src.infrastructure.persistence.models import InterestCharge, Loan, Payment
 
 
 def _create_interest_charge(db_session: Session, loan_id: int, amount: float = 100.0) -> InterestCharge:
@@ -86,6 +86,7 @@ def test_selected_interest_with_excess_creates_advance(
 
     loan_db = db_session.get(Loan, loan["id"])
     assert loan_db is not None
+    before_payment_count = db_session.query(Payment).count()
 
     response = client.post(
         "/api/v1/payments/interest",
@@ -101,9 +102,22 @@ def test_selected_interest_with_excess_creates_advance(
     )
     assert response.status_code == 200
     payload = response.json()
-    payment_types = {item["payment_type"] for item in payload["allocations"]}
-    assert "interest_payment" in payment_types or "partial_interest_payment" in payment_types
-    assert "interest_advance_payment" in payment_types
+    linked_allocations = [item for item in payload["allocations"] if item["interest_charge_id"] is not None]
+    advance_allocations = [item for item in payload["allocations"] if item["interest_charge_id"] is None]
+    assert len(linked_allocations) == 1
+    assert linked_allocations[0]["payment_id"] is not None
+    assert linked_allocations[0]["allocated_total"] == 70
+    assert len(advance_allocations) == 1
+    assert advance_allocations[0]["payment_id"] == linked_allocations[0]["payment_id"]
+    assert advance_allocations[0]["payment_type"] == "interest_advance_payment"
+
+    after_payment_count = db_session.query(Payment).count()
+    assert after_payment_count == before_payment_count + 1
+    registered_payment = db_session.query(Payment).order_by(Payment.id.desc()).first()
+    assert registered_payment is not None
+    assert registered_payment.total_amount == 100
+    assert registered_payment.allocated_to_interest == 100
+    assert registered_payment.allocated_to_penalty == 0
 
 
 def test_interest_advance_without_pending_charges(
@@ -134,18 +148,37 @@ def test_interest_advance_without_pending_charges(
     assert payload["allocations"][0]["payment_type"] == "interest_advance_payment"
 
 
-def test_interest_explicit_advance_with_pending_exists(
+def test_interest_payment_with_pending_ignores_explicit_advance_and_applies_oldest_first(
     client: TestClient,
     auth_headers: dict[str, str],
     create_loan,
     db_session: Session,
 ) -> None:
     loan = create_loan(principal=1500)
-    _create_interest_charge(db_session, loan["id"], amount=80)
+    old_charge = InterestCharge(
+        loan_id=loan["id"],
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 1, 31),
+        charge_date=date(2026, 1, 31),
+        amount=80,
+        status="generated",
+    )
+    new_charge = InterestCharge(
+        loan_id=loan["id"],
+        period_start=date(2026, 2, 1),
+        period_end=date(2026, 2, 28),
+        charge_date=date(2026, 2, 28),
+        amount=80,
+        status="generated",
+    )
+    db_session.add_all([old_charge, new_charge])
+    db_session.commit()
+
     loan_db = db_session.get(Loan, loan["id"])
     assert loan_db is not None
 
-    response = client.post(
+    # Previously this payload created an explicit advance. New rule enforces oldest-first allocation.
+    payment = client.post(
         "/api/v1/payments/interest",
         headers=auth_headers,
         json={
@@ -157,10 +190,15 @@ def test_interest_explicit_advance_with_pending_exists(
             "notes": "explicit advance",
         },
     )
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["allocations"][0]["payment_type"] == "interest_advance_payment"
-    assert payload["total_allocated_amount"] == 15
+    assert payment.status_code == 200
+
+    pending = client.get(f"/api/v1/payments/customers/{loan_db.customer_id}/interest-pending", headers=auth_headers)
+    assert pending.status_code == 200
+    items = [item for group in pending.json()["groups"] for item in group["items"]]
+    oldest = min(items, key=lambda item: item["due_date"])
+    newest = max(items, key=lambda item: item["due_date"])
+    assert oldest["remaining_pending_amount"] == 65
+    assert newest["remaining_pending_amount"] == 80
 
 
 def test_selected_partial_plus_explicit_advance(
@@ -201,7 +239,63 @@ def test_selected_partial_plus_explicit_advance(
         },
     )
     assert advance.status_code == 200
-    assert advance.json()["allocations"][0]["payment_type"] == "interest_advance_payment"
+    assert advance.json()["allocations"][0]["payment_type"] in {
+        "interest_payment",
+        "partial_interest_payment",
+        "interest_advance_payment",
+    }
+
+
+def test_interest_allocation_still_starts_from_oldest_when_only_newer_charge_is_selected(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+    db_session: Session,
+) -> None:
+    loan = create_loan(principal=1750)
+    old_charge = InterestCharge(
+        loan_id=loan["id"],
+        period_start=date(2026, 1, 1),
+        period_end=date(2026, 1, 31),
+        charge_date=date(2026, 1, 31),
+        amount=100,
+        status="generated",
+    )
+    new_charge = InterestCharge(
+        loan_id=loan["id"],
+        period_start=date(2026, 2, 1),
+        period_end=date(2026, 2, 28),
+        charge_date=date(2026, 2, 28),
+        amount=100,
+        status="generated",
+    )
+    db_session.add_all([old_charge, new_charge])
+    db_session.commit()
+
+    loan_db = db_session.get(Loan, loan["id"])
+    assert loan_db is not None
+
+    payment = client.post(
+        "/api/v1/payments/interest",
+        headers=auth_headers,
+        json={
+            "customer_id": loan_db.customer_id,
+            "selected_charge_ids": [new_charge.id],
+            "pay_all_pending": False,
+            "total_amount": 30,
+            "payment_method": "cash",
+            "notes": "newer selected",
+        },
+    )
+    assert payment.status_code == 200
+
+    pending = client.get(f"/api/v1/payments/customers/{loan_db.customer_id}/interest-pending", headers=auth_headers)
+    assert pending.status_code == 200
+    items = [item for group in pending.json()["groups"] for item in group["items"]]
+    oldest = min(items, key=lambda item: item["due_date"])
+    newest = max(items, key=lambda item: item["due_date"])
+    assert oldest["remaining_pending_amount"] == 70
+    assert newest["remaining_pending_amount"] == 100
 
 
 def test_advance_is_applied_to_oldest_pending_charge(
