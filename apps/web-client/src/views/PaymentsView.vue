@@ -487,7 +487,7 @@ const selectedCustomerPayments = computed(() =>
 
 const flatPendingItems = computed(() =>
   [...(pendingInterest.value?.groups.flatMap((group) => group.items) ?? [])].sort(
-    (a, b) => new Date(b.due_date).getTime() - new Date(a.due_date).getTime()
+    (a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime()
   )
 )
 
@@ -751,46 +751,17 @@ const submitInterestPayment = async () => {
 
   processing.value = true
   try {
-    let remaining = interestAmountToPay.value
-
-    for (const item of selectedPendingItems.value) {
-      if (remaining <= 0) {
-        break
-      }
-
-      const amount = Math.min(remaining, item.current_outstanding_balance)
-      if (amount <= 0) {
-        continue
-      }
-
-      await apiClient.request('/payments/interest', {
-        method: 'POST',
-        body: JSON.stringify({
-          customer_id: selectedCustomerId.value,
-          pay_all_pending: false,
-          selected_charge_ids: [item.interest_charge_id],
-          total_amount: amount,
-          payment_method: interestPaymentMethod.value,
-          notes: interestNotes.value
-        })
+    await apiClient.request('/payments/interest', {
+      method: 'POST',
+      body: JSON.stringify({
+        customer_id: selectedCustomerId.value,
+        pay_all_pending: true,
+        selected_charge_ids: [],
+        total_amount: interestAmountToPay.value,
+        payment_method: interestPaymentMethod.value,
+        notes: interestNotes.value
       })
-
-      remaining -= amount
-    }
-
-    if (remaining > 0) {
-      await apiClient.request('/payments/interest', {
-        method: 'POST',
-        body: JSON.stringify({
-          customer_id: selectedCustomerId.value,
-          selected_charge_ids: [],
-          pay_all_pending: false,
-          total_amount: remaining,
-          payment_method: interestPaymentMethod.value,
-          notes: interestNotes.value
-        })
-      })
-    }
+    })
 
     await refreshAll()
     await loadCustomerPaymentData()
