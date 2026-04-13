@@ -413,6 +413,8 @@ def pay_interest(
     remaining = round(payload.total_amount, 2)
     allocations: list[InterestPaymentAllocation] = []
 
+    force_interest_payment_type = bool(payload.selected_charge_ids) and not payload.pay_all_pending
+
     for item in selected_items:
         if remaining <= 0:
             break
@@ -432,7 +434,7 @@ def pay_interest(
         payment_type = "interest_payment"
         if allocated_total < max_allocatable:
             payment_type = "partial_interest_payment"
-        elif not item.overdue and item.due_date > payload.payment_date:
+        elif (not force_interest_payment_type) and (not item.overdue and item.due_date > payload.payment_date):
             payment_type = "interest_advance_payment"
 
         payment = Payment(

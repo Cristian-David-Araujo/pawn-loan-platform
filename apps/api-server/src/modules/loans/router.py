@@ -168,18 +168,23 @@ def update_loan(
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
 
-    if payload.outstanding_principal > payload.principal_amount:
+    next_principal_amount = payload.principal_amount if payload.principal_amount is not None else loan.principal_amount
+    next_outstanding_principal = (
+        payload.outstanding_principal if payload.outstanding_principal is not None else loan.outstanding_principal
+    )
+
+    if next_outstanding_principal > next_principal_amount:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Outstanding principal cannot be greater than principal amount",
         )
 
-    loan.loan_type = payload.loan_type
-    loan.principal_amount = payload.principal_amount
-    loan.outstanding_principal = payload.outstanding_principal
+    loan.loan_type = payload.loan_type if payload.loan_type is not None else loan.loan_type
+    loan.principal_amount = next_principal_amount
+    loan.outstanding_principal = next_outstanding_principal
     loan.monthly_interest_rate = payload.monthly_interest_rate
-    loan.late_penalty_rate = payload.late_penalty_rate
-    loan.disbursement_date = payload.disbursement_date
+    loan.late_penalty_rate = payload.late_penalty_rate if payload.late_penalty_rate is not None else loan.late_penalty_rate
+    loan.disbursement_date = payload.disbursement_date if payload.disbursement_date is not None else loan.disbursement_date
     loan.due_day = payload.due_day
     loan.status = payload.status
 
