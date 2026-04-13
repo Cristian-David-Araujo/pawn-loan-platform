@@ -3,7 +3,7 @@ from datetime import date
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from src.infrastructure.persistence.models import InterestCharge, Loan
+from src.infrastructure.persistence.models import InterestCharge, Loan, Payment
 
 
 def _create_interest_charge(db_session: Session, loan_id: int, amount: float = 100.0) -> InterestCharge:
@@ -86,6 +86,7 @@ def test_selected_interest_with_excess_creates_advance(
 
     loan_db = db_session.get(Loan, loan["id"])
     assert loan_db is not None
+    before_payment_count = db_session.query(Payment).count()
 
     response = client.post(
         "/api/v1/payments/interest",
@@ -107,6 +108,14 @@ def test_selected_interest_with_excess_creates_advance(
     assert linked_allocations[0]["allocated_total"] == 70
     assert len(advance_allocations) == 1
     assert advance_allocations[0]["payment_type"] == "interest_advance_payment"
+
+    after_payment_count = db_session.query(Payment).count()
+    assert after_payment_count == before_payment_count + 1
+    registered_payment = db_session.query(Payment).order_by(Payment.id.desc()).first()
+    assert registered_payment is not None
+    assert registered_payment.total_amount == 100
+    assert registered_payment.allocated_to_interest == 100
+    assert registered_payment.allocated_to_penalty == 0
 
 
 def test_interest_advance_without_pending_charges(
