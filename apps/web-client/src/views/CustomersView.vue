@@ -453,6 +453,8 @@
                 <th>{{ t('common.fees') }}</th>
                 <th>{{ t('common.principal') }}</th>
                 <th>{{ t('common.method') }}</th>
+                <th>{{ t('common.status') }}</th>
+                <th>{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -466,13 +468,19 @@
                 <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
                 <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
                 <td>
-                  {{
-                    payment.paymentMethod === 'cash'
-                      ? t('common.cash')
-                      : payment.paymentMethod === 'bank-transfer'
-                        ? t('common.bankTransfer')
-                        : t('common.other')
-                  }}
+                  {{ paymentMethodLabel(payment.paymentMethod) }}
+                </td>
+                <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
+                <td>
+                  <button
+                    class="btn btn-secondary"
+                    type="button"
+                    :disabled="payment.isReversed || isSaving"
+                    @click="openPaymentEditModal(payment)"
+                  >
+                    <Pencil :size="16" />
+                    {{ t('payments.editPayment') }}
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -737,6 +745,64 @@
         </form>
       </div>
     </div>
+
+    <div v-if="showPaymentEditModal" class="modal-backdrop" @click.self="closePaymentEditModal">
+      <div class="modal-panel card">
+        <div class="modal-header">
+          <h3>{{ t('payments.editPayment') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closePaymentEditModal">
+            <X :size="16" />
+            {{ t('common.close') }}
+          </button>
+        </div>
+
+        <form class="form mt-16" @submit.prevent="handleUpdatePayment">
+          <div class="grid grid-2">
+            <label>
+              {{ t('common.date') }}
+              <DateInputField
+                v-model="paymentEditForm.paymentDate"
+                :label="t('common.date')"
+                :placeholder="t('settings.dateFormat')"
+                :required="true"
+              />
+            </label>
+            <label>
+              {{ t('payments.paymentMethod') }}
+              <select v-model="paymentEditForm.paymentMethod">
+                <option value="cash">{{ t('common.cash') }}</option>
+                <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
+                <option value="other">{{ t('common.other') }}</option>
+              </select>
+            </label>
+            <label>
+              {{ t('common.total') }}
+              <input v-model.number="paymentEditForm.totalAmount" type="number" min="0.01" step="0.01" required />
+            </label>
+            <label>
+              {{ t('common.interest') }}
+              <input v-model.number="paymentEditForm.allocatedToInterest" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              {{ t('payments.penalty') }}
+              <input v-model.number="paymentEditForm.allocatedToPenalty" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              {{ t('common.fees') }}
+              <input v-model.number="paymentEditForm.allocatedToFees" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              {{ t('common.principal') }}
+              <input v-model.number="paymentEditForm.allocatedToPrincipal" type="number" min="0" step="0.01" required />
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="isSaving">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
+      </div>
+    </div>
   </section>
 </template>
 
@@ -812,6 +878,7 @@ const {
   deleteCustomer,
   updateLoan,
   deleteLoan,
+  updatePayment,
   updateCollateral,
   getCustomerById,
   ensureInitialized
@@ -830,6 +897,7 @@ const showDetailModal = ref(false)
 const showCustomerLoanDetailModal = ref(false)
 const showLoanEditModal = ref(false)
 const showCollateralEditModal = ref(false)
+const showPaymentEditModal = ref(false)
 const isSaving = ref(false)
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
@@ -842,6 +910,7 @@ const auditLoanFilter = ref('all')
 const selectedLoanForEditId = ref<number | null>(null)
 const selectedLoanDetailId = ref<number | null>(null)
 const selectedCollateralForEditId = ref<number | null>(null)
+const selectedPaymentForEditId = ref<number | null>(null)
 const documentTypeOptions = ['CC', 'TI', 'NIT', 'CE', 'PAS']
 const editDocumentTypeOptions = computed(() => {
   if (!editForm.documentType || documentTypeOptions.includes(editForm.documentType)) {
@@ -899,6 +968,16 @@ const collateralEditForm = reactive({
   appraisedValue: 0,
   storageLocation: '',
   status: 'in-custody' as 'in-custody' | 'released' | 'liquidated'
+})
+
+const paymentEditForm = reactive({
+  paymentDate: '',
+  totalAmount: 0,
+  allocatedToPenalty: 0,
+  allocatedToInterest: 0,
+  allocatedToFees: 0,
+  allocatedToPrincipal: 0,
+  paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other'
 })
 
 const selectedCustomer = computed(() =>
@@ -1174,6 +1253,23 @@ const closeCollateralEditModal = () => {
   showCollateralEditModal.value = false
 }
 
+const openPaymentEditModal = (payment: Payment) => {
+  selectedPaymentForEditId.value = payment.id
+  paymentEditForm.paymentDate = formatDateDMY(payment.paymentDate)
+  paymentEditForm.totalAmount = payment.totalAmount
+  paymentEditForm.allocatedToPenalty = payment.allocatedToPenalty
+  paymentEditForm.allocatedToInterest = payment.allocatedToInterest
+  paymentEditForm.allocatedToFees = payment.allocatedToFees
+  paymentEditForm.allocatedToPrincipal = payment.allocatedToPrincipal
+  paymentEditForm.paymentMethod = payment.paymentMethod
+  showPaymentEditModal.value = true
+}
+
+const closePaymentEditModal = () => {
+  showPaymentEditModal.value = false
+  selectedPaymentForEditId.value = null
+}
+
 const loadCustomerFinancialData = async (customerId: number) => {
   financialDataLoading.value = true
   financialDataError.value = false
@@ -1412,6 +1508,42 @@ const handleUpdateCollateral = async () => {
 
     message.value = t(result.messageKey)
     closeCollateralEditModal()
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const handleUpdatePayment = async () => {
+  if (selectedPaymentForEditId.value === null || isSaving.value) {
+    return
+  }
+
+  const paymentDate = toIsoDate(paymentEditForm.paymentDate)
+  if (!paymentDate) {
+    message.value = t('messages.invalidDateFormat')
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const result = await updatePayment({
+      id: selectedPaymentForEditId.value,
+      paymentDate,
+      totalAmount: paymentEditForm.totalAmount,
+      allocatedToPenalty: paymentEditForm.allocatedToPenalty,
+      allocatedToInterest: paymentEditForm.allocatedToInterest,
+      allocatedToFees: paymentEditForm.allocatedToFees,
+      allocatedToPrincipal: paymentEditForm.allocatedToPrincipal,
+      paymentMethod: paymentEditForm.paymentMethod
+    })
+
+    message.value = t(result.messageKey)
+    if (result.ok && selectedCustomer.value) {
+      closePaymentEditModal()
+      await loadCustomerFinancialData(selectedCustomer.value.id)
+    }
   } catch {
     message.value = t('messages.operationFailed')
   } finally {
