@@ -324,6 +324,28 @@ const updateCustomer = async (payload: UpdateCustomerPayload) => {
   return { ok: true, messageKey: 'messages.customerUpdated' }
 }
 
+const deleteCustomer = async (customerId: number) => {
+  const current = state.customers.find((item) => item.id === customerId)
+  if (!current) {
+    return { ok: false, messageKey: 'messages.customerNotFound' }
+  }
+
+  try {
+    await apiClient.request<unknown>(`/customers/${customerId}`, {
+      method: 'DELETE'
+    })
+  } catch (error) {
+    const detail = String(error)
+    if (detail.includes('related credit records')) {
+      return { ok: false, messageKey: 'messages.customerDeleteHasTraceability' }
+    }
+    throw error
+  }
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.customerDeleted' }
+}
+
 const createLoan = async (payload: CreateLoanPayload) => {
   const created = await apiClient.request<BackendLoan>('/loans', {
     method: 'POST',
@@ -457,6 +479,7 @@ export const usePlatformStore = () => ({
   refreshAll,
   createCustomer,
   updateCustomer,
+  deleteCustomer,
   createLoan,
   updateLoan,
   createCollateral,

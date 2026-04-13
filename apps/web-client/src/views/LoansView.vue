@@ -50,21 +50,12 @@
             {{ t('loans.disbursementDate') }}
             <span class="field-help" aria-hidden="true">ⓘ</span>
           </span>
-          <input
+          <DateInputField
             v-model="form.disbursementDate"
+            :label="t('loans.disbursementDate')"
             :placeholder="datePlaceholder"
-            required
+            :required="true"
             :title="t('loans.disbursementDateHelp')"
-            @click="openDisbursementDateCalendar"
-          />
-          <input
-            ref="disbursementDateCalendarRef"
-            :value="toIsoDate(form.disbursementDate) ?? ''"
-            type="date"
-            tabindex="-1"
-            :aria-label="`${t('loans.disbursementDate')} (calendar)`"
-            style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;"
-            @change="syncDisbursementDateFromCalendar"
           />
         </label>
         </div>
@@ -369,6 +360,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FilePlus2, HandCoins } from 'lucide-vue-next'
+import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
@@ -422,30 +414,6 @@ const form = reactive({
   dueDay: 5,
   disbursementDate: formatDateDMY(todayIso)
 })
-
-const disbursementDateCalendarRef = ref<HTMLInputElement | null>(null)
-
-const syncDisbursementDateFromCalendar = (event: Event) => {
-  const value = (event.target as HTMLInputElement).value
-  form.disbursementDate = value ? formatDateDMY(value) : ''
-}
-
-const openDisbursementDateCalendar = () => {
-  const input = disbursementDateCalendarRef.value
-  if (!input) {
-    return
-  }
-
-  input.value = toIsoDate(form.disbursementDate) ?? ''
-
-  if (typeof input.showPicker === 'function') {
-    input.showPicker()
-    return
-  }
-
-  input.focus()
-  input.click()
-}
 
 const handleCreateLoan = async () => {
   const disbursementDate = toIsoDate(form.disbursementDate)

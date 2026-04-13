@@ -401,6 +401,123 @@ label {
   color: var(--text);
 }
 
+.date-input-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-text-input {
+  min-width: 0;
+}
+
+.date-field {
+  position: relative;
+}
+
+.date-picker-trigger {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  min-width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.date-picker-trigger:hover {
+  border-color: rgba(30, 111, 242, 0.4);
+  background: #dbe9ff;
+  transform: translateY(-1px);
+}
+
+.date-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: min(320px, calc(100vw - 3rem));
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 16px 38px rgba(20, 33, 61, 0.16);
+  padding: 0.75rem;
+}
+
+.date-popover-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.date-popover-head strong {
+  font-size: 0.9rem;
+  text-transform: capitalize;
+}
+
+.date-nav-btn {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f5f8ff;
+  color: #1d3f7a;
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+}
+
+.date-weekdays,
+.date-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.date-weekdays {
+  margin-bottom: 0.4rem;
+}
+
+.date-weekdays span {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.date-day-btn {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  min-height: 32px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.date-day-btn:hover {
+  background: var(--accent-soft);
+  border-color: rgba(30, 111, 242, 0.3);
+}
+
+.date-day-btn.is-muted {
+  color: #9aa8bf;
+}
+
+.date-day-btn.is-selected {
+  background: linear-gradient(120deg, #1e6ff2, #1570aa);
+  border-color: transparent;
+  color: #fff;
+}
+
+.date-day-btn.is-today {
+  border-color: rgba(30, 111, 242, 0.45);
+}
+
 .field-label-row {
   display: inline-flex;
   align-items: center;
@@ -712,6 +829,71 @@ th {
 .customer-title {
   font-size: 1.08rem;
   margin-bottom: 0.2rem;
+}
+
+.audit-summary-card,
+.audit-trace-card {
+  border: 1px solid #d8e3f2;
+  background: linear-gradient(180deg, #ffffff, #f8fbff);
+}
+
+.audit-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.audit-metric-item {
+  border: 1px solid #dfe8f5;
+  border-radius: 10px;
+  padding: 0.6rem;
+  background: #fff;
+}
+
+.audit-metric-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.audit-metric-value {
+  margin: 0.2rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1a3154;
+}
+
+.audit-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.audit-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.audit-timeline-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid #dfe8f5;
+  border-radius: 10px;
+  padding: 0.6rem;
+  background: #fff;
+}
+
+.audit-timeline-title {
+  margin: 0;
+  font-weight: 700;
+  color: #19375d;
 }
 
 ul {
