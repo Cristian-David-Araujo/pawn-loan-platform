@@ -4,7 +4,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.infrastructure.persistence.models import InterestCharge, Loan
+from src.infrastructure.persistence.models import InterestCharge, Loan, PaymentEvent
 
 
 def _month_anchor(year: int, month: int, anchor_day: int) -> date:
@@ -48,6 +48,66 @@ def generate_missing_interest_charges_for_loan(
     generated: list[InterestCharge] = []
     for period_start, period_end in _iter_due_periods(as_of_date, loan.disbursement_date):
         if (period_start, period_end) in existing_periods:
+            continue
+
+        amount = round(loan.outstanding_principal * (loan.monthly_interest_rate / 100), 2)
+        charge = InterestCharge(
+            loan_id=loan.id,
+            period_start=period_start,
+            period_end=period_end,
+            charge_date=charge_date,
+            amount=amount,
+            status="generated",
+        )
+        db.add(charge)
+        generated.append(charge)
+
+    return generated
+
+
+def recalculate_interest_charges_for_loan(
+    db: Session,
+    loan: Loan,
+    as_of_date: date,
+    charge_date: date,
+) -> list[InterestCharge]:
+    due_periods = set(_iter_due_periods(as_of_date, loan.disbursement_date))
+    existing_charges = list(db.scalars(select(InterestCharge).where(InterestCharge.loan_id == loan.id)).all())
+
+    preserved_periods: set[tuple[date, date]] = set()
+    for charge in existing_charges:
+        linked_events = list(db.scalars(select(PaymentEvent).where(PaymentEvent.interest_charge_id == charge.id)).all())
+        paid_interest = round(sum(item.allocated_to_interest for item in linked_events), 2)
+
+        period_key = (charge.period_start, charge.period_end)
+        if period_key in due_periods:
+            refreshed_amount = round(loan.outstanding_principal * (loan.monthly_interest_rate / 100), 2)
+            charge.amount = refreshed_amount
+            charge.charge_date = charge_date
+
+            if paid_interest <= 0:
+                charge.status = "generated"
+            elif paid_interest >= refreshed_amount:
+                charge.status = "paid"
+            else:
+                charge.status = "partially_paid"
+
+            preserved_periods.add(period_key)
+            continue
+
+        if linked_events:
+            # Keep historical links but prevent obsolete periods from appearing as pending debt.
+            charge.amount = max(0.0, paid_interest)
+            charge.status = "paid"
+            charge.charge_date = charge_date
+            continue
+
+        db.delete(charge)
+
+    generated: list[InterestCharge] = []
+
+    for period_start, period_end in due_periods:
+        if (period_start, period_end) in preserved_periods:
             continue
 
         amount = round(loan.outstanding_principal * (loan.monthly_interest_rate / 100), 2)

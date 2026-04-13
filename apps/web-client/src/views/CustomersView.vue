@@ -414,6 +414,9 @@
                   <button class="btn btn-secondary" type="button" @click.stop="openLoanEditModal(loan)">
                     {{ t('customers.editLoan') }}
                   </button>
+                  <button class="btn btn-secondary" type="button" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
+                    {{ t('customers.deleteLoan') }}
+                  </button>
                 </td>
               </tr>
             </tbody>
@@ -608,8 +611,36 @@
         <form class="form mt-16" @submit.prevent="handleUpdateLoan">
           <div class="grid grid-2">
             <label>
+              {{ t('loans.loanType') }}
+              <select v-model="loanEditForm.loanType" required>
+                <option value="pawn">{{ t('common.pawn') }}</option>
+                <option value="personal">{{ t('common.personal') }}</option>
+              </select>
+            </label>
+            <label>
+              {{ t('loans.principalAmount') }}
+              <input v-model.number="loanEditForm.principalAmount" type="number" min="1" required />
+            </label>
+            <label>
+              {{ t('loans.outstanding') }}
+              <input v-model.number="loanEditForm.outstandingPrincipal" type="number" min="0" required />
+            </label>
+            <label>
               {{ t('loans.monthlyInterestRate') }}
               <input v-model.number="loanEditForm.monthlyInterestRate" type="number" min="0" step="0.1" required />
+            </label>
+            <label>
+              {{ t('loans.latePenaltyRate') }}
+              <input v-model.number="loanEditForm.latePenaltyRate" type="number" min="0" step="0.1" required />
+            </label>
+            <label>
+              {{ t('loans.disbursementDate') }}
+              <DateInputField
+                v-model="loanEditForm.disbursementDate"
+                :label="t('loans.disbursementDate')"
+                :placeholder="t('settings.dateFormat')"
+                :required="true"
+              />
             </label>
             <label :title="t('loans.graceDaysHelp')">
               {{ t('loans.dueDay') }}
@@ -750,7 +781,17 @@ interface SortCriterion<T extends string> {
   direction: SortDirection
 }
 
-const { state, createCustomer, updateCustomer, deleteCustomer, updateLoan, updateCollateral, getCustomerById, ensureInitialized } =
+const {
+  state,
+  createCustomer,
+  updateCustomer,
+  deleteCustomer,
+  updateLoan,
+  deleteLoan,
+  updateCollateral,
+  getCustomerById,
+  ensureInitialized
+} =
   usePlatformStore()
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -818,7 +859,12 @@ const editForm = reactive({
 })
 
 const loanEditForm = reactive({
+  loanType: 'pawn' as 'pawn' | 'personal',
+  principalAmount: 0,
+  outstandingPrincipal: 0,
   monthlyInterestRate: 0,
+  latePenaltyRate: 0,
+  disbursementDate: '',
   dueDay: 1,
   status: 'active' as 'active' | 'overdue' | 'closed'
 })
@@ -1074,13 +1120,19 @@ const closeCustomerLoanDetail = () => {
 
 const openLoanEditModal = (loan: Loan) => {
   selectedLoanForEditId.value = loan.id
+  loanEditForm.loanType = loan.loanType
+  loanEditForm.principalAmount = loan.principalAmount
+  loanEditForm.outstandingPrincipal = loan.outstandingPrincipal
   loanEditForm.monthlyInterestRate = loan.monthlyInterestRate
+  loanEditForm.latePenaltyRate = loan.latePenaltyRate
+  loanEditForm.disbursementDate = formatDateDMY(loan.disbursementDate)
   loanEditForm.dueDay = loan.dueDay
   loanEditForm.status = loan.status
   showLoanEditModal.value = true
 }
 
 const closeLoanEditModal = () => {
+  selectedLoanForEditId.value = null
   showLoanEditModal.value = false
 }
 
@@ -1259,17 +1311,58 @@ const handleUpdateLoan = async () => {
     return
   }
 
+  if (loanEditForm.outstandingPrincipal > loanEditForm.principalAmount) {
+    message.value = t('messages.loanOutstandingExceedsPrincipal')
+    return
+  }
+
+  const disbursementDate = toIsoDate(loanEditForm.disbursementDate)
+  if (!disbursementDate) {
+    message.value = t('messages.invalidDateFormat')
+    return
+  }
+
   isSaving.value = true
   try {
     const result = await updateLoan({
       id: selectedLoanForEditId.value,
+      loanType: loanEditForm.loanType,
+      principalAmount: loanEditForm.principalAmount,
+      outstandingPrincipal: loanEditForm.outstandingPrincipal,
       monthlyInterestRate: loanEditForm.monthlyInterestRate,
+      latePenaltyRate: loanEditForm.latePenaltyRate,
+      disbursementDate,
       dueDay: loanEditForm.dueDay,
       status: loanEditForm.status
     })
 
     message.value = t(result.messageKey)
     closeLoanEditModal()
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const handleDeleteLoan = async (loanId: number) => {
+  if (isSaving.value) {
+    return
+  }
+
+  const confirmed = window.confirm(t('customers.deleteLoanConfirm'))
+  if (!confirmed) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const result = await deleteLoan(loanId)
+    message.value = t(result.messageKey)
+
+    if (result.ok && selectedLoanDetailId.value === loanId) {
+      closeCustomerLoanDetail()
+    }
   } catch {
     message.value = t('messages.operationFailed')
   } finally {

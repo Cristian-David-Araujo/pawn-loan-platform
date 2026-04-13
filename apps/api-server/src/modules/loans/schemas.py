@@ -60,7 +60,12 @@ class LoanRead(BaseModel):
 
 
 class LoanUpdate(BaseModel):
+    loan_type: LoanType
+    principal_amount: float
+    outstanding_principal: float
     monthly_interest_rate: float
+    late_penalty_rate: float
+    disbursement_date: date
     due_day: int
     status: LoanStatus
 

@@ -102,7 +102,12 @@ interface CreateCollateralPayload {
 
 interface UpdateLoanPayload {
   id: number
+  loanType: LoanType
+  principalAmount: number
+  outstandingPrincipal: number
   monthlyInterestRate: number
+  latePenaltyRate: number
+  disbursementDate: string
   dueDay: number
   status: Loan['status']
 }
@@ -428,7 +433,12 @@ const updateLoan = async (payload: UpdateLoanPayload) => {
   await apiClient.request<BackendLoan>(`/loans/${payload.id}`, {
     method: 'PUT',
     body: JSON.stringify({
+      loan_type: payload.loanType,
+      principal_amount: payload.principalAmount,
+      outstanding_principal: payload.outstandingPrincipal,
       monthly_interest_rate: payload.monthlyInterestRate,
+      late_penalty_rate: payload.latePenaltyRate,
+      disbursement_date: payload.disbursementDate,
       due_day: payload.dueDay,
       status: payload.status
     })
@@ -436,6 +446,28 @@ const updateLoan = async (payload: UpdateLoanPayload) => {
 
   await refreshAll()
   return { ok: true, messageKey: 'messages.loanUpdated' }
+}
+
+const deleteLoan = async (loanId: number) => {
+  const current = state.loans.find((item) => item.id === loanId)
+  if (!current) {
+    return { ok: false, messageKey: 'messages.loanNotFound' }
+  }
+
+  try {
+    await apiClient.request<unknown>(`/loans/${loanId}`, {
+      method: 'DELETE'
+    })
+  } catch (error) {
+    const detail = String(error)
+    if (detail.includes('related credit records')) {
+      return { ok: false, messageKey: 'messages.loanDeleteHasTraceability' }
+    }
+    throw error
+  }
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.loanDeleted' }
 }
 
 const updateCollateral = async (payload: UpdateCollateralPayload) => {
@@ -482,6 +514,7 @@ export const usePlatformStore = () => ({
   deleteCustomer,
   createLoan,
   updateLoan,
+  deleteLoan,
   createCollateral,
   updateCollateral,
   createPayment,
