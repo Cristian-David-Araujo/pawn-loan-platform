@@ -52,6 +52,7 @@ interface BackendPayment {
   allocated_to_fees: number
   allocated_to_principal: number
   payment_method: Payment['paymentMethod']
+  is_reversed: boolean
 }
 
 interface BackendGlobalSettings {
@@ -102,7 +103,12 @@ interface CreateCollateralPayload {
 
 interface UpdateLoanPayload {
   id: number
+  loanType: LoanType
+  principalAmount: number
+  outstandingPrincipal: number
   monthlyInterestRate: number
+  latePenaltyRate: number
+  disbursementDate: string
   dueDay: number
   status: Loan['status']
 }
@@ -118,6 +124,17 @@ interface UpdateCollateralPayload {
 
 interface CreatePaymentPayload {
   loanId: number
+  totalAmount: number
+  allocatedToPenalty: number
+  allocatedToInterest: number
+  allocatedToFees: number
+  allocatedToPrincipal: number
+  paymentMethod: 'cash' | 'bank-transfer' | 'other'
+}
+
+interface UpdatePaymentPayload {
+  id: number
+  paymentDate: string
   totalAmount: number
   allocatedToPenalty: number
   allocatedToInterest: number
@@ -195,7 +212,8 @@ const mapPayment = (item: BackendPayment): Payment => ({
   allocatedToInterest: item.allocated_to_interest,
   allocatedToFees: item.allocated_to_fees,
   allocatedToPrincipal: item.allocated_to_principal,
-  paymentMethod: item.payment_method
+  paymentMethod: item.payment_method,
+  isReversed: item.is_reversed
 })
 
 const mapGlobalSettings = (item: BackendGlobalSettings): GlobalSettings => ({
@@ -407,6 +425,34 @@ const createPayment = async (payload: CreatePaymentPayload) => {
   return { ok: true, messageKey: 'messages.paymentRegistered' }
 }
 
+const updatePayment = async (payload: UpdatePaymentPayload) => {
+  const allocationSum =
+    payload.allocatedToPenalty +
+    payload.allocatedToInterest +
+    payload.allocatedToFees +
+    payload.allocatedToPrincipal
+
+  if (Math.round(allocationSum * 100) !== Math.round(payload.totalAmount * 100)) {
+    return { ok: false, messageKey: 'messages.allocationMustEqualTotal' }
+  }
+
+  await apiClient.request<BackendPayment>(`/payments/${payload.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      payment_date: payload.paymentDate,
+      total_amount: payload.totalAmount,
+      allocated_to_penalty: payload.allocatedToPenalty,
+      allocated_to_interest: payload.allocatedToInterest,
+      allocated_to_fees: payload.allocatedToFees,
+      allocated_to_principal: payload.allocatedToPrincipal,
+      payment_method: payload.paymentMethod
+    })
+  })
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.paymentUpdated' }
+}
+
 const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
   await apiClient.request<BackendGlobalSettings>('/settings', {
     method: 'PUT',
@@ -428,7 +474,12 @@ const updateLoan = async (payload: UpdateLoanPayload) => {
   await apiClient.request<BackendLoan>(`/loans/${payload.id}`, {
     method: 'PUT',
     body: JSON.stringify({
+      loan_type: payload.loanType,
+      principal_amount: payload.principalAmount,
+      outstanding_principal: payload.outstandingPrincipal,
       monthly_interest_rate: payload.monthlyInterestRate,
+      late_penalty_rate: payload.latePenaltyRate,
+      disbursement_date: payload.disbursementDate,
       due_day: payload.dueDay,
       status: payload.status
     })
@@ -436,6 +487,28 @@ const updateLoan = async (payload: UpdateLoanPayload) => {
 
   await refreshAll()
   return { ok: true, messageKey: 'messages.loanUpdated' }
+}
+
+const deleteLoan = async (loanId: number) => {
+  const current = state.loans.find((item) => item.id === loanId)
+  if (!current) {
+    return { ok: false, messageKey: 'messages.loanNotFound' }
+  }
+
+  try {
+    await apiClient.request<unknown>(`/loans/${loanId}`, {
+      method: 'DELETE'
+    })
+  } catch (error) {
+    const detail = String(error)
+    if (detail.includes('related credit records')) {
+      return { ok: false, messageKey: 'messages.loanDeleteHasTraceability' }
+    }
+    throw error
+  }
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.loanDeleted' }
 }
 
 const updateCollateral = async (payload: UpdateCollateralPayload) => {
@@ -482,8 +555,10 @@ export const usePlatformStore = () => ({
   deleteCustomer,
   createLoan,
   updateLoan,
+  deleteLoan,
   createCollateral,
   updateCollateral,
   createPayment,
+  updatePayment,
   updateGlobalSettings
 })

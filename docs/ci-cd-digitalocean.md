@@ -16,12 +16,14 @@ Automate:
 Key files:
 
 - `.github/workflows/pr-gitflow-guard.yml`
+- `.github/workflows/alembic-migration-guard.yml`
 - `.github/workflows/release-tag-and-deploy.yml`
 - `.github/scripts/calculate_version.sh`
 
 Current behavior:
 
 - PRs to `main` are allowed from `release/*`, `hotfix/*`, and `develop`.
+- PRs to `main` and `develop` must include a migration in `apps/api-server/alembic/versions/` whenever schema-related files change.
 - When a PR is merged into `main`, the pipeline:
   - calculates the version,
   - creates and pushes a tag,

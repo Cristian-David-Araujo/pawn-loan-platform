@@ -78,6 +78,7 @@ Production deployment files are included in this repository:
 This repository includes GitHub Actions workflows to automate release and deployment when changes reach `main`.
 
 - Workflow: `.github/workflows/pr-gitflow-guard.yml`
+- Workflow: `.github/workflows/alembic-migration-guard.yml`
 - Workflow: `.github/workflows/release-tag-and-deploy.yml`
 - Script: `.github/scripts/calculate_version.sh`
 
@@ -95,6 +96,13 @@ Automatic behavior after a PR to `main` is merged:
 - Creates and pushes a Git tag in format `vX.Y.Z`.
 - Deploys latest `main` on DigitalOcean via SSH and runs:
 	- `docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d`
+
+Alembic migration guard behavior on PRs:
+
+- If schema-related files change (currently `apps/api-server/src/infrastructure/persistence/models.py` or files under `apps/api-server/src/domain/enums/`), CI requires at least one new migration file in `apps/api-server/alembic/versions/`.
+- If schema changed and no migration was added, the PR fails with instructions.
+- Recommended fix command:
+	- `cd apps/api-server && alembic revision --autogenerate -m "describe_change"`
 
 Required GitHub repository secrets:
 
@@ -163,9 +171,32 @@ Example login payload:
 
 ## Database Initialization & Seed
 
+Schema migrations are managed with Alembic.
+
+Run latest migrations:
+
+```bash
+cd apps/api-server
+alembic upgrade head
+```
+
+Create a new migration revision:
+
+```bash
+cd apps/api-server
+alembic revision -m "describe_change"
+```
+
+Autogenerate revision from models:
+
+```bash
+cd apps/api-server
+alembic revision --autogenerate -m "describe_change"
+```
+
 On API startup, initialization can be controlled with:
 
-- `DB_INIT_ON_STARTUP=true`: create/update tables
+- `DB_INIT_ON_STARTUP=true`: run `alembic upgrade head` and ensure base admin/seed bootstrap flow is executed
 - `DB_SEED_ON_STARTUP=true`: insert sample data
 - `DB_SEED_FORCE=false`: do not reset sample data by default
 

@@ -12,6 +12,7 @@
       <h3>{{ t('settings.colombiaPresetTitle') }}</h3>
       <p class="muted">{{ t('settings.colombiaPresetHint') }}</p>
       <button class="btn btn-secondary mt-16" type="button" @click="applyColombiaPreset">
+        <Sparkles :size="16" />
         {{ t('settings.applyColombiaPreset') }}
       </button>
     </article>
@@ -88,7 +89,7 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Save, Settings } from 'lucide-vue-next'
+import { Save, Settings, Sparkles } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
 

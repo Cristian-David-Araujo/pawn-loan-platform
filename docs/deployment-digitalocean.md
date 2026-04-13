@@ -91,6 +91,8 @@ docker compose --env-file .env.production -f docker-compose.prod.yml up --build 
 
 Production compose includes a one-shot `db-bootstrap` service that initializes schema/admin data before the API starts. The API also keeps `DB_INIT_ON_STARTUP=true` as a safe fallback, so deployments remain automatic without manual DB bootstrap commands.
 
+Schema changes are managed with Alembic migrations. During startup/bootstrap, the platform runs `alembic upgrade head`, so new releases apply pending revisions automatically.
+
 Check status:
 
 ```bash
@@ -107,6 +109,20 @@ If API appears unhealthy, check bootstrap logs first:
 
 ```bash
 docker compose --env-file .env.production -f docker-compose.prod.yml logs db-bootstrap
+```
+
+Verify applied migration version:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec api-server \
+  alembic current
+```
+
+List migration history:
+
+```bash
+docker compose --env-file .env.production -f docker-compose.prod.yml exec api-server \
+  alembic history
 ```
 
 ## 8) Verify Deployment

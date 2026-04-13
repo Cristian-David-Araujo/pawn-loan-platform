@@ -1,6 +1,7 @@
 import argparse
 
 from src.infrastructure.persistence.init_db import init_database
+from src.infrastructure.persistence.migrations import run_database_migrations
 
 
 def main() -> None:
@@ -13,6 +14,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    run_database_migrations()
     init_database(seed=args.seed, force_seed=args.force_seed)
     print("Database bootstrap completed.")
 
