@@ -80,7 +80,10 @@
       <div class="modal-panel card">
         <div class="modal-header">
           <h3>{{ t('customers.createCustomer') }}</h3>
-          <button class="btn btn-secondary" type="button" @click="closeCreateModal">{{ t('common.close') }}</button>
+          <button class="btn btn-secondary" type="button" @click="closeCreateModal">
+            <X :size="16" />
+            {{ t('common.close') }}
+          </button>
         </div>
 
         <form class="form mt-16" @submit.prevent="handleCreateCustomer">
@@ -128,6 +131,7 @@
               :disabled="isSaving"
               @click="handleArchiveCustomer"
             >
+              <Archive :size="16" />
               {{ t('customers.archiveCustomer') }}
             </button>
             <button
@@ -137,12 +141,17 @@
               :disabled="isSaving"
               @click="handleActivateCustomer"
             >
+              <CheckCircle2 :size="16" />
               {{ t('customers.activateCustomer') }}
             </button>
             <button class="btn btn-secondary" type="button" :disabled="isSaving" @click="handleDeleteCustomer">
+              <Trash2 :size="16" />
               {{ t('customers.deleteCustomer') }}
             </button>
-            <button class="btn btn-secondary" type="button" @click="closeDetailModal">{{ t('common.close') }}</button>
+            <button class="btn btn-secondary" type="button" @click="closeDetailModal">
+              <X :size="16" />
+              {{ t('common.close') }}
+            </button>
           </div>
         </div>
 
@@ -179,7 +188,10 @@
                 <option v-for="loanId in loanAuditFilterOptions" :key="loanId" :value="loanId">#{{ loanId }}</option>
               </select>
             </label>
-            <button class="btn btn-secondary" type="button" @click="resetAuditFilters">{{ t('customers.auditResetFilters') }}</button>
+            <button class="btn btn-secondary" type="button" @click="resetAuditFilters">
+              <FilterX :size="16" />
+              {{ t('customers.auditResetFilters') }}
+            </button>
           </div>
         </article>
 
@@ -412,9 +424,11 @@
                 <td>{{ t(`common.${loan.status}`) }}</td>
                 <td>
                   <button class="btn btn-secondary" type="button" @click.stop="openLoanEditModal(loan)">
+                    <Pencil :size="16" />
                     {{ t('customers.editLoan') }}
                   </button>
                   <button class="btn btn-secondary" type="button" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
+                    <Trash2 :size="16" />
                     {{ t('customers.deleteLoan') }}
                   </button>
                 </td>
@@ -494,6 +508,7 @@
                 <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
                 <td>
                   <button class="btn btn-secondary" type="button" @click="openCollateralEditModal(item)">
+                    <Pencil :size="16" />
                     {{ t('customers.editCollateral') }}
                   </button>
                 </td>
@@ -508,7 +523,10 @@
       <div class="modal-panel card modal-panel-lg">
         <div class="modal-header">
           <h3>{{ t('loans.loanDetail') }}</h3>
-          <button class="btn btn-secondary" type="button" @click="closeCustomerLoanDetail">{{ t('common.close') }}</button>
+          <button class="btn btn-secondary" type="button" @click="closeCustomerLoanDetail">
+            <X :size="16" />
+            {{ t('common.close') }}
+          </button>
         </div>
 
         <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedCustomerLoanDetail.id }) }}</p>
@@ -605,7 +623,10 @@
       <div class="modal-panel card">
         <div class="modal-header">
           <h3>{{ t('customers.editLoan') }}</h3>
-          <button class="btn btn-secondary" type="button" @click="closeLoanEditModal">{{ t('common.close') }}</button>
+          <button class="btn btn-secondary" type="button" @click="closeLoanEditModal">
+            <X :size="16" />
+            {{ t('common.close') }}
+          </button>
         </div>
 
         <form class="form mt-16" @submit.prevent="handleUpdateLoan">
@@ -674,7 +695,10 @@
       <div class="modal-panel card">
         <div class="modal-header">
           <h3>{{ t('customers.editCollateral') }}</h3>
-          <button class="btn btn-secondary" type="button" @click="closeCollateralEditModal">{{ t('common.close') }}</button>
+          <button class="btn btn-secondary" type="button" @click="closeCollateralEditModal">
+            <X :size="16" />
+            {{ t('common.close') }}
+          </button>
         </div>
 
         <form class="form mt-16" @submit.prevent="handleUpdateCollateral">
@@ -720,7 +744,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { Save, UserPlus, Users } from 'lucide-vue-next'
+import { Archive, CheckCircle2, FilterX, Pencil, Save, Trash2, UserPlus, Users, X } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'

@@ -17,6 +17,7 @@ from src.modules.payments.schemas import (
     PaymentCreate,
     PaymentEventRead,
     PaymentRead,
+    PaymentUpdate,
     PrincipalContextResponse,
     PrincipalLoanContext,
     PrincipalPaymentRequest,
@@ -754,6 +755,102 @@ def create_payment(
         entity_id=str(payment.id),
         user=current_user,
         new_data=f"amount={payment.total_amount}",
+    )
+
+    return payment
+
+
+@router.put("/{payment_id}", response_model=PaymentRead)
+def update_payment(
+    payment_id: int,
+    payload: PaymentUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Payment:
+    payment = db.get(Payment, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+    if payment.is_reversed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reversed payments cannot be edited")
+
+    loan = db.get(Loan, payment.loan_id)
+    if loan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked loan not found")
+
+    allocated_sum = (
+        payload.allocated_to_penalty
+        + payload.allocated_to_interest
+        + payload.allocated_to_fees
+        + payload.allocated_to_principal
+    )
+    if round(allocated_sum, 2) != round(payload.total_amount, 2):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Allocation sum must match total amount")
+
+    old_allocated_principal = payment.allocated_to_principal
+    old_payment_snapshot = {
+        "payment_date": payment.payment_date,
+        "total_amount": payment.total_amount,
+        "allocated_to_interest": payment.allocated_to_interest,
+        "allocated_to_penalty": payment.allocated_to_penalty,
+        "allocated_to_principal": payment.allocated_to_principal,
+        "payment_method": payment.payment_method,
+    }
+
+    payment.payment_date = payload.payment_date
+    payment.total_amount = round(payload.total_amount, 2)
+    payment.allocated_to_penalty = round(payload.allocated_to_penalty, 2)
+    payment.allocated_to_interest = round(payload.allocated_to_interest, 2)
+    payment.allocated_to_fees = round(payload.allocated_to_fees, 2)
+    payment.allocated_to_principal = round(payload.allocated_to_principal, 2)
+    payment.payment_method = payload.payment_method
+
+    principal_delta = round(payment.allocated_to_principal - old_allocated_principal, 2)
+    loan.outstanding_principal = round(max(0.0, loan.outstanding_principal - principal_delta), 2)
+    if loan.outstanding_principal == 0:
+        loan.status = LoanStatus.closed
+    elif loan.status == LoanStatus.closed:
+        loan.status = LoanStatus.active
+
+    matching_events = list(
+        db.scalars(
+            select(PaymentEvent).where(
+                PaymentEvent.loan_id == payment.loan_id,
+                PaymentEvent.payment_date == old_payment_snapshot["payment_date"],
+                PaymentEvent.total_entered_amount == old_payment_snapshot["total_amount"],
+                PaymentEvent.allocated_to_interest == old_payment_snapshot["allocated_to_interest"],
+                PaymentEvent.allocated_to_penalty == old_payment_snapshot["allocated_to_penalty"],
+                PaymentEvent.allocated_to_principal == old_payment_snapshot["allocated_to_principal"],
+                PaymentEvent.payment_method == old_payment_snapshot["payment_method"],
+            )
+        ).all()
+    )
+    if len(matching_events) == 1:
+        event = matching_events[0]
+        event.total_entered_amount = payment.total_amount
+        event.allocated_to_interest = payment.allocated_to_interest
+        event.allocated_to_penalty = payment.allocated_to_penalty
+        event.allocated_to_principal = payment.allocated_to_principal
+        event.payment_date = payment.payment_date
+        event.payment_method = payment.payment_method
+
+    db.commit()
+    db.refresh(payment)
+
+    write_audit(
+        db,
+        action="update_payment",
+        entity_type="Payment",
+        entity_id=str(payment.id),
+        user=current_user,
+        old_data=(
+            f"total={old_payment_snapshot['total_amount']},principal={old_payment_snapshot['allocated_to_principal']},"
+            f"date={old_payment_snapshot['payment_date']},method={old_payment_snapshot['payment_method']}"
+        ),
+        new_data=(
+            f"total={payment.total_amount},principal={payment.allocated_to_principal},"
+            f"date={payment.payment_date},method={payment.payment_method},"
+            f"linked_event_updated={len(matching_events) == 1}"
+        ),
     )
 
     return payment

@@ -156,6 +156,7 @@
             <td>{{ item.storageLocation }}</td>
             <td>
               <button class="btn btn-secondary" type="button" @click="removeCollateralFromQueue(index)">
+                <Trash2 :size="16" />
                 {{ t('loans.removeCollateralFromQueue') }}
               </button>
             </td>
@@ -181,7 +182,10 @@
           <option value="overdue">{{ t('common.overdue') }}</option>
           <option value="closed">{{ t('common.closed') }}</option>
         </select>
-        <button class="btn btn-secondary" type="button" @click="resetLoanFilters">{{ t('loans.resetFilters') }}</button>
+        <button class="btn btn-secondary" type="button" @click="resetLoanFilters">
+          <FilterX :size="16" />
+          {{ t('loans.resetFilters') }}
+        </button>
         <span class="table-count">{{ t('loans.totalLoans', { count: filteredLoans.length }) }}</span>
       </div>
       <table>
@@ -258,7 +262,10 @@
       <div class="modal-panel card modal-panel-lg">
         <div class="modal-header">
           <h3>{{ t('loans.loanDetail') }}</h3>
-          <button class="btn btn-secondary" type="button" @click="closeLoanDetail">{{ t('common.close') }}</button>
+          <button class="btn btn-secondary" type="button" @click="closeLoanDetail">
+            <X :size="16" />
+            {{ t('common.close') }}
+          </button>
         </div>
 
         <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedLoan.id }) }}</p>
@@ -363,7 +370,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FilePlus2, HandCoins } from 'lucide-vue-next'
+import { FilePlus2, FilterX, HandCoins, Trash2, X } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
@@ -433,6 +440,21 @@ const handleCreateLoan = async () => {
     dueDay: applyLatePenalty.value ? form.dueDay : 0
   }
 
+  const firstConfirmation = window.confirm(
+    t('loans.confirmRegisterLoanStepOne', {
+      customer: getCustomerLabel(payload.customerId),
+      amount: formatCurrency(payload.principalAmount)
+    })
+  )
+  if (!firstConfirmation) {
+    return
+  }
+
+  const secondConfirmation = window.confirm(t('loans.confirmRegisterLoanStepTwo'))
+  if (!secondConfirmation) {
+    return
+  }
+
   const createdLoan = await createLoan(payload)
 
   if (applyCollateralAssociation.value && collateralQueue.value.length) {
@@ -448,7 +470,7 @@ const handleCreateLoan = async () => {
 
   form.disbursementDate = formatDateDMY(todayIso)
   form.loanType = 'pawn'
-  message.value = ''
+  message.value = t('messages.loanRegistered')
   collateralQueue.value = []
   collateralForm.description = ''
   collateralForm.appraisedValue = 1000

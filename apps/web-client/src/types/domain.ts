@@ -48,6 +48,7 @@ export interface Payment {
   allocatedToFees: number
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
+  isReversed: boolean
 }
 
 export interface GlobalSettings {

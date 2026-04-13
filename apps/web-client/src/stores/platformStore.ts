@@ -52,6 +52,7 @@ interface BackendPayment {
   allocated_to_fees: number
   allocated_to_principal: number
   payment_method: Payment['paymentMethod']
+  is_reversed: boolean
 }
 
 interface BackendGlobalSettings {
@@ -131,6 +132,17 @@ interface CreatePaymentPayload {
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
 }
 
+interface UpdatePaymentPayload {
+  id: number
+  paymentDate: string
+  totalAmount: number
+  allocatedToPenalty: number
+  allocatedToInterest: number
+  allocatedToFees: number
+  allocatedToPrincipal: number
+  paymentMethod: 'cash' | 'bank-transfer' | 'other'
+}
+
 interface UpdateGlobalSettingsPayload {
   currencyCode: string
   timezone: string
@@ -200,7 +212,8 @@ const mapPayment = (item: BackendPayment): Payment => ({
   allocatedToInterest: item.allocated_to_interest,
   allocatedToFees: item.allocated_to_fees,
   allocatedToPrincipal: item.allocated_to_principal,
-  paymentMethod: item.payment_method
+  paymentMethod: item.payment_method,
+  isReversed: item.is_reversed
 })
 
 const mapGlobalSettings = (item: BackendGlobalSettings): GlobalSettings => ({
@@ -412,6 +425,34 @@ const createPayment = async (payload: CreatePaymentPayload) => {
   return { ok: true, messageKey: 'messages.paymentRegistered' }
 }
 
+const updatePayment = async (payload: UpdatePaymentPayload) => {
+  const allocationSum =
+    payload.allocatedToPenalty +
+    payload.allocatedToInterest +
+    payload.allocatedToFees +
+    payload.allocatedToPrincipal
+
+  if (Math.round(allocationSum * 100) !== Math.round(payload.totalAmount * 100)) {
+    return { ok: false, messageKey: 'messages.allocationMustEqualTotal' }
+  }
+
+  await apiClient.request<BackendPayment>(`/payments/${payload.id}`, {
+    method: 'PUT',
+    body: JSON.stringify({
+      payment_date: payload.paymentDate,
+      total_amount: payload.totalAmount,
+      allocated_to_penalty: payload.allocatedToPenalty,
+      allocated_to_interest: payload.allocatedToInterest,
+      allocated_to_fees: payload.allocatedToFees,
+      allocated_to_principal: payload.allocatedToPrincipal,
+      payment_method: payload.paymentMethod
+    })
+  })
+
+  await refreshAll()
+  return { ok: true, messageKey: 'messages.paymentUpdated' }
+}
+
 const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
   await apiClient.request<BackendGlobalSettings>('/settings', {
     method: 'PUT',
@@ -518,5 +559,6 @@ export const usePlatformStore = () => ({
   createCollateral,
   updateCollateral,
   createPayment,
+  updatePayment,
   updateGlobalSettings
 })

@@ -43,7 +43,10 @@
           {{ t('payments.totalAmount') }}
           <input v-model.number="interestEnteredAmount" type="number" min="0.01" step="0.01" @input="interestAmountTouched = true" />
         </label>
-        <button class="btn btn-secondary" type="button" @click="useSuggestedAmount">{{ t('payments.useSuggested') }}</button>
+        <button class="btn btn-secondary" type="button" @click="useSuggestedAmount">
+          <Sparkles :size="16" />
+          {{ t('payments.useSuggested') }}
+        </button>
       </div>
 
       <div class="table-toolbar mt-16">
@@ -209,7 +212,10 @@
         </label>
       </div>
       <div class="form-inline mt-16">
-        <button class="btn btn-secondary" type="button" @click="resetHistoryFilters">{{ t('payments.resetHistoryFilters') }}</button>
+        <button class="btn btn-secondary" type="button" @click="resetHistoryFilters">
+          <FilterX :size="16" />
+          {{ t('payments.resetHistoryFilters') }}
+        </button>
       </div>
       <table>
         <thead>
@@ -244,6 +250,101 @@
       </table>
     </div>
 
+    <div class="card mt-16" v-if="selectedCustomerId">
+      <h3>{{ t('payments.registeredPaymentsTitle') }}</h3>
+      <p class="muted" v-if="!selectedCustomerPayments.length">{{ t('payments.noRegisteredPayments') }}</p>
+      <table v-else>
+        <thead>
+          <tr>
+            <th>{{ t('common.id') }}</th>
+            <th>{{ t('common.loan') }}</th>
+            <th>{{ t('common.date') }}</th>
+            <th>{{ t('common.total') }}</th>
+            <th>{{ t('common.interest') }}</th>
+            <th>{{ t('payments.penalty') }}</th>
+            <th>{{ t('common.principal') }}</th>
+            <th>{{ t('common.method') }}</th>
+            <th>{{ t('common.status') }}</th>
+            <th>{{ t('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="payment in selectedCustomerPayments" :key="payment.id">
+            <td>#{{ payment.id }}</td>
+            <td>#{{ payment.loanId }}</td>
+            <td>{{ formatDateDMY(payment.paymentDate) }}</td>
+            <td>{{ formatCurrency(payment.totalAmount) }}</td>
+            <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
+            <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+            <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+            <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
+            <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
+            <td>
+              <button class="btn btn-secondary" type="button" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
+                <Pencil :size="16" />
+                {{ t('payments.editPayment') }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-if="showPaymentEditModal" class="modal-backdrop" @click.self="closePaymentEditModal">
+      <div class="modal-panel card">
+        <div class="modal-header">
+          <h3>{{ t('payments.editPayment') }}</h3>
+          <button class="btn btn-secondary" type="button" @click="closePaymentEditModal">{{ t('common.close') }}</button>
+        </div>
+
+        <form class="form mt-16" @submit.prevent="handleUpdatePayment">
+          <div class="grid grid-2">
+            <label>
+              {{ t('common.date') }}
+              <DateInputField
+                v-model="paymentEditForm.paymentDate"
+                :label="t('common.date')"
+                :placeholder="t('settings.dateFormat')"
+                :required="true"
+              />
+            </label>
+            <label>
+              {{ t('payments.paymentMethod') }}
+              <select v-model="paymentEditForm.paymentMethod">
+                <option value="cash">{{ t('common.cash') }}</option>
+                <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
+                <option value="other">{{ t('common.other') }}</option>
+              </select>
+            </label>
+            <label>
+              {{ t('common.total') }}
+              <input v-model.number="paymentEditForm.totalAmount" type="number" min="0.01" step="0.01" required />
+            </label>
+            <label>
+              {{ t('common.interest') }}
+              <input v-model.number="paymentEditForm.allocatedToInterest" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              {{ t('payments.penalty') }}
+              <input v-model.number="paymentEditForm.allocatedToPenalty" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              {{ t('common.fees') }}
+              <input v-model.number="paymentEditForm.allocatedToFees" type="number" min="0" step="0.01" required />
+            </label>
+            <label>
+              {{ t('common.principal') }}
+              <input v-model.number="paymentEditForm.allocatedToPrincipal" type="number" min="0" step="0.01" required />
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="processing">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
+      </div>
+    </div>
+
     <p v-if="message" class="notice mt-16">{{ message }}</p>
   </section>
 </template>
@@ -251,7 +352,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CircleDollarSign, ReceiptText, WalletCards } from 'lucide-vue-next'
+import { CircleDollarSign, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
@@ -318,7 +419,7 @@ interface PaymentEvent {
   notes: string
 }
 
-const { state, ensureInitialized, refreshAll } = usePlatformStore()
+const { state, ensureInitialized, refreshAll, updatePayment } = usePlatformStore()
 const { t, locale } = useI18n()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
@@ -345,12 +446,44 @@ const historyLoanFilter = ref('all')
 const historyTypeFilter = ref('all')
 const processing = ref(false)
 const message = ref('')
+const showPaymentEditModal = ref(false)
+const selectedPaymentEditId = ref<number | null>(null)
+
+const paymentEditForm = ref({
+  paymentDate: '',
+  totalAmount: 0,
+  allocatedToPenalty: 0,
+  allocatedToInterest: 0,
+  allocatedToFees: 0,
+  allocatedToPrincipal: 0,
+  paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other'
+})
 
 const selectedCustomer = computed(() =>
   selectedCustomerId.value === null ? null : state.customers.find((item) => item.id === selectedCustomerId.value) ?? null
 )
 
 const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
+
+const selectedCustomerLoanIds = computed(() => {
+  if (selectedCustomerId.value === null) {
+    return new Set<number>()
+  }
+
+  return new Set(state.loans.filter((loan) => loan.customerId === selectedCustomerId.value).map((loan) => loan.id))
+})
+
+const selectedCustomerPayments = computed(() =>
+  state.payments
+    .filter((payment) => selectedCustomerLoanIds.value.has(payment.loanId))
+    .sort((a, b) => {
+      const dateDelta = new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime()
+      if (dateDelta !== 0) {
+        return dateDelta
+      }
+      return b.id - a.id
+    })
+)
 
 const flatPendingItems = computed(() =>
   [...(pendingInterest.value?.groups.flatMap((group) => group.items) ?? [])].sort(
@@ -497,6 +630,70 @@ const resetHistoryFilters = () => {
   historyTypeFilter.value = 'all'
 }
 
+const openPaymentEditModal = (payment: {
+  id: number
+  paymentDate: string
+  totalAmount: number
+  allocatedToPenalty: number
+  allocatedToInterest: number
+  allocatedToFees: number
+  allocatedToPrincipal: number
+  paymentMethod: 'cash' | 'bank-transfer' | 'other'
+}) => {
+  selectedPaymentEditId.value = payment.id
+  paymentEditForm.value = {
+    paymentDate: formatDateDMY(payment.paymentDate),
+    totalAmount: payment.totalAmount,
+    allocatedToPenalty: payment.allocatedToPenalty,
+    allocatedToInterest: payment.allocatedToInterest,
+    allocatedToFees: payment.allocatedToFees,
+    allocatedToPrincipal: payment.allocatedToPrincipal,
+    paymentMethod: payment.paymentMethod
+  }
+  showPaymentEditModal.value = true
+}
+
+const closePaymentEditModal = () => {
+  showPaymentEditModal.value = false
+  selectedPaymentEditId.value = null
+}
+
+const handleUpdatePayment = async () => {
+  if (selectedPaymentEditId.value === null || processing.value) {
+    return
+  }
+
+  const paymentDate = toIsoDate(paymentEditForm.value.paymentDate)
+  if (!paymentDate) {
+    message.value = t('messages.invalidDateFormat')
+    return
+  }
+
+  processing.value = true
+  try {
+    const result = await updatePayment({
+      id: selectedPaymentEditId.value,
+      paymentDate,
+      totalAmount: paymentEditForm.value.totalAmount,
+      allocatedToPenalty: paymentEditForm.value.allocatedToPenalty,
+      allocatedToInterest: paymentEditForm.value.allocatedToInterest,
+      allocatedToFees: paymentEditForm.value.allocatedToFees,
+      allocatedToPrincipal: paymentEditForm.value.allocatedToPrincipal,
+      paymentMethod: paymentEditForm.value.paymentMethod
+    })
+
+    message.value = t(result.messageKey)
+    if (result.ok) {
+      closePaymentEditModal()
+      await loadCustomerPaymentData()
+    }
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    processing.value = false
+  }
+}
+
 const useSuggestedAmount = () => {
   interestEnteredAmount.value = suggestedSelectedAmount.value
   interestAmountTouched.value = false
@@ -539,6 +736,16 @@ const loadCustomerPaymentData = async () => {
 
 const submitInterestPayment = async () => {
   if (!selectedCustomerId.value || interestAmountToPay.value <= 0 || processing.value) {
+    return
+  }
+
+  const firstConfirmation = window.confirm(t('payments.confirmRegisterInterestStepOne', { amount: formatCurrency(interestAmountToPay.value) }))
+  if (!firstConfirmation) {
+    return
+  }
+
+  const secondConfirmation = window.confirm(t('payments.confirmRegisterInterestStepTwo'))
+  if (!secondConfirmation) {
     return
   }
 
@@ -598,6 +805,16 @@ const submitInterestPayment = async () => {
 
 const submitPrincipalPayment = async () => {
   if (!selectedPrincipalLoan.value || principalAmount.value <= 0 || processing.value) {
+    return
+  }
+
+  const firstConfirmation = window.confirm(t('payments.confirmRegisterPrincipalStepOne', { amount: formatCurrency(principalAmount.value) }))
+  if (!firstConfirmation) {
+    return
+  }
+
+  const secondConfirmation = window.confirm(t('payments.confirmRegisterPrincipalStepTwo'))
+  if (!secondConfirmation) {
     return
   }
 
