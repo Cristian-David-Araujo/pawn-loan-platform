@@ -50,10 +50,11 @@
             {{ t('loans.disbursementDate') }}
             <span class="field-help" aria-hidden="true">ⓘ</span>
           </span>
-          <input
+          <DateInputField
             v-model="form.disbursementDate"
+            :label="t('loans.disbursementDate')"
             :placeholder="datePlaceholder"
-            required
+            :required="true"
             :title="t('loans.disbursementDateHelp')"
           />
         </label>
@@ -180,6 +181,7 @@
           <option value="overdue">{{ t('common.overdue') }}</option>
           <option value="closed">{{ t('common.closed') }}</option>
         </select>
+        <button class="btn btn-secondary" type="button" @click="resetLoanFilters">{{ t('loans.resetFilters') }}</button>
         <span class="table-count">{{ t('loans.totalLoans', { count: filteredLoans.length }) }}</span>
       </div>
       <table>
@@ -242,6 +244,9 @@
             <td>{{ loan.monthlyInterestRate }}%</td>
             <td>{{ getLoanCollateralLabel(loan.id, loan.loanType) }}</td>
             <td>{{ t(`common.${loan.status}`) }}</td>
+          </tr>
+          <tr v-if="!filteredLoans.length">
+            <td colspan="9">{{ t('loans.noLoansForFilter') }}</td>
           </tr>
         </tbody>
       </table>
@@ -359,6 +364,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FilePlus2, HandCoins } from 'lucide-vue-next'
+import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
@@ -534,6 +540,12 @@ const toggleLoanSort = (key: LoanSortKey) => {
 
   next.splice(index, 1)
   loanSortPriority.value = next.length ? next : [{ key: 'date', direction: 'desc' }]
+}
+
+const resetLoanFilters = () => {
+  search.value = ''
+  statusFilter.value = 'all'
+  loanSortPriority.value = [{ key: 'date', direction: 'desc' }]
 }
 
 const openLoanDetail = (loanId: number) => {

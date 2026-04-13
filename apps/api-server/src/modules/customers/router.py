@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from src.infrastructure.persistence.models import Customer, User
+from src.infrastructure.persistence.models import Customer, Loan, LoanApplication, User
 from src.modules.customers.schemas import CustomerCreate, CustomerRead, CustomerUpdate
 from src.shared.dependencies.auth import get_current_user
 from src.shared.dependencies.db import get_db
@@ -105,3 +105,39 @@ def update_customer(
     )
 
     return customer
+
+
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    customer = db.get(Customer, customer_id)
+    if customer is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Customer not found")
+
+    has_related_loans = db.scalar(select(Loan.id).where(Loan.customer_id == customer_id).limit(1)) is not None
+    has_related_applications = (
+        db.scalar(select(LoanApplication.id).where(LoanApplication.customer_id == customer_id).limit(1)) is not None
+    )
+
+    if has_related_loans or has_related_applications:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Customer has related credit records. Archive instead to preserve traceability.",
+        )
+
+    db.delete(customer)
+    db.commit()
+
+    write_audit(
+        db,
+        action="delete_customer",
+        entity_type="Customer",
+        entity_id=str(customer_id),
+        user=current_user,
+        new_data="customer deleted without credit traceability",
+    )
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

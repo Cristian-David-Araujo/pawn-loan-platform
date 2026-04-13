@@ -60,9 +60,18 @@ Create:
   - `-----BEGIN ...-----`
   - `-----END ...-----`
 
-4. `DO_APP_DIR` (optional)
+4. `DO_SSH_KEY_B64` (recommended)
+- Base64-encoded private SSH key in a single line.
+- This avoids newline formatting issues in secrets.
+
+5. `DO_APP_DIR` (optional)
 - Project path on the server.
 - If not defined, `/opt/pawn-loan-platform` is used.
+
+Notes:
+
+- The workflow accepts either `DO_SSH_KEY_B64` (preferred) or `DO_SSH_KEY` (fallback).
+- If both are present, `DO_SSH_KEY_B64` is used.
 
 ## 4.1 How to Generate and Use SSH Keys for GitHub Actions
 
@@ -81,8 +90,23 @@ This creates:
 
 Set your GitHub secret values as follows:
 
-- `DO_SSH_KEY`: paste the full content of `~/.ssh/github_actions_do` (private key).
+- `DO_SSH_KEY_B64` (recommended): base64 of `~/.ssh/github_actions_do` in one line.
+- `DO_SSH_KEY` (fallback): paste full content of `~/.ssh/github_actions_do` (private key).
 - Public key (`.pub`): add this on the server in `~/.ssh/authorized_keys` for the deploy user.
+
+Generate base64 secret value:
+
+Linux:
+
+```bash
+base64 -w0 ~/.ssh/github_actions_do
+```
+
+macOS:
+
+```bash
+base64 ~/.ssh/github_actions_do | tr -d '\n'
+```
 
 Private key format must look like this:
 
@@ -234,10 +258,10 @@ Follow this sequence exactly the first time:
 3. Create CI/CD SSH key pair
 - Generate dedicated key pair.
 - Put public key in deploy user `authorized_keys`.
-- Store private key in `DO_SSH_KEY`.
+- Store private key in `DO_SSH_KEY_B64` (recommended) or `DO_SSH_KEY`.
 
 4. Configure GitHub secrets
-- Add `DO_HOST`, `DO_USER`, `DO_SSH_KEY`, and optional `DO_APP_DIR`.
+- Add `DO_HOST`, `DO_USER`, `DO_SSH_KEY_B64` (or `DO_SSH_KEY`), and optional `DO_APP_DIR`.
 - Double-check there are no leading/trailing spaces.
 
 5. Validate workflows exist on default branch
@@ -306,10 +330,13 @@ In browser:
 ## 10. Troubleshooting
 
 1. Error: Missing secret
-- Verify exact secret names (`DO_HOST`, `DO_USER`, `DO_SSH_KEY`, `DO_APP_DIR`).
+- Verify exact secret names (`DO_HOST`, `DO_USER`, `DO_SSH_KEY_B64` or `DO_SSH_KEY`, `DO_APP_DIR`).
 
 2. Error: SSH authentication failed
 - Verify private key in GitHub and matching public key in `authorized_keys` for the correct user.
+- Ensure the key is not passphrase-protected.
+- If using `DO_SSH_KEY`, verify multiline formatting is preserved.
+- Prefer `DO_SSH_KEY_B64` to avoid newline corruption.
 
 3. Error: Empty APP_DIR or wrong path
 - Set `DO_APP_DIR` or use default `/opt/pawn-loan-platform`.

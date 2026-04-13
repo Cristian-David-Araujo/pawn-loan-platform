@@ -182,6 +182,35 @@
 
     <div class="card mt-16" v-if="selectedCustomerId">
       <h3>{{ t('payments.historyTitle') }}</h3>
+      <div class="filter-grid mt-16">
+        <label>
+          {{ t('payments.filterFromDate') }}
+          <DateInputField v-model="historyFromDate" :label="t('payments.filterFromDate')" :placeholder="t('settings.dateFormat')" />
+        </label>
+        <label>
+          {{ t('payments.filterToDate') }}
+          <DateInputField v-model="historyToDate" :label="t('payments.filterToDate')" :placeholder="t('settings.dateFormat')" />
+        </label>
+        <label>
+          {{ t('payments.filterLoan') }}
+          <select v-model="historyLoanFilter">
+            <option value="all">{{ t('payments.allLoans') }}</option>
+            <option v-for="loanId in paymentHistoryLoanOptions" :key="loanId" :value="loanId">#{{ loanId }}</option>
+          </select>
+        </label>
+        <label>
+          {{ t('payments.filterType') }}
+          <select v-model="historyTypeFilter">
+            <option value="all">{{ t('payments.allTypes') }}</option>
+            <option value="interest">{{ t('payments.interestTab') }}</option>
+            <option value="principal">{{ t('payments.principalTab') }}</option>
+            <option value="advance">{{ t('customers.advancePayment') }}</option>
+          </select>
+        </label>
+      </div>
+      <div class="form-inline mt-16">
+        <button class="btn btn-secondary" type="button" @click="resetHistoryFilters">{{ t('payments.resetHistoryFilters') }}</button>
+      </div>
       <table>
         <thead>
           <tr>
@@ -197,18 +226,18 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="event in sortedPaymentHistory" :key="event.id">
+          <tr v-for="event in filteredPaymentHistory" :key="event.id">
             <td>{{ formatDateDMY(event.payment_date) }}</td>
-            <td>{{ event.payment_type }}</td>
+            <td>{{ getPaymentTypeLabel(event.payment_type) }}</td>
             <td>#{{ event.loan_id }}</td>
             <td>{{ event.billing_period || '-' }}</td>
             <td>{{ formatCurrency(event.total_entered_amount) }}</td>
             <td>{{ formatCurrency(event.allocated_to_interest) }}</td>
             <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
             <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
-            <td>{{ event.payment_method }}</td>
+            <td>{{ getPaymentMethodLabel(event.payment_method) }}</td>
           </tr>
-          <tr v-if="!sortedPaymentHistory.length">
+          <tr v-if="!filteredPaymentHistory.length">
             <td colspan="9">{{ t('payments.noHistory') }}</td>
           </tr>
         </tbody>
@@ -223,10 +252,11 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CircleDollarSign, ReceiptText, WalletCards } from 'lucide-vue-next'
+import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
-import { formatDateDMY } from '../utils/date'
+import { formatDateDMY, toIsoDate } from '../utils/date'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -309,6 +339,10 @@ const selectedChargeIds = ref(new Set<number>())
 const pendingInterest = ref<InterestPendingResponse | null>(null)
 const principalContext = ref<PrincipalContextResponse | null>(null)
 const paymentHistory = ref<PaymentEvent[]>([])
+const historyFromDate = ref('')
+const historyToDate = ref('')
+const historyLoanFilter = ref('all')
+const historyTypeFilter = ref('all')
 const processing = ref(false)
 const message = ref('')
 
@@ -335,6 +369,55 @@ const selectedPrincipalLoan = computed(
 const sortedPaymentHistory = computed(() =>
   [...paymentHistory.value].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
 )
+
+const paymentHistoryLoanOptions = computed(() => {
+  const values = new Set(sortedPaymentHistory.value.map((event) => String(event.loan_id)))
+  return [...values].sort((a, b) => Number(a) - Number(b))
+})
+
+const normalizeIso = (value: string) => {
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (match) {
+    return match[1]
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return null
+  }
+
+  return parsed.toISOString().slice(0, 10)
+}
+
+const filteredPaymentHistory = computed(() => {
+  const fromIso = toIsoDate(historyFromDate.value)
+  const toIso = toIsoDate(historyToDate.value)
+
+  return sortedPaymentHistory.value.filter((event) => {
+    if (historyLoanFilter.value !== 'all' && String(event.loan_id) !== historyLoanFilter.value) {
+      return false
+    }
+
+    if (historyTypeFilter.value !== 'all' && event.payment_type !== historyTypeFilter.value) {
+      return false
+    }
+
+    const eventIso = normalizeIso(event.payment_date)
+    if (!eventIso) {
+      return false
+    }
+
+    if (fromIso && eventIso < fromIso) {
+      return false
+    }
+
+    if (toIso && eventIso > toIso) {
+      return false
+    }
+
+    return true
+  })
+})
 
 const totalPendingOutstanding = computed(() =>
   flatPendingItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0)
@@ -384,6 +467,36 @@ const formatCurrency = (amount: number) =>
     amount
   )
 
+const getPaymentTypeLabel = (type: string) => {
+  if (type === 'interest') {
+    return t('payments.interestTab')
+  }
+  if (type === 'principal') {
+    return t('payments.principalTab')
+  }
+  if (type === 'advance') {
+    return t('customers.advancePayment')
+  }
+  return type
+}
+
+const getPaymentMethodLabel = (method: string) => {
+  if (method === 'cash') {
+    return t('common.cash')
+  }
+  if (method === 'bank-transfer') {
+    return t('common.bankTransfer')
+  }
+  return t('common.other')
+}
+
+const resetHistoryFilters = () => {
+  historyFromDate.value = ''
+  historyToDate.value = ''
+  historyLoanFilter.value = 'all'
+  historyTypeFilter.value = 'all'
+}
+
 const useSuggestedAmount = () => {
   interestEnteredAmount.value = suggestedSelectedAmount.value
   interestAmountTouched.value = false
@@ -417,6 +530,7 @@ const loadCustomerPaymentData = async () => {
   pendingInterest.value = pending
   principalContext.value = principal
   paymentHistory.value = history
+  resetHistoryFilters()
   selectedChargeIds.value = new Set(flatPendingItems.value.map((item) => item.interest_charge_id))
   useSuggestedAmount()
   selectedPrincipalLoanId.value = principal.items[0]?.loan_id ?? null

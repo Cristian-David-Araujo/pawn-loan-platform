@@ -14,7 +14,7 @@
       <p class="nav-title">{{ t('app.navigation') }}</p>
       <nav class="nav">
         <RouterLink
-          v-for="item in filteredNavItems"
+          v-for="item in navItems"
           :key="item.to"
           :to="item.to"
           class="nav-link"
@@ -49,10 +49,11 @@
           <label class="locale-label" for="nav-filter">{{ t('common.search') }}</label>
           <input
             id="nav-filter"
-            v-model="navFilter"
+            v-model="customerSearch"
             class="topbar-search"
             type="text"
-            :placeholder="t('app.searchPlaceholder')"
+            :placeholder="t('customers.searchPlaceholder')"
+            @keydown.enter.prevent="handleCustomerSearch"
           />
           <label class="locale-label" for="locale-select">{{ t('app.language') }}</label>
           <select id="locale-select" v-model="selectedLocale" class="locale-select" @change="onLocaleChange">
@@ -69,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import {
@@ -101,7 +102,7 @@ const navItems = [
 ]
 
 const selectedLocale = ref(locale.value as AppLocale)
-const navFilter = ref('')
+const customerSearch = ref('')
 const mobileMenuOpen = ref(false)
 const currentUsername = computed(() => authState.username || 'admin')
 
@@ -110,14 +111,13 @@ const currentRouteLabel = computed(() => {
   return t(labelKey)
 })
 
-const filteredNavItems = computed(() => {
-  const query = navFilter.value.trim().toLowerCase()
-  if (!query) {
-    return navItems
-  }
-
-  return navItems.filter((item) => t(item.labelKey).toLowerCase().includes(query))
-})
+watch(
+  () => route.query.q,
+  (value) => {
+    customerSearch.value = typeof value === 'string' ? value : ''
+  },
+  { immediate: true }
+)
 
 const onLocaleChange = () => {
   locale.value = selectedLocale.value
@@ -128,6 +128,15 @@ const handleLogout = () => {
   logout()
   mobileMenuOpen.value = false
   void router.push('/login')
+}
+
+const handleCustomerSearch = () => {
+  const query = customerSearch.value.trim()
+  mobileMenuOpen.value = false
+  void router.push({
+    name: 'customers',
+    query: query ? { q: query } : {}
+  })
 }
 </script>
 

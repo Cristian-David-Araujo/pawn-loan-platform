@@ -20,7 +20,7 @@
         <select v-model="customerStatusFilter" class="table-select">
           <option value="all">{{ t('loans.allStatuses') }}</option>
           <option value="active">{{ t('common.active') }}</option>
-          <option value="archived">archived</option>
+          <option value="archived">{{ t('common.archived') }}</option>
         </select>
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>
@@ -70,7 +70,7 @@
             <td>{{ customer.documentType }} / {{ customer.documentNumber }}</td>
             <td>{{ customer.phone }}</td>
             <td>{{ customer.city }}</td>
-            <td>{{ customer.status === 'active' ? t('common.active') : customer.status }}</td>
+            <td>{{ customer.status === 'active' ? t('common.active') : t('common.archived') }}</td>
           </tr>
         </tbody>
       </table>
@@ -91,7 +91,9 @@
             </label>
             <label>
               {{ t('customers.documentType') }}
-              <input v-model="form.documentType" required />
+              <select v-model="form.documentType" required>
+                <option v-for="option in documentTypeOptions" :key="option" :value="option">{{ option }}</option>
+              </select>
             </label>
             <label>
               {{ t('customers.documentNumber') }}
@@ -118,7 +120,30 @@
       <div class="modal-panel card modal-panel-lg customer-detail-shell">
         <div class="modal-header">
           <h3>{{ t('customers.customerDetail') }}</h3>
-          <button class="btn btn-secondary" type="button" @click="closeDetailModal">{{ t('common.close') }}</button>
+          <div class="form-inline">
+            <button
+              v-if="selectedCustomer.status === 'active'"
+              class="btn btn-secondary"
+              type="button"
+              :disabled="isSaving"
+              @click="handleArchiveCustomer"
+            >
+              {{ t('customers.archiveCustomer') }}
+            </button>
+            <button
+              v-else
+              class="btn btn-secondary"
+              type="button"
+              :disabled="isSaving"
+              @click="handleActivateCustomer"
+            >
+              {{ t('customers.activateCustomer') }}
+            </button>
+            <button class="btn btn-secondary" type="button" :disabled="isSaving" @click="handleDeleteCustomer">
+              {{ t('customers.deleteCustomer') }}
+            </button>
+            <button class="btn btn-secondary" type="button" @click="closeDetailModal">{{ t('common.close') }}</button>
+          </div>
         </div>
 
         <p class="muted mt-16">{{ t('customers.selectedCustomer', { id: selectedCustomer.id }) }}</p>
@@ -129,8 +154,77 @@
             <p class="muted">{{ selectedCustomer.documentType }} / {{ selectedCustomer.documentNumber }}</p>
           </div>
           <span class="pill" :class="selectedCustomer.status === 'active' ? 'pill-current' : 'pill-overdue'">
-            {{ selectedCustomer.status === 'active' ? t('common.active') : selectedCustomer.status }}
+            {{ selectedCustomer.status === 'active' ? t('common.active') : t('common.archived') }}
           </span>
+        </div>
+
+        <p v-if="hasCustomerCreditTraceability" class="muted mt-16">{{ t('customers.traceabilityDeleteHint') }}</p>
+
+        <article class="card mt-16">
+          <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
+          <p class="muted">{{ t('customers.globalAuditFiltersHint') }}</p>
+          <div class="audit-filter-grid mt-16">
+            <label>
+              {{ t('customers.auditFilterFrom') }}
+              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" :placeholder="t('settings.dateFormat')" />
+            </label>
+            <label>
+              {{ t('customers.auditFilterTo') }}
+              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" :placeholder="t('settings.dateFormat')" />
+            </label>
+            <label>
+              {{ t('customers.auditFilterLoan') }}
+              <select v-model="auditLoanFilter">
+                <option value="all">{{ t('customers.auditFilterAllLoans') }}</option>
+                <option v-for="loanId in loanAuditFilterOptions" :key="loanId" :value="loanId">#{{ loanId }}</option>
+              </select>
+            </label>
+            <button class="btn btn-secondary" type="button" @click="resetAuditFilters">{{ t('customers.auditResetFilters') }}</button>
+          </div>
+        </article>
+
+        <div class="grid grid-2 mt-16">
+          <article class="card audit-summary-card">
+            <h3>{{ t('customers.auditSnapshotTitle') }}</h3>
+            <p class="muted">{{ t('customers.auditSnapshotHint') }}</p>
+            <div class="audit-metrics mt-16">
+              <div class="audit-metric-item">
+                <p class="audit-metric-label">{{ t('customers.totalLoansLabel') }}</p>
+                <p class="audit-metric-value">{{ totalCustomerLoans }}</p>
+              </div>
+              <div class="audit-metric-item">
+                <p class="audit-metric-label">{{ t('customers.activeLoansLabel') }}</p>
+                <p class="audit-metric-value">{{ activeCustomerLoans }}</p>
+              </div>
+              <div class="audit-metric-item">
+                <p class="audit-metric-label">{{ t('customers.overdueLoansLabel') }}</p>
+                <p class="audit-metric-value">{{ overdueCustomerLoans }}</p>
+              </div>
+              <div class="audit-metric-item">
+                <p class="audit-metric-label">{{ t('payments.historyTitle') }}</p>
+                <p class="audit-metric-value">{{ auditFilteredEvents.length }}</p>
+              </div>
+            </div>
+            <div class="stats-inline mt-16">
+              <span class="pill">{{ t('customers.lastPaymentAt', { date: formatDateTime(lastPaymentEventDate) }) }}</span>
+              <span class="pill">{{ t('customers.lastPaymentAmount', { amount: formatCurrency(lastPaymentEventAmount) }) }}</span>
+            </div>
+          </article>
+
+          <article class="card audit-trace-card">
+            <h3>{{ t('customers.quickTraceabilityTitle') }}</h3>
+            <p class="muted">{{ t('customers.quickTraceabilityHint') }}</p>
+            <ul class="audit-timeline mt-16">
+              <li v-for="event in quickTraceabilityEvents" :key="`quick-${event.id}`" class="audit-timeline-item">
+                <div>
+                  <p class="audit-timeline-title">#{{ event.loan_id }} · {{ paymentTypeLabel(event.payment_type) }}</p>
+                  <p class="muted">{{ formatDateTime(event.payment_date) }}</p>
+                </div>
+                <span class="pill">{{ formatCurrency(event.total_entered_amount) }}</span>
+              </li>
+              <li v-if="!quickTraceabilityEvents.length" class="muted">{{ t('customers.noPaymentEvents') }}</li>
+            </ul>
+          </article>
         </div>
 
         <div class="stats-inline mt-16">
@@ -174,7 +268,9 @@
             </label>
             <label>
               {{ t('customers.documentType') }}
-              <input v-model="editForm.documentType" required />
+              <select v-model="editForm.documentType" required>
+                <option v-for="option in editDocumentTypeOptions" :key="option" :value="option">{{ option }}</option>
+              </select>
             </label>
             <label>
               {{ t('customers.documentNumber') }}
@@ -184,7 +280,7 @@
               {{ t('common.status') }}
               <select v-model="editForm.status" required>
                 <option value="active">{{ t('common.active') }}</option>
-                <option value="archived">archived</option>
+                <option value="archived">{{ t('common.archived') }}</option>
               </select>
             </label>
             <label>
@@ -251,7 +347,7 @@
 
         <div class="mt-16">
           <h3>{{ t('customers.customerPaymentTraceability') }}</h3>
-          <p class="muted" v-if="!paymentEvents.length">{{ t('customers.noPaymentEvents') }}</p>
+          <p class="muted" v-if="!auditFilteredEvents.length">{{ t('customers.noPaymentEvents') }}</p>
           <table v-else>
             <thead>
               <tr>
@@ -267,7 +363,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="event in paymentEvents" :key="event.id">
+              <tr v-for="event in auditFilteredEvents" :key="event.id">
                 <td>{{ formatDateDMY(event.payment_date) }}</td>
                 <td>{{ paymentTypeLabel(event.payment_type) }}</td>
                 <td>#{{ event.loan_id }}</td>
@@ -590,14 +686,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { Save, UserPlus, Users } from 'lucide-vue-next'
+import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
-import { formatDateDMY } from '../utils/date'
+import { formatDateDMY, toIsoDate } from '../utils/date'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -652,9 +750,10 @@ interface SortCriterion<T extends string> {
   direction: SortDirection
 }
 
-const { state, createCustomer, updateCustomer, updateLoan, updateCollateral, getCustomerById, ensureInitialized } =
+const { state, createCustomer, updateCustomer, deleteCustomer, updateLoan, updateCollateral, getCustomerById, ensureInitialized } =
   usePlatformStore()
 const { t, locale } = useI18n()
+const route = useRoute()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const message = ref('')
 const search = ref('')
@@ -672,17 +771,36 @@ const financialDataError = ref(false)
 const pendingInterestData = ref<InterestPendingResponse | null>(null)
 const principalContextData = ref<PrincipalContextResponse | null>(null)
 const paymentEvents = ref<PaymentEvent[]>([])
+const auditFromDate = ref('')
+const auditToDate = ref('')
+const auditLoanFilter = ref('all')
 const selectedLoanForEditId = ref<number | null>(null)
 const selectedLoanDetailId = ref<number | null>(null)
 const selectedCollateralForEditId = ref<number | null>(null)
+const documentTypeOptions = ['CC', 'TI', 'NIT', 'CE', 'PAS']
+const editDocumentTypeOptions = computed(() => {
+  if (!editForm.documentType || documentTypeOptions.includes(editForm.documentType)) {
+    return documentTypeOptions
+  }
+
+  return [editForm.documentType, ...documentTypeOptions]
+})
 
 onMounted(async () => {
   await ensureInitialized()
 })
 
+watch(
+  () => route.query.q,
+  (value) => {
+    search.value = typeof value === 'string' ? value : ''
+  },
+  { immediate: true }
+)
+
 const form = reactive({
   fullName: '',
-  documentType: 'ID',
+  documentType: 'CC',
   documentNumber: '',
   phone: '',
   city: ''
@@ -690,7 +808,7 @@ const form = reactive({
 
 const editForm = reactive({
   fullName: '',
-  documentType: 'ID',
+  documentType: 'CC',
   documentNumber: '',
   phone: '',
   email: '',
@@ -717,7 +835,30 @@ const selectedCustomer = computed(() =>
   selectedCustomerId.value === null ? null : getCustomerById(selectedCustomerId.value)
 )
 
-const selectedCustomerLoans = computed(() => {
+const isLoanSelectedByAuditFilter = (loanId: number) => {
+  return auditLoanFilter.value === 'all' || String(loanId) === auditLoanFilter.value
+}
+
+const isInAuditDateRange = (value: string) => {
+  const fromIso = toIsoDate(auditFromDate.value)
+  const toIso = toIsoDate(auditToDate.value)
+  const valueIso = normalizeToIsoDate(value)
+  if (!valueIso) {
+    return false
+  }
+
+  if (fromIso && valueIso < fromIso) {
+    return false
+  }
+
+  if (toIso && valueIso > toIso) {
+    return false
+  }
+
+  return true
+}
+
+const allSelectedCustomerLoans = computed(() => {
   if (!selectedCustomer.value) {
     return []
   }
@@ -727,10 +868,19 @@ const selectedCustomerLoans = computed(() => {
     .sort((a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime())
 })
 
-const selectedCustomerLoanIds = computed(() => new Set(selectedCustomerLoans.value.map((loan: Loan) => loan.id)))
+const selectedCustomerLoans = computed(() => {
+  return allSelectedCustomerLoans.value.filter(
+    (loan: Loan) => isLoanSelectedByAuditFilter(loan.id) && isInAuditDateRange(loan.disbursementDate)
+  )
+})
+
+const selectedCustomerLoanIds = computed(
+  () => new Set(allSelectedCustomerLoans.value.filter((loan: Loan) => isLoanSelectedByAuditFilter(loan.id)).map((loan) => loan.id))
+)
+const hasCustomerCreditTraceability = computed(() => allSelectedCustomerLoans.value.length > 0)
 
 const selectedCustomerPayments = computed(() =>
-  state.payments.filter((payment: Payment) => selectedCustomerLoanIds.value.has(payment.loanId))
+  state.payments.filter((payment: Payment) => selectedCustomerLoanIds.value.has(payment.loanId) && isInAuditDateRange(payment.paymentDate))
 )
 
 const selectedCustomerCollateral = computed(() =>
@@ -742,7 +892,7 @@ const selectedCustomerLoanDetail = computed(() => {
     return null
   }
 
-  return selectedCustomerLoans.value.find((loan: Loan) => loan.id === selectedLoanDetailId.value) ?? null
+  return allSelectedCustomerLoans.value.find((loan: Loan) => loan.id === selectedLoanDetailId.value) ?? null
 })
 
 const selectedCustomerLoanPayments = computed(() => {
@@ -764,14 +914,17 @@ const selectedCustomerLoanCollateral = computed(() => {
 })
 
 const collateralAssignableLoans = computed(() =>
-  selectedCustomerLoans.value.filter((loan: Loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
+  allSelectedCustomerLoans.value.filter((loan: Loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
 )
 
-const pendingInterestItems = computed(() => pendingInterestData.value?.groups.flatMap((group) => group.items) ?? [])
+const pendingInterestItems = computed(() => {
+  const allItems = pendingInterestData.value?.groups.flatMap((group) => group.items) ?? []
+  return allItems.filter((item) => isLoanSelectedByAuditFilter(item.loan_id) && isInAuditDateRange(item.due_date))
+})
 
-const totalPendingInterest = computed(() => pendingInterestData.value?.total_pending_interest ?? 0)
-const totalPendingPenalty = computed(() => pendingInterestData.value?.total_pending_penalty ?? 0)
-const totalPendingOutstanding = computed(() => pendingInterestData.value?.total_outstanding ?? 0)
+const totalPendingInterest = computed(() => pendingInterestItems.value.reduce((sum, item) => sum + item.remaining_pending_amount, 0))
+const totalPendingPenalty = computed(() => pendingInterestItems.value.reduce((sum, item) => sum + item.penalty_amount, 0))
+const totalPendingOutstanding = computed(() => pendingInterestItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0))
 const availableAdvanceBalance = computed(() => pendingInterestData.value?.available_advance_balance ?? 0)
 
 const totalOutstandingPrincipal = computed(() =>
@@ -786,12 +939,60 @@ const totalCustomerPaid = computed(() =>
   selectedCustomerPayments.value.reduce((sum: number, payment: Payment) => sum + payment.totalAmount, 0)
 )
 
+const totalCustomerLoans = computed(() => selectedCustomerLoans.value.length)
+const activeCustomerLoans = computed(() => selectedCustomerLoans.value.filter((loan) => loan.status === 'active').length)
+const overdueCustomerLoans = computed(() => selectedCustomerLoans.value.filter((loan) => loan.status === 'overdue').length)
+
+const normalizeToIsoDate = (value: string) => {
+  const directMatch = value.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (directMatch) {
+    return directMatch[1]
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return null
+  }
+
+  return parsed.toISOString().slice(0, 10)
+}
+
+const auditFilteredEvents = computed(() =>
+  paymentEvents.value.filter((event) => isLoanSelectedByAuditFilter(event.loan_id) && isInAuditDateRange(event.payment_date))
+)
+
+const loanAuditFilterOptions = computed(() => {
+  return [...allSelectedCustomerLoans.value]
+    .map((loan) => String(loan.id))
+    .sort((a, b) => Number(a) - Number(b))
+})
+
+const lastPaymentEventDate = computed(() => {
+  return [...auditFilteredEvents.value].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())[0]?.payment_date ?? ''
+})
+
+const lastPaymentEventAmount = computed(() => {
+  return [...auditFilteredEvents.value].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())[0]?.total_entered_amount ?? 0
+})
+
+const quickTraceabilityEvents = computed(() => {
+  return [...auditFilteredEvents.value]
+    .sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
+    .slice(0, 6)
+})
+
+const resetAuditFilters = () => {
+  auditFromDate.value = ''
+  auditToDate.value = ''
+  auditLoanFilter.value = 'all'
+}
+
 const firstLoanDisbursementDate = computed(() => {
-  if (!selectedCustomerLoans.value.length) {
+  if (!allSelectedCustomerLoans.value.length) {
     return ''
   }
 
-  return [...selectedCustomerLoans.value]
+  return [...allSelectedCustomerLoans.value]
     .sort((a, b) => new Date(a.disbursementDate).getTime() - new Date(b.disbursementDate).getTime())[0]
     .disbursementDate
 })
@@ -804,13 +1005,32 @@ const formatCurrency = (amount: number) =>
     amount
   )
 
+const formatDateTime = (value: string) => {
+  if (!value) {
+    return '-'
+  }
+
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return '-'
+  }
+
+  return new Intl.DateTimeFormat(locale.value === 'es' ? 'es-CO' : 'en-US', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(parsed)
+}
+
 const syncEditForm = () => {
   if (!selectedCustomer.value) {
     return
   }
 
   editForm.fullName = selectedCustomer.value.fullName
-  editForm.documentType = selectedCustomer.value.documentType
+  editForm.documentType = selectedCustomer.value.documentType || 'CC'
   editForm.documentNumber = selectedCustomer.value.documentNumber
   editForm.phone = selectedCustomer.value.phone
   editForm.email = selectedCustomer.value.email
@@ -821,6 +1041,7 @@ const syncEditForm = () => {
 
 const selectCustomer = (customerId: number) => {
   selectedCustomerId.value = customerId
+  resetAuditFilters()
   syncEditForm()
   void loadCustomerFinancialData(customerId)
 }
@@ -908,7 +1129,7 @@ const handleCreateCustomer = async () => {
 
     if (result.ok) {
       form.fullName = ''
-      form.documentType = 'ID'
+      form.documentType = 'CC'
       form.documentNumber = ''
       form.phone = ''
       form.city = ''
@@ -941,6 +1162,90 @@ const handleUpdateCustomer = async () => {
     message.value = t(result.messageKey)
     if (result.ok) {
       syncEditForm()
+    }
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const updateSelectedCustomerStatus = async (statusValue: 'active' | 'archived') => {
+  if (!selectedCustomer.value || isSaving.value) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const result = await updateCustomer({
+      id: selectedCustomer.value.id,
+      fullName: editForm.fullName,
+      documentType: editForm.documentType,
+      documentNumber: editForm.documentNumber,
+      phone: editForm.phone,
+      email: editForm.email,
+      address: editForm.address,
+      city: editForm.city,
+      status: statusValue
+    })
+
+    message.value = t(result.messageKey)
+    if (result.ok) {
+      editForm.status = statusValue
+      syncEditForm()
+    }
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSaving.value = false
+  }
+}
+
+const handleArchiveCustomer = async () => {
+  if (!selectedCustomer.value) {
+    return
+  }
+
+  const confirmed = window.confirm(t('customers.archiveCustomerConfirm'))
+  if (!confirmed) {
+    return
+  }
+
+  await updateSelectedCustomerStatus('archived')
+}
+
+const handleActivateCustomer = async () => {
+  if (!selectedCustomer.value) {
+    return
+  }
+
+  const confirmed = window.confirm(t('customers.activateCustomerConfirm'))
+  if (!confirmed) {
+    return
+  }
+
+  await updateSelectedCustomerStatus('active')
+}
+
+const handleDeleteCustomer = async () => {
+  if (!selectedCustomer.value || isSaving.value) {
+    return
+  }
+
+  const confirmed = window.confirm(t('customers.deleteCustomerConfirm'))
+  if (!confirmed) {
+    return
+  }
+
+  isSaving.value = true
+  try {
+    const result = await deleteCustomer(selectedCustomer.value.id)
+    message.value = t(result.messageKey)
+
+    if (result.ok) {
+      selectedCustomerId.value = null
+      closeCustomerLoanDetail()
+      closeDetailModal()
     }
   } catch {
     message.value = t('messages.operationFailed')

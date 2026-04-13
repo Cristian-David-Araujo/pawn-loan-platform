@@ -41,7 +41,8 @@ The platform is configured to read shared runtime variables from root `.env` onl
 - `WEB_CLIENT_PORT`, `API_SERVER_PORT`, `POSTGRES_PORT`
 - `APP_NAME`, `APP_ENV`
 - `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`
-- `DATABASE_URL`
+- `DATABASE_URL` (local runs)
+- `DATABASE_URL_DOCKER` (container runs)
 - `VITE_API_BASE_URL`, `VITE_API_USERNAME`, `VITE_API_PASSWORD`
 - `JWT_SECRET_KEY`, `JWT_ALGORITHM`, `JWT_ACCESS_TOKEN_EXPIRE_MINUTES`
 - `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_ROLE`
@@ -192,6 +193,26 @@ pip install -e ".[dev]"
 set -a; source ../../.env; set +a
 uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+PowerShell equivalent:
+
+```powershell
+cd apps/api-server
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -e ".[dev]"
+Get-Content ..\..\.env | ForEach-Object {
+	if ($_ -match '^(?!#)([^=]+)=(.*)$') {
+		[Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')
+	}
+}
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Notes:
+
+- Use `DATABASE_URL` with `localhost` for local API runs.
+- Docker Compose injects `DATABASE_URL_DOCKER` automatically into the API container.
 
 ### Web client
 

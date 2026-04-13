@@ -9,11 +9,11 @@
     <div class="card mt-16 form-inline">
       <label>
         {{ t('reporting.fromDate') }}
-        <input v-model="fromDate" :placeholder="datePlaceholder" />
+        <DateInputField v-model="fromDate" :label="t('reporting.fromDate')" :placeholder="datePlaceholder" :title="t('reporting.fromDate')" />
       </label>
       <label>
         {{ t('reporting.toDate') }}
-        <input v-model="toDate" :placeholder="datePlaceholder" />
+        <DateInputField v-model="toDate" :label="t('reporting.toDate')" :placeholder="datePlaceholder" :title="t('reporting.toDate')" />
       </label>
       <button class="btn btn-secondary" type="button" @click="resetDates">
         <RotateCcw :size="16" />
@@ -332,6 +332,7 @@ import {
   RotateCcw,
   Wallet
 } from 'lucide-vue-next'
+import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'

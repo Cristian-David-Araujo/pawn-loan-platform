@@ -81,11 +81,34 @@ jobs:
         env:
           DO_HOST: ${{ secrets.DO_HOST }}
           DO_USER: ${{ secrets.DO_USER }}
+          DO_SSH_KEY_B64: ${{ secrets.DO_SSH_KEY_B64 }}
           DO_SSH_KEY: ${{ secrets.DO_SSH_KEY }}
         run: |
           test -n "$DO_HOST" || (echo "Missing secret: DO_HOST" && exit 1)
           test -n "$DO_USER" || (echo "Missing secret: DO_USER" && exit 1)
-          test -n "$DO_SSH_KEY" || (echo "Missing secret: DO_SSH_KEY" && exit 1)
+          if [[ -z "$DO_SSH_KEY_B64" && -z "$DO_SSH_KEY" ]]; then
+            echo "Missing SSH key secret: set DO_SSH_KEY_B64 (preferred) or DO_SSH_KEY." >&2
+            exit 1
+          fi
+
+      - name: Prepare SSH key file
+        env:
+          DO_SSH_KEY_B64: ${{ secrets.DO_SSH_KEY_B64 }}
+          DO_SSH_KEY: ${{ secrets.DO_SSH_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "$DO_SSH_KEY_B64" ]]; then
+            printf '%s' "$DO_SSH_KEY_B64" | base64 -d > /tmp/do_key
+          else
+            # Fallback for plain multi-line secret.
+            printf '%s\n' "$DO_SSH_KEY" > /tmp/do_key
+          fi
+
+          chmod 600 /tmp/do_key
+
+          # Fails early for malformed key, wrong key type, or passphrase-protected key.
+          ssh-keygen -y -f /tmp/do_key >/dev/null
 
       - name: Deploy merged main on DigitalOcean droplet
         uses: appleboy/ssh-action@v1.2.2
@@ -94,7 +117,7 @@ jobs:
         with:
           host: ${{ secrets.DO_HOST }}
           username: ${{ secrets.DO_USER }}
-          key: ${{ secrets.DO_SSH_KEY }}
+          key_path: /tmp/do_key
           script_stop: true
           envs: RELEASE_TAG
           script: |
@@ -113,3 +136,7 @@ jobs:
             docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
 
             echo "Deployment completed from tag ${RELEASE_TAG}"
+
+      - name: Cleanup SSH key file
+        if: always()
+        run: rm -f /tmp/do_key
