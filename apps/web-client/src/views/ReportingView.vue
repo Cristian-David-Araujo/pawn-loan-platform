@@ -9,11 +9,29 @@
     <div class="card mt-16 form-inline">
       <label>
         {{ t('reporting.fromDate') }}
-        <input v-model="fromDate" :placeholder="datePlaceholder" />
+        <input v-model="fromDate" :placeholder="datePlaceholder" @click="openFromDateCalendar" />
+        <input
+          ref="fromDateCalendarRef"
+          :value="toIsoDate(fromDate) ?? ''"
+          type="date"
+          tabindex="-1"
+          :aria-label="`${t('reporting.fromDate')} (calendar)`"
+          style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;"
+          @change="syncFromDateFromCalendar"
+        />
       </label>
       <label>
         {{ t('reporting.toDate') }}
-        <input v-model="toDate" :placeholder="datePlaceholder" />
+        <input v-model="toDate" :placeholder="datePlaceholder" @click="openToDateCalendar" />
+        <input
+          ref="toDateCalendarRef"
+          :value="toIsoDate(toDate) ?? ''"
+          type="date"
+          tabindex="-1"
+          :aria-label="`${t('reporting.toDate')} (calendar)`"
+          style="position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none;"
+          @change="syncToDateFromCalendar"
+        />
       </label>
       <button class="btn btn-secondary" type="button" @click="resetDates">
         <RotateCcw :size="16" />
@@ -376,6 +394,52 @@ const today = new Date().toISOString().slice(0, 10)
 const fromDate = ref('')
 const toDate = ref(formatDateDMY(today))
 const datePlaceholder = computed(() => getGlobalDateFormat())
+const fromDateCalendarRef = ref<HTMLInputElement | null>(null)
+const toDateCalendarRef = ref<HTMLInputElement | null>(null)
+
+const syncFromDateFromCalendar = (event: Event) => {
+  const value = (event.target as HTMLInputElement).value
+  fromDate.value = value ? formatDateDMY(value) : ''
+}
+
+const syncToDateFromCalendar = (event: Event) => {
+  const value = (event.target as HTMLInputElement).value
+  toDate.value = value ? formatDateDMY(value) : ''
+}
+
+const openFromDateCalendar = () => {
+  const input = fromDateCalendarRef.value
+  if (!input) {
+    return
+  }
+
+  input.value = toIsoDate(fromDate.value) ?? ''
+
+  if (typeof input.showPicker === 'function') {
+    input.showPicker()
+    return
+  }
+
+  input.focus()
+  input.click()
+}
+
+const openToDateCalendar = () => {
+  const input = toDateCalendarRef.value
+  if (!input) {
+    return
+  }
+
+  input.value = toIsoDate(toDate.value) ?? ''
+
+  if (typeof input.showPicker === 'function') {
+    input.showPicker()
+    return
+  }
+
+  input.focus()
+  input.click()
+}
 
 const fromDateIso = computed(() => toIsoDate(fromDate.value))
 const toDateIso = computed(() => toIsoDate(toDate.value) ?? today)
