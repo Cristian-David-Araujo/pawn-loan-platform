@@ -163,6 +163,29 @@ Example login payload:
 
 ## Database Initialization & Seed
 
+Schema migrations are managed with Alembic.
+
+Run latest migrations:
+
+```bash
+cd apps/api-server
+alembic upgrade head
+```
+
+Create a new migration revision:
+
+```bash
+cd apps/api-server
+alembic revision -m "describe_change"
+```
+
+Autogenerate revision from models:
+
+```bash
+cd apps/api-server
+alembic revision --autogenerate -m "describe_change"
+```
+
 On API startup, initialization can be controlled with:
 
 - `DB_INIT_ON_STARTUP=true`: create/update tables

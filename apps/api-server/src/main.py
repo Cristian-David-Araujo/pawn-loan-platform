@@ -8,6 +8,7 @@ from src.api.v1.router import api_router
 from src.infrastructure.config.settings import get_settings
 from src.infrastructure.persistence.database import engine
 from src.infrastructure.persistence.init_db import init_database
+from src.infrastructure.persistence.migrations import run_database_migrations
 from src.infrastructure.tasks.interest_scheduler import InterestGenerationScheduler
 
 settings = get_settings()
@@ -32,6 +33,7 @@ app.add_middleware(
 @app.on_event("startup")
 def startup_event() -> None:
     if settings.db_init_on_startup:
+        run_database_migrations()
         init_database()
 
     if settings.auto_interest_generation_enabled:

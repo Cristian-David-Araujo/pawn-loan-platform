@@ -2,7 +2,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from src.infrastructure.config.settings import get_settings
-from src.infrastructure.persistence.database import Base, SessionLocal, engine
+from src.infrastructure.persistence.database import SessionLocal, engine
 from src.infrastructure.persistence.models import User
 from src.infrastructure.persistence.seed import seed_database
 from src.infrastructure.security.password import get_password_hash, verify_password
@@ -33,10 +33,8 @@ def _run_bootstrap(
     should_force_seed: bool,
 ) -> None:
     if connection is None:
-        Base.metadata.create_all(bind=engine)
         db_context = SessionLocal()
     else:
-        Base.metadata.create_all(bind=connection)
         db_context = Session(bind=connection)
 
     with db_context as db:

@@ -30,6 +30,33 @@ Key variables:
 - `DB_INIT_ON_STARTUP`, `DB_SEED_ON_STARTUP`, `DB_SEED_FORCE`
 - `AUTO_INTEREST_GENERATION_ENABLED`, `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES`
 
+## Database Migrations (Alembic)
+
+This API uses Alembic for schema versioning.
+
+Apply migrations:
+
+```bash
+cd apps/api-server
+alembic upgrade head
+```
+
+Create migration revision:
+
+```bash
+cd apps/api-server
+alembic revision -m "describe_change"
+```
+
+Autogenerate from SQLAlchemy models:
+
+```bash
+cd apps/api-server
+alembic revision --autogenerate -m "describe_change"
+```
+
+Startup and bootstrap tasks execute `alembic upgrade head` automatically when DB initialization is enabled.
+
 ## Interest Generation Behavior
 
 The platform supports three complementary mechanisms:
