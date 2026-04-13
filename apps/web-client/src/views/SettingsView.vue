@@ -8,6 +8,14 @@
 
     <p v-if="message" class="notice mt-16">{{ message }}</p>
 
+    <article class="card mt-16">
+      <h3>{{ t('settings.colombiaPresetTitle') }}</h3>
+      <p class="muted">{{ t('settings.colombiaPresetHint') }}</p>
+      <button class="btn btn-secondary mt-16" type="button" @click="applyColombiaPreset">
+        {{ t('settings.applyColombiaPreset') }}
+      </button>
+    </article>
+
     <form class="card form mt-16" @submit.prevent="handleSaveSettings">
       <div class="grid grid-2">
         <label :title="t('settings.currencyCodeHelp')">
@@ -114,5 +122,11 @@ const handleSaveSettings = async () => {
   } catch {
     message.value = t('messages.operationFailed')
   }
+}
+
+const applyColombiaPreset = () => {
+  form.currencyCode = 'COP'
+  form.timezone = 'America/Bogota'
+  form.dateFormat = 'DD/MM/YYYY'
 }
 </script>

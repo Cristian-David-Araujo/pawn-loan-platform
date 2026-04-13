@@ -71,7 +71,12 @@ export const messages = {
       overdueLoans: 'Overdue Loans',
       collateralInCustody: 'Collateral In Custody',
       outstandingPortfolio: 'Outstanding Portfolio',
-      cashCollected: 'Cash Collected'
+      cashCollected: 'Cash Collected',
+      quickActions: 'Quick actions',
+      goCustomers: 'Go to customers',
+      goLoans: 'Go to loans',
+      goPayments: 'Go to payments',
+      goReporting: 'Go to reporting'
     },
     customers: {
       title: 'Customers',
@@ -181,6 +186,8 @@ export const messages = {
       collateralQueueCount: 'Collateral queued: {count}',
       registerCollateralQueue: 'Register queued collateral',
       removeCollateralFromQueue: 'Remove from queue',
+      resetFilters: 'Reset filters',
+      noLoansForFilter: 'No loans match the current filters.',
       searchPlaceholder: 'Search loans by customer or id...',
       allStatuses: 'All statuses',
       totalLoans: 'Loans: {count}'
@@ -238,6 +245,13 @@ export const messages = {
       historyTitle: 'Customer payment history',
       noPendingInterest: 'No pending interest charges for this customer.',
       noHistory: 'No payment history for this customer.',
+      filterFromDate: 'From date',
+      filterToDate: 'To date',
+      filterLoan: 'Loan',
+      filterType: 'Type',
+      allLoans: 'All loans',
+      allTypes: 'All types',
+      resetHistoryFilters: 'Reset history filters',
       totalAmount: 'Total amount',
       paymentMethod: 'Payment method',
       penalty: 'Penalty',
@@ -262,7 +276,10 @@ export const messages = {
       interestGenerationLeadDays: 'Days before next interest date to pre-generate charge',
       interestGenerationLeadDaysHelp:
         'If set to 3, the interest charge is generated 3 days before the monthly interest date.',
-      saveSettings: 'Save settings'
+      saveSettings: 'Save settings',
+      colombiaPresetTitle: 'Recommended preset for Colombia',
+      colombiaPresetHint: 'Applies COP, America/Bogota and DD/MM/YYYY as baseline configuration.',
+      applyColombiaPreset: 'Apply Colombia preset'
     },
     reporting: {
       title: 'Reporting',
@@ -400,7 +417,12 @@ export const messages = {
       overdueLoans: 'Prestamos Vencidos',
       collateralInCustody: 'Garantias en Custodia',
       outstandingPortfolio: 'Cartera Pendiente',
-      cashCollected: 'Efectivo Cobrado'
+      cashCollected: 'Efectivo Cobrado',
+      quickActions: 'Acciones rapidas',
+      goCustomers: 'Ir a clientes',
+      goLoans: 'Ir a prestamos',
+      goPayments: 'Ir a pagos',
+      goReporting: 'Ir a reportes'
     },
     customers: {
       title: 'Clientes',
@@ -510,6 +532,8 @@ export const messages = {
       collateralQueueCount: 'Garantias en cola: {count}',
       registerCollateralQueue: 'Registrar garantias en cola',
       removeCollateralFromQueue: 'Quitar de la cola',
+      resetFilters: 'Limpiar filtros',
+      noLoansForFilter: 'No hay prestamos que coincidan con los filtros actuales.',
       searchPlaceholder: 'Buscar prestamos por cliente o id...',
       allStatuses: 'Todos los estados',
       totalLoans: 'Prestamos: {count}'
@@ -567,6 +591,13 @@ export const messages = {
       historyTitle: 'Historial de pagos del cliente',
       noPendingInterest: 'No hay cargos de interes pendientes para este cliente.',
       noHistory: 'No hay historial de pagos para este cliente.',
+      filterFromDate: 'Desde',
+      filterToDate: 'Hasta',
+      filterLoan: 'Prestamo',
+      filterType: 'Tipo',
+      allLoans: 'Todos los prestamos',
+      allTypes: 'Todos los tipos',
+      resetHistoryFilters: 'Limpiar filtros del historial',
       totalAmount: 'Monto total',
       paymentMethod: 'Metodo de pago',
       penalty: 'Mora',
@@ -591,7 +622,10 @@ export const messages = {
       interestGenerationLeadDays: 'Dias antes de la siguiente fecha de interes para pre-generar el cargo',
       interestGenerationLeadDaysHelp:
         'Si configuras 3, el cargo de interes se genera 3 dias antes de la fecha mensual de interes.',
-      saveSettings: 'Guardar configuraciones'
+      saveSettings: 'Guardar configuraciones',
+      colombiaPresetTitle: 'Preset recomendado para Colombia',
+      colombiaPresetHint: 'Aplica COP, America/Bogota y DD/MM/YYYY como configuracion base.',
+      applyColombiaPreset: 'Aplicar preset Colombia'
     },
     reporting: {
       title: 'Reportes',

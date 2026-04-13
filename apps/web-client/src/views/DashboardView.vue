@@ -19,12 +19,23 @@
       />
       <StatCard :label="t('dashboard.cashCollected')" :value="formatCurrency(stats.cashCollected)" :icon="Wallet" tone="green" />
     </div>
+
+    <article class="card mt-16">
+      <h3>{{ t('dashboard.quickActions') }}</h3>
+      <div class="quick-actions mt-16">
+        <button class="btn btn-secondary" type="button" @click="goTo('/customers')">{{ t('dashboard.goCustomers') }}</button>
+        <button class="btn btn-secondary" type="button" @click="goTo('/loans')">{{ t('dashboard.goLoans') }}</button>
+        <button class="btn btn-secondary" type="button" @click="goTo('/payments')">{{ t('dashboard.goPayments') }}</button>
+        <button class="btn btn-secondary" type="button" @click="goTo('/reporting')">{{ t('dashboard.goReporting') }}</button>
+      </div>
+    </article>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import {
   BadgeDollarSign,
   ClockAlert,
@@ -40,6 +51,7 @@ import { usePlatformStore } from '../stores/platformStore'
 
 const { state, dashboardStats, ensureInitialized } = usePlatformStore()
 const { t, locale } = useI18n()
+const router = useRouter()
 const stats = computed(() => dashboardStats.value)
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
@@ -54,4 +66,8 @@ const formatCurrency = (amount: number) =>
   }).format(
     amount
   )
+
+const goTo = (path: string) => {
+  void router.push(path)
+}
 </script>
