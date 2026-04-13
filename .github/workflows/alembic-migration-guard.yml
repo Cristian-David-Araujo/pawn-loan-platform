@@ -1,0 +1,80 @@
+name: Alembic Migration Guard
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - edited
+      - ready_for_review
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-alembic-migrations:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed files
+        id: changed
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            FROM_SHA="$BASE_SHA"
+            TO_SHA="$HEAD_SHA"
+          else
+            FROM_SHA="$BEFORE_SHA"
+            TO_SHA="$AFTER_SHA"
+          fi
+
+          echo "Comparing changes from $FROM_SHA to $TO_SHA"
+          git diff --name-only "$FROM_SHA" "$TO_SHA" > /tmp/changed_files.txt
+
+          echo "Changed files:"
+          cat /tmp/changed_files.txt || true
+
+          if grep -Eq '^apps/api-server/src/infrastructure/persistence/models.py$|^apps/api-server/src/domain/enums/.+\.py$' /tmp/changed_files.txt; then
+            echo "schema_related_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "schema_related_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if grep -Eq '^apps/api-server/alembic/versions/.+\.py$' /tmp/changed_files.txt; then
+            echo "alembic_version_changes=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "alembic_version_changes=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enforce Alembic revision when schema changes
+        if: steps.changed.outputs.schema_related_changes == 'true'
+        env:
+          ALEMBIC_CHANGED: ${{ steps.changed.outputs.alembic_version_changes }}
+        run: |
+          if [[ "$ALEMBIC_CHANGED" != "true" ]]; then
+            echo "ERROR: Schema-related changes detected but no Alembic revision found in apps/api-server/alembic/versions/." >&2
+            echo "Create one with: cd apps/api-server && alembic revision --autogenerate -m \"describe_change\"" >&2
+            exit 1
+          fi
+
+          echo "OK: schema changes include Alembic revision."
+
+      - name: No schema changes summary
+        if: steps.changed.outputs.schema_related_changes != 'true'
+        run: echo "No schema-related changes detected. Migration guard passed."
