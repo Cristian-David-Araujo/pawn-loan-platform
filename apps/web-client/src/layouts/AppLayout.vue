@@ -24,6 +24,16 @@
           <span>{{ t(item.labelKey) }}</span>
         </RouterLink>
       </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <span class="sidebar-user-avatar">{{ userInitial }}</span>
+          <div class="sidebar-user-info">
+            <span class="sidebar-user-name">{{ currentUsername }}</span>
+            <span class="sidebar-user-role">{{ t('app.administrator') }}</span>
+          </div>
+        </div>
+      </div>
     </aside>
     <div v-if="mobileMenuOpen" class="sidebar-backdrop" @click="mobileMenuOpen = false"></div>
 
@@ -41,12 +51,6 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <span class="badge">{{ currentUsername }}</span>
-          <button class="btn btn-secondary" type="button" @click="handleLogout">
-            <LogOut :size="15" />
-            {{ t('app.signOut') }}
-          </button>
-          <label class="locale-label" for="nav-filter">{{ t('common.search') }}</label>
           <input
             id="nav-filter"
             v-model="customerSearch"
@@ -55,14 +59,17 @@
             :placeholder="t('customers.searchPlaceholder')"
             @keydown.enter.prevent="handleCustomerSearch"
           />
-          <label class="locale-label" for="locale-select">{{ t('app.language') }}</label>
           <select id="locale-select" v-model="selectedLocale" class="locale-select" @change="onLocaleChange">
-            <option value="en">English</option>
-            <option value="es">Espanol</option>
+            <option value="en">EN</option>
+            <option value="es">ES</option>
           </select>
+          <button class="btn btn-secondary" type="button" @click="handleLogout">
+            <LogOut :size="15" />
+            {{ t('app.signOut') }}
+          </button>
         </div>
       </header>
-      <section class="page">
+      <section class="page fade-in-up">
         <RouterView />
       </section>
     </main>
@@ -105,6 +112,7 @@ const selectedLocale = ref(locale.value as AppLocale)
 const customerSearch = ref('')
 const mobileMenuOpen = ref(false)
 const currentUsername = computed(() => authState.username || 'admin')
+const userInitial = computed(() => currentUsername.value.charAt(0).toUpperCase())
 
 const currentRouteLabel = computed(() => {
   const labelKey = (route.meta.labelKey as string | undefined) ?? 'app.dashboard'
@@ -139,4 +147,50 @@ const handleCustomerSearch = () => {
   })
 }
 </script>
+
+<style scoped>
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.65rem 0.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+}
+
+.sidebar-user-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.sidebar-user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-user-role {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+</style>
 

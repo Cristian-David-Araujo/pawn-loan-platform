@@ -188,6 +188,7 @@
         </button>
         <span class="table-count">{{ t('loans.totalLoans', { count: filteredLoans.length }) }}</span>
       </div>
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -254,6 +255,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <p v-if="message" class="notice mt-16">{{ message }}</p>
