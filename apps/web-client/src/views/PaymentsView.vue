@@ -54,6 +54,7 @@
         <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedSelectedAmount) }) }}</span>
       </div>
 
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -97,6 +98,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
 
       <div class="card mt-16">
         <p>{{ t('payments.selectedItems', { count: selectedChargeIds.size }) }}</p>
@@ -217,6 +219,7 @@
           {{ t('payments.resetHistoryFilters') }}
         </button>
       </div>
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -248,6 +251,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div class="card mt-16" v-if="selectedCustomerId">

@@ -15,7 +15,8 @@ export const messages = {
       payments: 'Payments',
       reporting: 'Reporting',
       settings: 'Settings',
-      signOut: 'Sign out'
+      signOut: 'Sign out',
+      administrator: 'Administrator'
     },
     auth: {
       title: 'Administrator Access',
@@ -379,7 +380,8 @@ export const messages = {
       payments: 'Pagos',
       reporting: 'Reportes',
       settings: 'Configuraciones',
-      signOut: 'Cerrar sesion'
+      signOut: 'Cerrar sesion',
+      administrator: 'Administrador'
     },
     auth: {
       title: 'Acceso de Administrador',

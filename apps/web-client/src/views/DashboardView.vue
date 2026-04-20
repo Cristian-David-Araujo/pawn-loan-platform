@@ -23,10 +23,18 @@
     <article class="card mt-16">
       <h3>{{ t('dashboard.quickActions') }}</h3>
       <div class="quick-actions mt-16">
-        <button class="btn btn-secondary" type="button" @click="goTo('/customers')">{{ t('dashboard.goCustomers') }}</button>
-        <button class="btn btn-secondary" type="button" @click="goTo('/loans')">{{ t('dashboard.goLoans') }}</button>
-        <button class="btn btn-secondary" type="button" @click="goTo('/payments')">{{ t('dashboard.goPayments') }}</button>
-        <button class="btn btn-secondary" type="button" @click="goTo('/reporting')">{{ t('dashboard.goReporting') }}</button>
+        <button class="btn btn-secondary" type="button" @click="goTo('/customers')">
+          <Users :size="15" /> {{ t('dashboard.goCustomers') }}
+        </button>
+        <button class="btn btn-secondary" type="button" @click="goTo('/loans')">
+          <HandCoins :size="15" /> {{ t('dashboard.goLoans') }}
+        </button>
+        <button class="btn btn-secondary" type="button" @click="goTo('/payments')">
+          <Wallet :size="15" /> {{ t('dashboard.goPayments') }}
+        </button>
+        <button class="btn btn-secondary" type="button" @click="goTo('/reporting')">
+          <BarChart3 :size="15" /> {{ t('dashboard.goReporting') }}
+        </button>
       </div>
     </article>
   </section>
@@ -38,6 +46,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import {
   BadgeDollarSign,
+  BarChart3,
   ClockAlert,
   HandCoins,
   LayoutDashboard,

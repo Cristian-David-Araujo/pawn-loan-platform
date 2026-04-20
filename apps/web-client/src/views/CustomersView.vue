@@ -24,6 +24,7 @@
         </select>
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>
+      <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -74,6 +75,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
