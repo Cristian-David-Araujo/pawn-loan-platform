@@ -212,9 +212,17 @@ Force reseed:
 docker compose exec api-server python -m src.infrastructure.tasks.bootstrap_db --seed --force-seed
 ```
 
-## Local Development (without Docker)
+## Local Development (DB in Docker, API and frontend local)
 
-### API server
+This is the recommended hybrid setup: PostgreSQL runs in Docker, while the API server and web client run locally.
+
+### 1. Start the database
+
+```bash
+docker compose up -d postgres
+```
+
+### 2. API server
 
 ```bash
 cd apps/api-server
@@ -232,7 +240,7 @@ cd apps/api-server
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-Get-Content ..\..\.env | ForEach-Object {
+Get-Content ..\..\env | ForEach-Object {
 	if ($_ -match '^(?!#)([^=]+)=(.*)$') {
 		[Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')
 	}
@@ -242,15 +250,22 @@ uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
 
 Notes:
 
-- Use `DATABASE_URL` with `localhost` for local API runs.
-- Docker Compose injects `DATABASE_URL_DOCKER` automatically into the API container.
+- Use `DATABASE_URL` (with `localhost`) in `.env` for local API runs — not `DATABASE_URL_DOCKER`.
+- `DATABASE_URL_DOCKER` is only used inside Docker containers.
 
-### Web client
+### 3. Web client
 
 ```bash
 cd apps/web-client
 npm install
-set -a; source ../../.env; set +a
+npm run dev -- --host 0.0.0.0 --port 5173
+```
+
+PowerShell equivalent:
+
+```powershell
+cd apps/web-client
+npm install
 npm run dev -- --host 0.0.0.0 --port 5173
 ```
 

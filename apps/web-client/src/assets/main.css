@@ -468,7 +468,7 @@ h3 {
   width: 34px;
   height: 34px;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.95);
   color: currentColor;
 }
 
@@ -1200,7 +1200,7 @@ tbody tr:nth-child(even) {
    CUSTOMER DETAIL
    ═══════════════════════════════════════════════ */
 .customer-detail-shell {
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.03) 0%, #fff 50%);
+  background: #ffffff;
 }
 
 .customer-header {
@@ -1212,6 +1212,41 @@ tbody tr:nth-child(even) {
   border-radius: var(--radius);
   padding: 1rem;
   background: var(--surface-soft);
+}
+
+/* ── Detail tabs ───────────────────────────────── */
+.detail-tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.25rem;
+  overflow-x: auto;
+}
+
+.detail-tabs .btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  border-radius: var(--radius-full);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0 0.3rem;
+  border: 1px solid var(--accent-border);
+  line-height: 1;
 }
 
 .customer-title {

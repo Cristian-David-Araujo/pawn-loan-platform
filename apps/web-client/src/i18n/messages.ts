@@ -151,7 +151,12 @@ export const messages = {
       globalAuditFiltersTitle: 'Global audit filters',
       globalAuditFiltersHint: 'These filters apply to customer detail sections: behavior, traceability, loans, payments and collateral.',
       searchPlaceholder: 'Search customer by name, document, phone, city...',
-      totalRecords: 'Records: {count}'
+      totalRecords: 'Records: {count}',
+      tabOverview: 'Overview',
+      tabLoans: 'Loans',
+      tabPayments: 'Payments',
+      tabCollateral: 'Collateral',
+      tabEdit: 'Edit'
     },
     loans: {
       title: 'Loans',
@@ -516,7 +521,12 @@ export const messages = {
       globalAuditFiltersTitle: 'Filtros globales de auditoria',
       globalAuditFiltersHint: 'Estos filtros aplican a las secciones del detalle: comportamiento, trazabilidad, prestamos, pagos y garantias.',
       searchPlaceholder: 'Buscar cliente por nombre, documento, telefono, ciudad...',
-      totalRecords: 'Registros: {count}'
+      totalRecords: 'Registros: {count}',
+      tabOverview: 'Resumen',
+      tabLoans: 'Prestamos',
+      tabPayments: 'Pagos',
+      tabCollateral: 'Garantias',
+      tabEdit: 'Editar'
     },
     loans: {
       title: 'Prestamos',
