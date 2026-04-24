@@ -157,20 +157,47 @@
           </div>
         </div>
 
-        <p class="muted mt-16">{{ t('customers.selectedCustomer', { id: selectedCustomer.id }) }}</p>
-
         <div class="customer-header mt-16">
           <div>
             <h3 class="customer-title">{{ selectedCustomer.fullName }}</h3>
-            <p class="muted">{{ selectedCustomer.documentType }} / {{ selectedCustomer.documentNumber }}</p>
+            <p class="muted">{{ selectedCustomer.documentType }} / {{ selectedCustomer.documentNumber }} · #{{ selectedCustomer.id }}</p>
           </div>
           <span class="pill" :class="selectedCustomer.status === 'active' ? 'pill-current' : 'pill-overdue'">
             {{ selectedCustomer.status === 'active' ? t('common.active') : t('common.archived') }}
           </span>
         </div>
 
-        <p v-if="hasCustomerCreditTraceability" class="muted mt-16">{{ t('customers.traceabilityDeleteHint') }}</p>
+        <p v-if="hasCustomerCreditTraceability" class="notice mt-16" style="background: var(--warning-soft); color: #92400e; border-color: var(--warning-border);">{{ t('customers.traceabilityDeleteHint') }}</p>
 
+        <!-- ── Tabs ──────────────────────────────────── -->
+        <div class="detail-tabs mt-16">
+          <button class="tab-btn" :class="{ active: detailTab === 'overview' }" type="button" @click="detailTab = 'overview'">
+            <LayoutDashboard :size="14" />
+            {{ t('customers.tabOverview') }}
+          </button>
+          <button class="tab-btn" :class="{ active: detailTab === 'loans' }" type="button" @click="detailTab = 'loans'">
+            <HandCoins :size="14" />
+            {{ t('customers.tabLoans') }}
+            <span v-if="selectedCustomerLoans.length" class="tab-count">{{ selectedCustomerLoans.length }}</span>
+          </button>
+          <button class="tab-btn" :class="{ active: detailTab === 'payments' }" type="button" @click="detailTab = 'payments'">
+            <Wallet :size="14" />
+            {{ t('customers.tabPayments') }}
+            <span v-if="selectedCustomerPayments.length" class="tab-count">{{ selectedCustomerPayments.length }}</span>
+          </button>
+          <button class="tab-btn" :class="{ active: detailTab === 'collateral' }" type="button" @click="detailTab = 'collateral'">
+            <Package :size="14" />
+            {{ t('customers.tabCollateral') }}
+            <span v-if="selectedCustomerCollateral.length" class="tab-count">{{ selectedCustomerCollateral.length }}</span>
+          </button>
+          <button class="tab-btn" :class="{ active: detailTab === 'edit' }" type="button" @click="detailTab = 'edit'">
+            <Pencil :size="14" />
+            {{ t('customers.tabEdit') }}
+          </button>
+        </div>
+
+        <!-- ── Tab: Overview ────────────────────────── -->
+        <template v-if="detailTab === 'overview'">
         <article class="card mt-16">
           <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
           <p class="muted">{{ t('customers.globalAuditFiltersHint') }}</p>
@@ -273,7 +300,10 @@
           <span class="pill">{{ t('customers.pendingPenaltyOnly', { amount: formatCurrency(totalPendingPenalty) }) }}</span>
           <span class="pill">{{ t('customers.unpaidAccruedInterest', { amount: formatCurrency(totalAccruedUnpaidInterest) }) }}</span>
         </div>
+        </template>
 
+        <!-- ── Tab: Edit ─────────────────────────── -->
+        <template v-if="detailTab === 'edit'">
         <form class="form mt-16" @submit.prevent="handleUpdateCustomer">
           <div class="grid grid-3">
             <label>
@@ -319,14 +349,18 @@
             {{ t('customers.saveChanges') }}
           </button>
         </form>
+        </template>
 
+        <!-- ── Tab: Payments ──────────────────────── -->
+        <template v-if="detailTab === 'payments'">
         <div class="mt-16">
           <h3>{{ t('customers.paymentBehavior') }}</h3>
           <p class="muted">{{ t('customers.paymentBehaviorHint') }}</p>
           <p v-if="financialDataLoading" class="muted mt-16">{{ t('customers.loadingFinancialData') }}</p>
           <p v-else-if="financialDataError" class="muted mt-16">{{ t('customers.financialDataUnavailable') }}</p>
 
-          <table v-else>
+          <div v-else class="table-wrap mt-16">
+          <table>
             <thead>
               <tr>
                 <th>{{ t('common.loan') }}</th>
@@ -357,12 +391,14 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
 
         <div class="mt-16">
           <h3>{{ t('customers.customerPaymentTraceability') }}</h3>
           <p class="muted" v-if="!auditFilteredEvents.length">{{ t('customers.noPaymentEvents') }}</p>
-          <table v-else>
+          <div v-else class="table-wrap mt-16">
+          <table>
             <thead>
               <tr>
                 <th>{{ t('common.date') }}</th>
@@ -390,12 +426,17 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
+        </template>
 
+        <!-- ── Tab: Loans ─────────────────────────── -->
+        <template v-if="detailTab === 'loans'">
         <div class="mt-16">
           <h3>{{ t('customers.customerLoans') }}</h3>
           <p class="muted" v-if="!selectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
-          <table v-else>
+          <div v-else class="table-wrap">
+          <table>
             <thead>
               <tr>
                 <th>{{ t('common.id') }}</th>
@@ -437,13 +478,18 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
+        </template>
 
+        <!-- ── Tab: Payments (customer payments) continues ── -->
+        <template v-if="detailTab === 'payments'">
         <div class="mt-16">
           <h3>{{ t('customers.customerPayments') }}</h3>
           <p class="muted">{{ t('customers.totalPaid', { amount: formatCurrency(totalCustomerPaid) }) }}</p>
           <p class="muted" v-if="!selectedCustomerPayments.length">{{ t('customers.noPayments') }}</p>
-          <table v-else>
+          <div v-else class="table-wrap mt-16">
+          <table>
             <thead>
               <tr>
                 <th>{{ t('common.id') }}</th>
@@ -487,12 +533,17 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
+        </template>
 
+        <!-- ── Tab: Collateral ─────────────────────── -->
+        <template v-if="detailTab === 'collateral'">
         <div class="mt-16">
           <h3>{{ t('customers.customerCollateral') }}</h3>
           <p class="muted" v-if="!selectedCustomerCollateral.length">{{ t('customers.noCollateral') }}</p>
-          <table v-else>
+          <div v-else class="table-wrap">
+          <table>
             <thead>
               <tr>
                 <th>{{ t('common.id') }}</th>
@@ -525,7 +576,9 @@
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
+        </template>
       </div>
     </div>
 
@@ -812,7 +865,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { Archive, CheckCircle2, FilterX, Pencil, Save, Trash2, UserPlus, Users, X } from 'lucide-vue-next'
+import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
@@ -900,6 +953,7 @@ const showCustomerLoanDetailModal = ref(false)
 const showLoanEditModal = ref(false)
 const showCollateralEditModal = ref(false)
 const showPaymentEditModal = ref(false)
+const detailTab = ref<'overview' | 'loans' | 'payments' | 'collateral' | 'edit'>('overview')
 const isSaving = ref(false)
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
@@ -1207,6 +1261,7 @@ const closeCreateModal = () => {
 
 const openCustomerDetail = (customerId: number) => {
   selectCustomer(customerId)
+  detailTab.value = 'overview'
   showDetailModal.value = true
 }
 
