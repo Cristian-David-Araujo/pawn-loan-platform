@@ -303,8 +303,28 @@
           <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedLoan.disbursementDate) }}</span>
         </div>
 
-        <div v-if="selectedLoan.description" class="mt-16">
-          <p class="muted"><strong>{{ t('loans.description') }}:</strong> {{ selectedLoan.description }}</p>
+        <div v-if="!editingDescription" class="mt-16 stats-inline">
+          <span class="muted"><strong>{{ t('loans.description') }}:</strong> {{ selectedLoan.description || t('loans.noDescription') }}</span>
+          <button class="btn btn-secondary" type="button" @click="startEditDescription">
+            <Pencil :size="14" />
+            {{ t('common.edit') }}
+          </button>
+        </div>
+        <div v-else class="mt-16">
+          <label>
+            {{ t('loans.description') }}
+            <textarea v-model="descriptionDraft" rows="3" :placeholder="t('loans.descriptionPlaceholder')" />
+          </label>
+          <div class="form-inline mt-8">
+            <button class="btn" type="button" :disabled="isSavingDescription" @click="saveDescription">
+              <Save :size="14" />
+              {{ t('common.save') }}
+            </button>
+            <button class="btn btn-secondary" type="button" @click="cancelEditDescription">
+              <X :size="14" />
+              {{ t('common.cancel') }}
+            </button>
+          </div>
         </div>
 
         <div class="mt-16">
@@ -380,7 +400,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { FilePlus2, FilterX, HandCoins, Trash2, X } from 'lucide-vue-next'
+import { FilePlus2, FilterX, HandCoins, Pencil, Save, Trash2, X } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
@@ -400,7 +420,7 @@ interface CollateralQueueItem {
   storageLocation: string
 }
 
-const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = usePlatformStore()
+const { state, createLoan, createCollateral, updateLoan, getCustomerName, ensureInitialized } = usePlatformStore()
 const { t, locale } = useI18n()
 const search = ref('')
 const message = ref('')
@@ -410,6 +430,9 @@ const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
+const editingDescription = ref(false)
+const descriptionDraft = ref('')
+const isSavingDescription = ref(false)
 const collateralQueue = ref<CollateralQueueItem[]>([])
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const datePlaceholder = computed(() => getGlobalDateFormat())
@@ -585,10 +608,50 @@ const resetLoanFilters = () => {
 const openLoanDetail = (loanId: number) => {
   selectedLoanId.value = loanId
   showLoanDetailModal.value = true
+  editingDescription.value = false
+  descriptionDraft.value = ''
 }
 
 const closeLoanDetail = () => {
   showLoanDetailModal.value = false
+  editingDescription.value = false
+}
+
+const startEditDescription = () => {
+  descriptionDraft.value = selectedLoan.value?.description ?? ''
+  editingDescription.value = true
+}
+
+const cancelEditDescription = () => {
+  editingDescription.value = false
+}
+
+const saveDescription = async () => {
+  if (!selectedLoan.value || isSavingDescription.value) {
+    return
+  }
+
+  isSavingDescription.value = true
+  try {
+    await updateLoan({
+      id: selectedLoan.value.id,
+      loanType: selectedLoan.value.loanType,
+      description: descriptionDraft.value,
+      principalAmount: selectedLoan.value.principalAmount,
+      outstandingPrincipal: selectedLoan.value.outstandingPrincipal,
+      monthlyInterestRate: selectedLoan.value.monthlyInterestRate,
+      latePenaltyRate: selectedLoan.value.latePenaltyRate,
+      disbursementDate: selectedLoan.value.disbursementDate,
+      dueDay: selectedLoan.value.dueDay,
+      status: selectedLoan.value.status,
+    })
+    editingDescription.value = false
+    message.value = t('messages.loanUpdated')
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    isSavingDescription.value = false
+  }
 }
 
 const selectedLoan = computed(() => {
