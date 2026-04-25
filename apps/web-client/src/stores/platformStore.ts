@@ -53,6 +53,7 @@ interface BackendPayment {
   allocated_to_fees: number
   allocated_to_principal: number
   payment_method: Payment['paymentMethod']
+  notes: string
   is_reversed: boolean
 }
 
@@ -133,6 +134,7 @@ interface CreatePaymentPayload {
   allocatedToFees: number
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
+  notes: string
 }
 
 interface UpdatePaymentPayload {
@@ -144,6 +146,7 @@ interface UpdatePaymentPayload {
   allocatedToFees: number
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
+  notes: string
 }
 
 interface UpdateGlobalSettingsPayload {
@@ -217,6 +220,7 @@ const mapPayment = (item: BackendPayment): Payment => ({
   allocatedToFees: item.allocated_to_fees,
   allocatedToPrincipal: item.allocated_to_principal,
   paymentMethod: item.payment_method,
+  notes: item.notes,
   isReversed: item.is_reversed
 })
 
@@ -422,7 +426,8 @@ const createPayment = async (payload: CreatePaymentPayload) => {
       allocated_to_interest: payload.allocatedToInterest,
       allocated_to_fees: payload.allocatedToFees,
       allocated_to_principal: payload.allocatedToPrincipal,
-      payment_method: payload.paymentMethod
+      payment_method: payload.paymentMethod,
+      notes: payload.notes
     })
   })
 
@@ -450,7 +455,8 @@ const updatePayment = async (payload: UpdatePaymentPayload) => {
       allocated_to_interest: payload.allocatedToInterest,
       allocated_to_fees: payload.allocatedToFees,
       allocated_to_principal: payload.allocatedToPrincipal,
-      payment_method: payload.paymentMethod
+      payment_method: payload.paymentMethod,
+      notes: payload.notes
     })
   })
 

@@ -115,6 +115,7 @@ class Payment(Base):
     allocated_to_fees: Mapped[float] = mapped_column(Float, default=0)
     allocated_to_principal: Mapped[float] = mapped_column(Float, default=0)
     payment_method: Mapped[str] = mapped_column(String(40), default="cash")
+    notes: Mapped[str] = mapped_column(Text, default="")
     received_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     is_reversed: Mapped[bool] = mapped_column(default=False)
 

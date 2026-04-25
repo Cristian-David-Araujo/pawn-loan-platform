@@ -341,6 +341,10 @@
               <input v-model.number="paymentEditForm.allocatedToPrincipal" type="number" min="0" step="0.01" required />
             </label>
           </div>
+          <label class="mt-8">
+            {{ t('payments.notes') }}
+            <textarea v-model="paymentEditForm.notes" rows="2" :placeholder="t('payments.notesPlaceholder')" />
+          </label>
           <button class="btn" type="submit" :disabled="processing">
             <Save :size="16" />
             {{ t('customers.saveChanges') }}
@@ -460,7 +464,8 @@ const paymentEditForm = ref({
   allocatedToInterest: 0,
   allocatedToFees: 0,
   allocatedToPrincipal: 0,
-  paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other'
+  paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other',
+  notes: ''
 })
 
 const selectedCustomer = computed(() =>
@@ -643,6 +648,7 @@ const openPaymentEditModal = (payment: {
   allocatedToFees: number
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
+  notes: string
 }) => {
   selectedPaymentEditId.value = payment.id
   paymentEditForm.value = {
@@ -652,7 +658,8 @@ const openPaymentEditModal = (payment: {
     allocatedToInterest: payment.allocatedToInterest,
     allocatedToFees: payment.allocatedToFees,
     allocatedToPrincipal: payment.allocatedToPrincipal,
-    paymentMethod: payment.paymentMethod
+    paymentMethod: payment.paymentMethod,
+    notes: payment.notes
   }
   showPaymentEditModal.value = true
 }
@@ -683,7 +690,8 @@ const handleUpdatePayment = async () => {
       allocatedToInterest: paymentEditForm.value.allocatedToInterest,
       allocatedToFees: paymentEditForm.value.allocatedToFees,
       allocatedToPrincipal: paymentEditForm.value.allocatedToPrincipal,
-      paymentMethod: paymentEditForm.value.paymentMethod
+      paymentMethod: paymentEditForm.value.paymentMethod,
+      notes: paymentEditForm.value.notes
     })
 
     message.value = t(result.messageKey)

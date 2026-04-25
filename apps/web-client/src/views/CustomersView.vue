@@ -859,6 +859,10 @@
               <input v-model.number="paymentEditForm.allocatedToPrincipal" type="number" min="0" step="0.01" required />
             </label>
           </div>
+          <label class="mt-8">
+            {{ t('payments.notes') }}
+            <textarea v-model="paymentEditForm.notes" rows="2" :placeholder="t('payments.notesPlaceholder')" />
+          </label>
           <button class="btn" type="submit" :disabled="isSaving">
             <Save :size="16" />
             {{ t('customers.saveChanges') }}
@@ -1042,7 +1046,8 @@ const paymentEditForm = reactive({
   allocatedToInterest: 0,
   allocatedToFees: 0,
   allocatedToPrincipal: 0,
-  paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other'
+  paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other',
+  notes: ''
 })
 
 const selectedCustomer = computed(() =>
@@ -1329,6 +1334,7 @@ const openPaymentEditModal = (payment: Payment) => {
   paymentEditForm.allocatedToFees = payment.allocatedToFees
   paymentEditForm.allocatedToPrincipal = payment.allocatedToPrincipal
   paymentEditForm.paymentMethod = payment.paymentMethod
+  paymentEditForm.notes = payment.notes
   showPaymentEditModal.value = true
 }
 
@@ -1604,7 +1610,8 @@ const handleUpdatePayment = async () => {
       allocatedToInterest: paymentEditForm.allocatedToInterest,
       allocatedToFees: paymentEditForm.allocatedToFees,
       allocatedToPrincipal: paymentEditForm.allocatedToPrincipal,
-      paymentMethod: paymentEditForm.paymentMethod
+      paymentMethod: paymentEditForm.paymentMethod,
+      notes: paymentEditForm.notes
     })
 
     message.value = t(result.messageKey)

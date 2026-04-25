@@ -49,6 +49,7 @@ export interface Payment {
   allocatedToFees: number
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
+  notes: string
   isReversed: boolean
 }
 

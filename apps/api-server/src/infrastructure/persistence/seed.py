@@ -186,6 +186,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
         allocated_to_fees=30,
         allocated_to_principal=200,
         payment_method="cash",
+        notes="Pago parcial recibido en caja. Cliente cancelo cuota de interes y abono a capital.",
         received_by=users["cashier"].id,
     )
     payment_2 = Payment(
@@ -197,6 +198,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
         allocated_to_fees=10,
         allocated_to_principal=60,
         payment_method="bank-transfer",
+        notes="Transferencia bancaria recibida. Se aplico penalidad por mora segun contrato.",
         received_by=users["cashier"].id,
     )
 
