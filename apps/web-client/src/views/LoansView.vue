@@ -59,6 +59,10 @@
           />
         </label>
         </div>
+        <label class="mt-8">
+          {{ t('loans.description') }}
+          <textarea v-model="form.description" rows="2" :placeholder="t('loans.descriptionPlaceholder')" />
+        </label>
       </div>
 
       <div class="form-section">
@@ -299,6 +303,10 @@
           <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedLoan.disbursementDate) }}</span>
         </div>
 
+        <div v-if="selectedLoan.description" class="mt-16">
+          <p class="muted"><strong>{{ t('loans.description') }}:</strong> {{ selectedLoan.description }}</p>
+        </div>
+
         <div class="mt-16">
           <h3>{{ t('loans.loanPayments') }}</h3>
           <p class="muted" v-if="!selectedLoanPayments.length">{{ t('loans.noLoanPayments') }}</p>
@@ -421,6 +429,7 @@ onMounted(async () => {
 const form = reactive({
   customerId: 0,
   loanType: 'pawn' as 'pawn' | 'personal',
+  description: '',
   principalAmount: 1000,
   monthlyInterestRate: 8,
   latePenaltyRate: 0,
@@ -472,6 +481,7 @@ const handleCreateLoan = async () => {
 
   form.disbursementDate = formatDateDMY(todayIso)
   form.loanType = 'pawn'
+  form.description = ''
   message.value = t('messages.loanRegistered')
   collateralQueue.value = []
   collateralForm.description = ''

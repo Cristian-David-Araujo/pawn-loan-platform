@@ -23,6 +23,7 @@ interface BackendLoan {
   id: number
   customer_id: number
   loan_type: LoanType
+  description: string
   principal_amount: number
   outstanding_principal: number
   monthly_interest_rate: number
@@ -87,6 +88,7 @@ interface UpdateCustomerPayload {
 interface CreateLoanPayload {
   customerId: number
   loanType: LoanType
+  description: string
   principalAmount: number
   monthlyInterestRate: number
   latePenaltyRate: number
@@ -104,6 +106,7 @@ interface CreateCollateralPayload {
 interface UpdateLoanPayload {
   id: number
   loanType: LoanType
+  description: string
   principalAmount: number
   outstandingPrincipal: number
   monthlyInterestRate: number
@@ -184,6 +187,7 @@ const mapLoan = (item: BackendLoan): Loan => ({
   id: item.id,
   customerId: item.customer_id,
   loanType: item.loan_type,
+  description: item.description,
   principalAmount: item.principal_amount,
   outstandingPrincipal: item.outstanding_principal,
   monthlyInterestRate: item.monthly_interest_rate,
@@ -370,6 +374,7 @@ const createLoan = async (payload: CreateLoanPayload) => {
     body: JSON.stringify({
       customer_id: payload.customerId,
       loan_type: payload.loanType,
+      description: payload.description,
       principal_amount: payload.principalAmount,
       monthly_interest_rate: payload.monthlyInterestRate,
       late_penalty_rate: payload.latePenaltyRate,
@@ -475,6 +480,7 @@ const updateLoan = async (payload: UpdateLoanPayload) => {
     method: 'PUT',
     body: JSON.stringify({
       loan_type: payload.loanType,
+      description: payload.description,
       principal_amount: payload.principalAmount,
       outstanding_principal: payload.outstandingPrincipal,
       monthly_interest_rate: payload.monthlyInterestRate,

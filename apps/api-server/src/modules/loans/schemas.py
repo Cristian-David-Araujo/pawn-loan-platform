@@ -34,6 +34,7 @@ class LoanCreate(BaseModel):
     application_id: int | None = None
     customer_id: int
     loan_type: LoanType
+    description: str = ""
     principal_amount: float
     monthly_interest_rate: float
     late_penalty_rate: float = 0
@@ -48,6 +49,7 @@ class LoanRead(BaseModel):
     application_id: int | None
     customer_id: int
     loan_type: LoanType
+    description: str
     principal_amount: float
     outstanding_principal: float
     monthly_interest_rate: float
@@ -61,6 +63,7 @@ class LoanRead(BaseModel):
 
 class LoanUpdate(BaseModel):
     loan_type: LoanType | None = None
+    description: str | None = None
     principal_amount: float | None = None
     outstanding_principal: float | None = None
     monthly_interest_rate: float

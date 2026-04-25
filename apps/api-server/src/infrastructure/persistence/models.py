@@ -62,6 +62,7 @@ class Loan(Base):
     application_id: Mapped[int | None] = mapped_column(ForeignKey("loan_applications.id"), nullable=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
     loan_type: Mapped[LoanType] = mapped_column(Enum(LoanType))
+    description: Mapped[str] = mapped_column(Text, default="")
     principal_amount: Mapped[float] = mapped_column(Float)
     outstanding_principal: Mapped[float] = mapped_column(Float)
     monthly_interest_rate: Mapped[float] = mapped_column(Float)

@@ -19,6 +19,7 @@ export interface Loan {
   id: number
   customerId: number
   loanType: LoanType
+  description: string
   principalAmount: number
   outstandingPrincipal: number
   monthlyInterestRate: number

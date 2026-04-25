@@ -746,6 +746,10 @@
               </select>
             </label>
           </div>
+          <label class="mt-8">
+            {{ t('loans.description') }}
+            <textarea v-model="loanEditForm.description" rows="3" :placeholder="t('loans.descriptionPlaceholder')" />
+          </label>
           <button class="btn" type="submit" :disabled="isSaving">
             <Save :size="16" />
             {{ t('customers.saveChanges') }}
@@ -1009,6 +1013,7 @@ const editForm = reactive({
 
 const loanEditForm = reactive({
   loanType: 'pawn' as 'pawn' | 'personal',
+  description: '',
   principalAmount: 0,
   outstandingPrincipal: 0,
   monthlyInterestRate: 0,
@@ -1281,6 +1286,7 @@ const closeCustomerLoanDetail = () => {
 const openLoanEditModal = (loan: Loan) => {
   selectedLoanForEditId.value = loan.id
   loanEditForm.loanType = loan.loanType
+  loanEditForm.description = loan.description
   loanEditForm.principalAmount = loan.principalAmount
   loanEditForm.outstandingPrincipal = loan.outstandingPrincipal
   loanEditForm.monthlyInterestRate = loan.monthlyInterestRate
@@ -1504,6 +1510,7 @@ const handleUpdateLoan = async () => {
     const result = await updateLoan({
       id: selectedLoanForEditId.value,
       loanType: loanEditForm.loanType,
+      description: loanEditForm.description,
       principalAmount: loanEditForm.principalAmount,
       outstandingPrincipal: loanEditForm.outstandingPrincipal,
       monthlyInterestRate: loanEditForm.monthlyInterestRate,

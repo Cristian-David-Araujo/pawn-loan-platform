@@ -99,6 +99,7 @@ def create_loan(
         application_id=payload.application_id,
         customer_id=payload.customer_id,
         loan_type=payload.loan_type,
+        description=payload.description,
         principal_amount=payload.principal_amount,
         outstanding_principal=payload.principal_amount,
         monthly_interest_rate=payload.monthly_interest_rate,
@@ -180,6 +181,7 @@ def update_loan(
         )
 
     loan.loan_type = payload.loan_type if payload.loan_type is not None else loan.loan_type
+    loan.description = payload.description if payload.description is not None else loan.description
     loan.principal_amount = next_principal_amount
     loan.outstanding_principal = next_outstanding_principal
     loan.monthly_interest_rate = payload.monthly_interest_rate
