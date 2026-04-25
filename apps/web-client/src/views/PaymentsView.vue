@@ -268,6 +268,7 @@
             <th>{{ t('payments.penalty') }}</th>
             <th>{{ t('common.principal') }}</th>
             <th>{{ t('common.method') }}</th>
+            <th>{{ t('payments.notes') }}</th>
             <th>{{ t('common.status') }}</th>
             <th>{{ t('common.actions') }}</th>
           </tr>
@@ -282,6 +283,7 @@
             <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
             <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
             <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
+            <td class="muted">{{ payment.notes || '-' }}</td>
             <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
             <td>
               <button class="btn btn-secondary" type="button" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">

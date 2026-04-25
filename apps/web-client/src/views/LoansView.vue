@@ -341,6 +341,7 @@
                 <th>{{ t('common.fees') }}</th>
                 <th>{{ t('common.principal') }}</th>
                 <th>{{ t('common.method') }}</th>
+                <th>{{ t('payments.notes') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -361,6 +362,7 @@
                         : t('common.other')
                   }}
                 </td>
+                <td class="muted">{{ payment.notes || '-' }}</td>
               </tr>
             </tbody>
           </table>
