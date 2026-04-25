@@ -501,6 +501,7 @@
                 <th>{{ t('common.fees') }}</th>
                 <th>{{ t('common.principal') }}</th>
                 <th>{{ t('common.method') }}</th>
+                <th>{{ t('payments.notes') }}</th>
                 <th>{{ t('common.status') }}</th>
                 <th>{{ t('common.actions') }}</th>
               </tr>
@@ -518,6 +519,7 @@
                 <td>
                   {{ paymentMethodLabel(payment.paymentMethod) }}
                 </td>
+                <td class="muted">{{ payment.notes || '-' }}</td>
                 <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
                 <td>
                   <button
@@ -622,6 +624,10 @@
           <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedCustomerLoanDetail.disbursementDate) }}</span>
         </div>
 
+        <div class="mt-16 stats-inline">
+          <span class="muted"><strong>{{ t('loans.description') }}:</strong> {{ selectedCustomerLoanDetail.description || t('loans.noDescription') }}</span>
+        </div>
+
         <div class="mt-16">
           <h3>{{ t('loans.loanPayments') }}</h3>
           <p class="muted" v-if="!selectedCustomerLoanPayments.length">{{ t('loans.noLoanPayments') }}</p>
@@ -636,6 +642,7 @@
                 <th>{{ t('common.fees') }}</th>
                 <th>{{ t('common.principal') }}</th>
                 <th>{{ t('common.method') }}</th>
+                <th>{{ t('payments.notes') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -648,6 +655,7 @@
                 <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
                 <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
                 <td>{{ paymentMethodLabel(payment.paymentMethod) }}</td>
+                <td class="muted">{{ payment.notes || '-' }}</td>
               </tr>
             </tbody>
           </table>
@@ -746,6 +754,10 @@
               </select>
             </label>
           </div>
+          <label class="mt-8">
+            {{ t('loans.description') }}
+            <textarea v-model="loanEditForm.description" rows="3" :placeholder="t('loans.descriptionPlaceholder')" />
+          </label>
           <button class="btn" type="submit" :disabled="isSaving">
             <Save :size="16" />
             {{ t('customers.saveChanges') }}
@@ -851,6 +863,10 @@
               <input v-model.number="paymentEditForm.allocatedToPrincipal" type="number" min="0" step="0.01" required />
             </label>
           </div>
+          <label class="mt-8">
+            {{ t('payments.notes') }}
+            <textarea v-model="paymentEditForm.notes" rows="2" :placeholder="t('payments.notesPlaceholder')" />
+          </label>
           <button class="btn" type="submit" :disabled="isSaving">
             <Save :size="16" />
             {{ t('customers.saveChanges') }}
@@ -1009,6 +1025,7 @@ const editForm = reactive({
 
 const loanEditForm = reactive({
   loanType: 'pawn' as 'pawn' | 'personal',
+  description: '',
   principalAmount: 0,
   outstandingPrincipal: 0,
   monthlyInterestRate: 0,
@@ -1033,7 +1050,8 @@ const paymentEditForm = reactive({
   allocatedToInterest: 0,
   allocatedToFees: 0,
   allocatedToPrincipal: 0,
-  paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other'
+  paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other',
+  notes: ''
 })
 
 const selectedCustomer = computed(() =>
@@ -1281,6 +1299,7 @@ const closeCustomerLoanDetail = () => {
 const openLoanEditModal = (loan: Loan) => {
   selectedLoanForEditId.value = loan.id
   loanEditForm.loanType = loan.loanType
+  loanEditForm.description = loan.description
   loanEditForm.principalAmount = loan.principalAmount
   loanEditForm.outstandingPrincipal = loan.outstandingPrincipal
   loanEditForm.monthlyInterestRate = loan.monthlyInterestRate
@@ -1319,6 +1338,7 @@ const openPaymentEditModal = (payment: Payment) => {
   paymentEditForm.allocatedToFees = payment.allocatedToFees
   paymentEditForm.allocatedToPrincipal = payment.allocatedToPrincipal
   paymentEditForm.paymentMethod = payment.paymentMethod
+  paymentEditForm.notes = payment.notes
   showPaymentEditModal.value = true
 }
 
@@ -1504,6 +1524,7 @@ const handleUpdateLoan = async () => {
     const result = await updateLoan({
       id: selectedLoanForEditId.value,
       loanType: loanEditForm.loanType,
+      description: loanEditForm.description,
       principalAmount: loanEditForm.principalAmount,
       outstandingPrincipal: loanEditForm.outstandingPrincipal,
       monthlyInterestRate: loanEditForm.monthlyInterestRate,
@@ -1593,7 +1614,8 @@ const handleUpdatePayment = async () => {
       allocatedToInterest: paymentEditForm.allocatedToInterest,
       allocatedToFees: paymentEditForm.allocatedToFees,
       allocatedToPrincipal: paymentEditForm.allocatedToPrincipal,
-      paymentMethod: paymentEditForm.paymentMethod
+      paymentMethod: paymentEditForm.paymentMethod,
+      notes: paymentEditForm.notes
     })
 
     message.value = t(result.messageKey)

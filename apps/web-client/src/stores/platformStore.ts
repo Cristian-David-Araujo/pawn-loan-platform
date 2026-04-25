@@ -23,6 +23,7 @@ interface BackendLoan {
   id: number
   customer_id: number
   loan_type: LoanType
+  description: string
   principal_amount: number
   outstanding_principal: number
   monthly_interest_rate: number
@@ -52,6 +53,7 @@ interface BackendPayment {
   allocated_to_fees: number
   allocated_to_principal: number
   payment_method: Payment['paymentMethod']
+  notes: string
   is_reversed: boolean
 }
 
@@ -87,6 +89,7 @@ interface UpdateCustomerPayload {
 interface CreateLoanPayload {
   customerId: number
   loanType: LoanType
+  description: string
   principalAmount: number
   monthlyInterestRate: number
   latePenaltyRate: number
@@ -104,6 +107,7 @@ interface CreateCollateralPayload {
 interface UpdateLoanPayload {
   id: number
   loanType: LoanType
+  description: string
   principalAmount: number
   outstandingPrincipal: number
   monthlyInterestRate: number
@@ -130,6 +134,7 @@ interface CreatePaymentPayload {
   allocatedToFees: number
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
+  notes: string
 }
 
 interface UpdatePaymentPayload {
@@ -141,6 +146,7 @@ interface UpdatePaymentPayload {
   allocatedToFees: number
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
+  notes: string
 }
 
 interface UpdateGlobalSettingsPayload {
@@ -184,6 +190,7 @@ const mapLoan = (item: BackendLoan): Loan => ({
   id: item.id,
   customerId: item.customer_id,
   loanType: item.loan_type,
+  description: item.description,
   principalAmount: item.principal_amount,
   outstandingPrincipal: item.outstanding_principal,
   monthlyInterestRate: item.monthly_interest_rate,
@@ -213,6 +220,7 @@ const mapPayment = (item: BackendPayment): Payment => ({
   allocatedToFees: item.allocated_to_fees,
   allocatedToPrincipal: item.allocated_to_principal,
   paymentMethod: item.payment_method,
+  notes: item.notes,
   isReversed: item.is_reversed
 })
 
@@ -370,6 +378,7 @@ const createLoan = async (payload: CreateLoanPayload) => {
     body: JSON.stringify({
       customer_id: payload.customerId,
       loan_type: payload.loanType,
+      description: payload.description,
       principal_amount: payload.principalAmount,
       monthly_interest_rate: payload.monthlyInterestRate,
       late_penalty_rate: payload.latePenaltyRate,
@@ -417,7 +426,8 @@ const createPayment = async (payload: CreatePaymentPayload) => {
       allocated_to_interest: payload.allocatedToInterest,
       allocated_to_fees: payload.allocatedToFees,
       allocated_to_principal: payload.allocatedToPrincipal,
-      payment_method: payload.paymentMethod
+      payment_method: payload.paymentMethod,
+      notes: payload.notes
     })
   })
 
@@ -445,7 +455,8 @@ const updatePayment = async (payload: UpdatePaymentPayload) => {
       allocated_to_interest: payload.allocatedToInterest,
       allocated_to_fees: payload.allocatedToFees,
       allocated_to_principal: payload.allocatedToPrincipal,
-      payment_method: payload.paymentMethod
+      payment_method: payload.paymentMethod,
+      notes: payload.notes
     })
   })
 
@@ -475,6 +486,7 @@ const updateLoan = async (payload: UpdateLoanPayload) => {
     method: 'PUT',
     body: JSON.stringify({
       loan_type: payload.loanType,
+      description: payload.description,
       principal_amount: payload.principalAmount,
       outstanding_principal: payload.outstandingPrincipal,
       monthly_interest_rate: payload.monthlyInterestRate,

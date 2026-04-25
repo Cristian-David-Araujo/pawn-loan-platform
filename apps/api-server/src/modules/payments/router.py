@@ -733,6 +733,7 @@ def update_payment(
     payment.allocated_to_fees = round(payload.allocated_to_fees, 2)
     payment.allocated_to_principal = round(payload.allocated_to_principal, 2)
     payment.payment_method = payload.payment_method
+    payment.notes = payload.notes
 
     principal_delta = round(payment.allocated_to_principal - old_allocated_principal, 2)
     loan.outstanding_principal = round(max(0.0, loan.outstanding_principal - principal_delta), 2)

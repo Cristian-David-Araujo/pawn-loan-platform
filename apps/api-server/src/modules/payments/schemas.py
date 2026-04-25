@@ -12,6 +12,7 @@ class PaymentCreate(BaseModel):
     allocated_to_fees: float = 0
     allocated_to_principal: float = 0
     payment_method: str = "cash"
+    notes: str = ""
 
 
 class PaymentUpdate(BaseModel):
@@ -22,6 +23,7 @@ class PaymentUpdate(BaseModel):
     allocated_to_fees: float = 0
     allocated_to_principal: float = 0
     payment_method: str = "cash"
+    notes: str = ""
 
 
 class PaymentRead(BaseModel):
@@ -36,6 +38,7 @@ class PaymentRead(BaseModel):
     allocated_to_fees: float
     allocated_to_principal: float
     payment_method: str
+    notes: str
     received_by: int | None
     is_reversed: bool
 

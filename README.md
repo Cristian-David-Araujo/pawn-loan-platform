@@ -240,7 +240,7 @@ cd apps/api-server
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
-Get-Content ..\..\env | ForEach-Object {
+Get-Content ..\..\.env | ForEach-Object {
 	if ($_ -match '^(?!#)([^=]+)=(.*)$') {
 		[Environment]::SetEnvironmentVariable($matches[1], $matches[2], 'Process')
 	}
