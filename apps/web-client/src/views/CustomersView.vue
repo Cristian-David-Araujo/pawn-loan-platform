@@ -622,6 +622,10 @@
           <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedCustomerLoanDetail.disbursementDate) }}</span>
         </div>
 
+        <div class="mt-16 stats-inline">
+          <span class="muted"><strong>{{ t('loans.description') }}:</strong> {{ selectedCustomerLoanDetail.description || t('loans.noDescription') }}</span>
+        </div>
+
         <div class="mt-16">
           <h3>{{ t('loans.loanPayments') }}</h3>
           <p class="muted" v-if="!selectedCustomerLoanPayments.length">{{ t('loans.noLoanPayments') }}</p>
