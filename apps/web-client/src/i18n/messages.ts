@@ -65,6 +65,15 @@ export const messages = {
       descending: 'Descending',
       recentFirst: 'Recent first',
       oldestFirst: 'Oldest first',
+      printInvoice: 'Print invoice',
+      printReceipt: 'Print receipt',
+      printInvoiceOnSave: 'Print invoice on save',
+      printReceiptOnSave: 'Print receipt on save',
+      printAgain: 'Print again',
+      returnToSystem: 'Return to system',
+      loanInfo: 'Loan information',
+      loanNumber: 'Loan number',
+      newOutstandingBalance: 'New outstanding principal'
     },
     dashboard: {
       title: 'Dashboard',
@@ -440,6 +449,15 @@ export const messages = {
       descending: 'Descendente',
       recentFirst: 'Mas reciente primero',
       oldestFirst: 'Mas antiguo primero',
+      printInvoice: 'Imprimir Factura',
+      printReceipt: 'Imprimir Recibo',
+      printInvoiceOnSave: 'Imprimir factura al registrar',
+      printReceiptOnSave: 'Imprimir recibo al registrar',
+      printAgain: 'Imprimir Nuevamente',
+      returnToSystem: 'Volver al sistema',
+      loanInfo: 'Información del Préstamo',
+      loanNumber: 'Nº Préstamo',
+      newOutstandingBalance: 'Nuevo Saldo a Capital'
     },
     dashboard: {
       title: 'Panel',

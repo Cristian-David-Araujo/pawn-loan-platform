@@ -1,8 +1,8 @@
 <template>
   <div class="print-container">
     <div class="actions-bar no-print">
-      <button class="btn btn-secondary" @click="router.back()">← Volver al sistema</button>
-      <button class="btn" @click="printDocument()">Imprimir Nuevamente</button>
+      <button class="btn btn-secondary" @click="router.back()">← {{ t('common.returnToSystem') }}</button>
+      <button class="btn" @click="printDocument()">{{ t('common.printAgain') }}</button>
     </div>
     <div class="invoice-box" v-if="ready">
       <div class="invoice-header">
@@ -28,11 +28,11 @@
       </div>
 
       <div class="loan-info mt-16" v-if="isPayment && loan">
-        <h3>Información del Préstamo</h3>
-        <p><strong>Nº Préstamo:</strong> LN-{{ loan.id.toString().padStart(6, '0') }}</p>
-        <p v-if="loan.description"><strong>Descripción:</strong> {{ loan.description }}</p>
-        <p><strong>Tipo de Préstamo:</strong> {{ loan.loanType === 'pawn' ? 'Prendario' : 'Personal' }}</p>
-        <p><strong>Nuevo Saldo a Capital:</strong> {{ formatCurrency(loan.outstandingPrincipal) }}</p>
+        <h3>{{ t('common.loanInfo') }}</h3>
+        <p><strong>{{ t('common.loanNumber') }}:</strong> LN-{{ loan.id.toString().padStart(6, '0') }}</p>
+        <p v-if="loan.description"><strong>{{ t('common.description') }}:</strong> {{ loan.description }}</p>
+        <p><strong>{{ t('common.type') }}:</strong> {{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</p>
+        <p><strong>{{ t('common.newOutstandingBalance') }}:</strong> {{ formatCurrency(loan.outstandingPrincipal) }}</p>
       </div>
 
       <div class="invoice-details mt-16">

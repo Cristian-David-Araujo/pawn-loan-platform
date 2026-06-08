@@ -158,7 +158,7 @@
       <div class="form-actions" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
         <label class="checkbox-row" style="margin-bottom: 0;">
           <input v-model="printInvoiceOnSave" type="checkbox" />
-          Imprimir factura al registrar
+          {{ t('common.printInvoiceOnSave') }}
         </label>
         <button class="btn" type="submit">
           <FilePlus2 :size="16" />
@@ -261,7 +261,7 @@
           <div class="form-inline">
             <a :href="'/print/invoice/loan/' + selectedLoan.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
               <Printer :size="16" />
-              Imprimir Factura
+              {{ t('common.printInvoice') }}
             </a>
             <button class="btn btn-secondary" type="button" @click="closeLoanDetail">
               <X :size="16" />

@@ -113,7 +113,7 @@
         <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" class="mt-16">
           <label class="checkbox-row" style="margin-bottom: 0;">
             <input v-model="printReceiptOnSave" type="checkbox" />
-            Imprimir recibo al registrar
+            {{ t('common.printReceiptOnSave') }}
           </label>
           <button class="btn" type="button" @click="submitInterestPayment" :disabled="interestAmountToPay <= 0 || processing">
             <CircleDollarSign :size="16" />
@@ -187,7 +187,7 @@
         <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" class="mt-16">
           <label class="checkbox-row" style="margin-bottom: 0;">
             <input v-model="printReceiptOnSave" type="checkbox" />
-            Imprimir recibo al registrar
+            {{ t('common.printReceiptOnSave') }}
           </label>
           <button class="btn" type="button" @click="submitPrincipalPayment" :disabled="!selectedPrincipalLoan || principalAmount <= 0 || processing">
             <WalletCards :size="16" />
@@ -301,7 +301,7 @@
               <div class="form-inline">
                 <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
                   <Printer :size="16" />
-                  Imprimir Recibo
+                  {{ t('common.printReceipt') }}
                 </a>
                 <button class="btn btn-secondary" type="button" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
                   <Pencil :size="16" />
