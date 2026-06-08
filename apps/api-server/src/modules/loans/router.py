@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import CollateralItem, GlobalSettings, InterestCharge, Loan, LoanApplication, Payment, PaymentEvent, User
+from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan, recalculate_interest_charges_for_loan
 from src.modules.loans.schemas import (
     CloseLoanRequest,
@@ -114,12 +115,13 @@ def create_loan(
 
     settings = db.get(GlobalSettings, 1)
     lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
-    effective_as_of_date = date.today() + timedelta(days=lead_days)
+    local_today = get_local_date(db)
+    effective_as_of_date = local_today + timedelta(days=lead_days)
     generated_interest = generate_missing_interest_charges_for_loan(
         db=db,
         loan=loan,
         as_of_date=effective_as_of_date,
-        charge_date=date.today(),
+        charge_date=local_today,
     )
     if generated_interest:
         db.commit()
@@ -192,12 +194,13 @@ def update_loan(
 
     settings = db.get(GlobalSettings, 1)
     lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
-    effective_as_of_date = date.today() + timedelta(days=lead_days)
+    local_today = get_local_date(db)
+    effective_as_of_date = local_today + timedelta(days=lead_days)
     recalculated_interest = recalculate_interest_charges_for_loan(
         db=db,
         loan=loan,
         as_of_date=effective_as_of_date,
-        charge_date=date.today(),
+        charge_date=local_today,
     )
 
     db.commit()
@@ -274,7 +277,7 @@ def renew_loan(
         principal_amount=source.outstanding_principal,
         outstanding_principal=source.outstanding_principal,
         monthly_interest_rate=payload.monthly_interest_rate or source.monthly_interest_rate,
-        disbursement_date=date.today(),
+        disbursement_date=get_local_date(db),
         due_day=payload.due_day or source.due_day,
         status=LoanStatus.active,
         renewal_of=source.id,

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent, User
+from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.payments.schemas import (
     InterestPaymentAllocation,
     InterestPaymentRequest,
@@ -168,7 +169,7 @@ def get_pending_interest(
     db: Session = Depends(get_db),
     _: User = Depends(get_current_user),
 ) -> InterestPendingResponse:
-    today = date.today()
+    today = get_local_date(db)
     loans = list(
         db.scalars(select(Loan).where(Loan.customer_id == customer_id, Loan.status != LoanStatus.closed)).all()
     )
@@ -258,7 +259,9 @@ def pay_interest(
     if payload.total_amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Total amount must be greater than zero")
 
-    items = _pending_interest_items_for_customer(db, payload.customer_id, payload.payment_date)
+    payment_date = payload.payment_date or get_local_date(db)
+
+    items = _pending_interest_items_for_customer(db, payload.customer_id, payment_date)
     if not items:
         loan = db.scalar(
             select(Loan)
@@ -271,7 +274,7 @@ def pay_interest(
         advance_amount = round(payload.total_amount, 2)
         payment = Payment(
             loan_id=loan.id,
-            payment_date=payload.payment_date,
+            payment_date=payment_date,
             total_amount=advance_amount,
             allocated_to_penalty=0,
             allocated_to_interest=advance_amount,
@@ -288,12 +291,12 @@ def pay_interest(
             payment_id=payment.id,
             loan_id=loan.id,
             interest_charge_id=None,
-            billing_period=payload.payment_date.strftime("%Y-%m"),
+            billing_period=payment_date.strftime("%Y-%m"),
             total_entered_amount=advance_amount,
             allocated_to_interest=advance_amount,
             allocated_to_penalty=0,
             allocated_to_principal=0,
-            payment_date=payload.payment_date,
+            payment_date=payment_date,
             operator_user_id=current_user.id,
             payment_method=payload.payment_method,
             notes=payload.notes,
@@ -343,7 +346,7 @@ def pay_interest(
 
     payment = Payment(
         loan_id=selected_items[0].loan_id,
-        payment_date=payload.payment_date,
+        payment_date=payment_date,
         total_amount=round(payload.total_amount, 2),
         allocated_to_penalty=0,
         allocated_to_interest=0,
@@ -377,7 +380,7 @@ def pay_interest(
         payment_type = "interest_payment"
         if allocated_total < max_allocatable:
             payment_type = "partial_interest_payment"
-        elif not item.overdue and item.due_date > payload.payment_date:
+        elif not item.overdue and item.due_date > payment_date:
             payment_type = "interest_advance_payment"
 
         event = PaymentEvent(
@@ -390,7 +393,7 @@ def pay_interest(
             allocated_to_interest=allocated_interest,
             allocated_to_penalty=allocated_penalty,
             allocated_to_principal=0,
-            payment_date=payload.payment_date,
+            payment_date=payment_date,
             operator_user_id=current_user.id,
             payment_method=payload.payment_method,
             notes=payload.notes,
@@ -426,12 +429,12 @@ def pay_interest(
             payment_id=payment.id,
             loan_id=target_loan_id,
             interest_charge_id=None,
-            billing_period=payload.payment_date.strftime("%Y-%m"),
+            billing_period=payment_date.strftime("%Y-%m"),
             total_entered_amount=advance_amount,
             allocated_to_interest=advance_amount,
             allocated_to_penalty=0,
             allocated_to_principal=0,
-            payment_date=payload.payment_date,
+            payment_date=payment_date,
             operator_user_id=current_user.id,
             payment_method=payload.payment_method,
             notes=payload.notes,
@@ -494,7 +497,7 @@ def principal_context(
         db.scalars(select(Loan).where(Loan.customer_id == customer_id, Loan.status != LoanStatus.closed)).all()
     )
     items: list[PrincipalLoanContext] = []
-    today = date.today()
+    today = get_local_date(db)
 
     pending_items = _pending_interest_items_for_customer(db, customer_id, today)
     pending_by_loan: dict[int, list[InterestPendingItem]] = {}
@@ -542,7 +545,9 @@ def pay_principal(
     if loan.status == LoanStatus.closed:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loan is already closed")
 
-    pending_items = _pending_interest_items_for_customer(db, loan.customer_id, payload.payment_date)
+    payment_date = payload.payment_date or get_local_date(db)
+
+    pending_items = _pending_interest_items_for_customer(db, loan.customer_id, payment_date)
     unpaid_interest = round(
         sum(item.current_outstanding_balance for item in pending_items if item.loan_id == loan.id),
         2,
@@ -566,7 +571,7 @@ def pay_principal(
 
     payment = Payment(
         loan_id=loan.id,
-        payment_date=payload.payment_date,
+        payment_date=payment_date,
         total_amount=applied_principal,
         allocated_to_penalty=0,
         allocated_to_interest=0,
@@ -589,7 +594,7 @@ def pay_principal(
         allocated_to_interest=0,
         allocated_to_penalty=0,
         allocated_to_principal=applied_principal,
-        payment_date=payload.payment_date,
+        payment_date=payment_date,
         operator_user_id=current_user.id,
         payment_method=payload.payment_method,
         notes=payload.notes,
@@ -821,3 +826,15 @@ def reverse_payment(
     )
 
     return payment
+
+
+@router.get("/events/{event_id}", response_model=PaymentEventRead)
+def get_payment_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> PaymentEvent:
+    event = db.get(PaymentEvent, event_id)
+    if event is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment event not found")
+    return event

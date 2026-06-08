@@ -76,7 +76,7 @@
             <span class="field-help" aria-hidden="true">ⓘ</span>
           </span>
         </label>
-        <div v-if="applyLatePenalty" class="grid grid-3">
+        <div v-if="applyLatePenalty">
           <label :title="t('loans.latePenaltyRateHelp')">
             <span class="field-label-row">
               {{ t('loans.latePenaltyRate') }}
@@ -89,20 +89,6 @@
               step="0.1"
               required
               :title="t('loans.latePenaltyRateHelp')"
-            />
-          </label>
-          <label :title="t('loans.graceDaysHelp')">
-            <span class="field-label-row">
-              {{ t('loans.dueDay') }}
-              <span class="field-help" aria-hidden="true">ⓘ</span>
-            </span>
-            <input
-              v-model.number="form.dueDay"
-              type="number"
-              min="0"
-              max="60"
-              required
-              :title="t('loans.graceDaysHelp')"
             />
           </label>
         </div>
@@ -169,7 +155,11 @@
       </table>
       </div>
 
-      <div class="form-actions">
+      <div class="form-actions" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+        <label class="checkbox-row" style="margin-bottom: 0;">
+          <input v-model="printInvoiceOnSave" type="checkbox" />
+          {{ t('common.printInvoiceOnSave') }}
+        </label>
         <button class="btn" type="submit">
           <FilePlus2 :size="16" />
           {{ t('loans.createLoan') }}
@@ -268,10 +258,16 @@
       <div class="modal-panel card modal-panel-lg">
         <div class="modal-header">
           <h3>{{ t('loans.loanDetail') }}</h3>
-          <button class="btn btn-secondary" type="button" @click="closeLoanDetail">
-            <X :size="16" />
-            {{ t('common.close') }}
-          </button>
+          <div class="form-inline">
+            <a :href="'/print/invoice/loan/' + selectedLoan.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+              <Printer :size="16" />
+              {{ t('common.printInvoice') }}
+            </a>
+            <button class="btn btn-secondary" type="button" @click="closeLoanDetail">
+              <X :size="16" />
+              {{ t('common.close') }}
+            </button>
+          </div>
         </div>
 
         <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedLoan.id }) }}</p>
@@ -401,8 +397,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { FilePlus2, FilterX, HandCoins, Pencil, Save, Trash2, X } from 'lucide-vue-next'
+import { FilePlus2, FilterX, HandCoins, Pencil, Save, Trash2, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
@@ -423,11 +420,13 @@ interface CollateralQueueItem {
 }
 
 const { state, createLoan, createCollateral, updateLoan, getCustomerName, ensureInitialized } = usePlatformStore()
+const router = useRouter()
 const { t, locale } = useI18n()
 const search = ref('')
 const message = ref('')
-const applyLatePenalty = ref(true)
+const applyLatePenalty = ref(false)
 const applyCollateralAssociation = ref(false)
+const printInvoiceOnSave = ref(true)
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
@@ -469,11 +468,14 @@ const handleCreateLoan = async () => {
     return
   }
 
+  // Extraer el dia de la fecha de desembolso para usarlo como dueDay
+  const disbursementDay = parseInt(disbursementDate.split('-')[2], 10)
+
   const payload = {
     ...form,
     disbursementDate,
     latePenaltyRate: applyLatePenalty.value ? form.latePenaltyRate : 0,
-    dueDay: applyLatePenalty.value ? form.dueDay : 0
+    dueDay: disbursementDay
   }
 
   const firstConfirmation = window.confirm(
@@ -512,6 +514,10 @@ const handleCreateLoan = async () => {
   collateralForm.description = ''
   collateralForm.appraisedValue = 1000
   collateralForm.storageLocation = 'Vault A-01'
+
+  if (printInvoiceOnSave.value) {
+    router.push(`/print/invoice/loan/${createdLoan.id}`)
+  }
 }
 
 const collateralForm = reactive({
