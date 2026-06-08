@@ -826,3 +826,15 @@ def reverse_payment(
     )
 
     return payment
+
+
+@router.get("/events/{event_id}", response_model=PaymentEventRead)
+def get_payment_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> PaymentEvent:
+    event = db.get(PaymentEvent, event_id)
+    if event is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment event not found")
+    return event

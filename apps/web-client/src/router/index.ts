@@ -8,6 +8,7 @@ import LoginView from '../views/LoginView.vue'
 import PaymentsView from '../views/PaymentsView.vue'
 import ReportingView from '../views/ReportingView.vue'
 import SettingsView from '../views/SettingsView.vue'
+import InvoicePrintView from '../views/InvoicePrintView.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -17,6 +18,12 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
       meta: { guestOnly: true }
+    },
+    {
+      path: '/print/invoice/:type/:id',
+      name: 'print-invoice',
+      component: InvoicePrintView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/',

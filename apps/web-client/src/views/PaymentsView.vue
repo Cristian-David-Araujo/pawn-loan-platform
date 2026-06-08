@@ -110,10 +110,16 @@
           {{ t('payments.notes') }}
           <input v-model="interestNotes" />
         </label>
-        <button class="btn mt-16" type="button" @click="submitInterestPayment" :disabled="interestAmountToPay <= 0 || processing">
-          <CircleDollarSign :size="16" />
-          {{ t('payments.registerInterestPayment') }}
-        </button>
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" class="mt-16">
+          <label class="checkbox-row" style="margin-bottom: 0;">
+            <input v-model="printReceiptOnSave" type="checkbox" />
+            Imprimir recibo al registrar
+          </label>
+          <button class="btn" type="button" @click="submitInterestPayment" :disabled="interestAmountToPay <= 0 || processing">
+            <CircleDollarSign :size="16" />
+            {{ t('payments.registerInterestPayment') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -178,10 +184,16 @@
           <input v-model="principalNotes" />
         </label>
 
-        <button class="btn" type="button" @click="submitPrincipalPayment" :disabled="!selectedPrincipalLoan || principalAmount <= 0 || processing">
-          <WalletCards :size="16" />
-          {{ t('payments.registerPrincipalPayment') }}
-        </button>
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" class="mt-16">
+          <label class="checkbox-row" style="margin-bottom: 0;">
+            <input v-model="printReceiptOnSave" type="checkbox" />
+            Imprimir recibo al registrar
+          </label>
+          <button class="btn" type="button" @click="submitPrincipalPayment" :disabled="!selectedPrincipalLoan || principalAmount <= 0 || processing">
+            <WalletCards :size="16" />
+            {{ t('payments.registerPrincipalPayment') }}
+          </button>
+        </div>
       </div>
     </div>
 
@@ -286,10 +298,16 @@
             <td class="muted">{{ payment.notes || '-' }}</td>
             <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
             <td>
-              <button class="btn btn-secondary" type="button" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
-                <Pencil :size="16" />
-                {{ t('payments.editPayment') }}
-              </button>
+              <div class="form-inline">
+                <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                  <Printer :size="16" />
+                  Imprimir Recibo
+                </a>
+                <button class="btn btn-secondary" type="button" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
+                  <Pencil :size="16" />
+                  {{ t('payments.editPayment') }}
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -361,8 +379,9 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { CircleDollarSign, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards } from 'lucide-vue-next'
+import { CircleDollarSign, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
@@ -430,10 +449,12 @@ interface PaymentEvent {
 }
 
 const { state, ensureInitialized, refreshAll, updatePayment } = usePlatformStore()
+const router = useRouter()
 const { t, locale } = useI18n()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
 const activeTab = ref<'interest' | 'principal'>('interest')
+const printReceiptOnSave = ref(true)
 const selectedCustomerId = ref<number | null>(null)
 const selectedPrincipalLoanId = ref<number | null>(null)
 const principalAmount = ref(0)
@@ -781,6 +802,10 @@ const submitInterestPayment = async () => {
     await loadCustomerPaymentData()
     interestNotes.value = ''
     message.value = t('messages.paymentRegistered')
+
+    if (printReceiptOnSave.value && selectedCustomerPayments.value.length > 0) {
+      router.push(`/print/invoice/payment/${selectedCustomerPayments.value[0].id}`)
+    }
   } catch {
     message.value = t('messages.operationFailed')
   } finally {
@@ -820,6 +845,10 @@ const submitPrincipalPayment = async () => {
     await loadCustomerPaymentData()
     principalAmount.value = selectedPrincipalLoan.value?.outstanding_principal ?? 0
     message.value = t('messages.paymentRegistered')
+
+    if (printReceiptOnSave.value && selectedCustomerPayments.value.length > 0) {
+      router.push(`/print/invoice/payment/${selectedCustomerPayments.value[0].id}`)
+    }
   } catch {
     message.value = t('messages.operationFailed')
   } finally {
