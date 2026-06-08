@@ -16,6 +16,7 @@ from src.infrastructure.persistence.models import (
     User,
 )
 from src.infrastructure.security.password import get_password_hash
+from src.infrastructure.utils.datetime_utils import get_local_date
 
 
 def seed_database(db: Session, force: bool = False) -> bool:
@@ -110,7 +111,7 @@ def seed_database(db: Session, force: bool = False) -> bool:
     db.add_all([app_1, app_2])
     db.flush()
 
-    today = date.today()
+    today = get_local_date(db)
 
     loan_1 = Loan(
         application_id=app_1.id,

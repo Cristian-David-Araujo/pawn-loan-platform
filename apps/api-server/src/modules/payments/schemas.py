@@ -76,7 +76,7 @@ class InterestPaymentRequest(BaseModel):
     selected_charge_ids: list[int] = []
     pay_all_pending: bool = False
     total_amount: float
-    payment_date: date = date.today()
+    payment_date: date | None = None
     payment_method: str = "cash"
     notes: str = ""
 
@@ -121,7 +121,7 @@ class PrincipalContextResponse(BaseModel):
 class PrincipalPaymentRequest(BaseModel):
     loan_id: int
     total_amount: float
-    payment_date: date = date.today()
+    payment_date: date | None = None
     payment_method: str = "cash"
     allow_with_unpaid_interest: bool = False
     notes: str = ""

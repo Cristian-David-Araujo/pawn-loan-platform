@@ -426,7 +426,7 @@ const { state, createLoan, createCollateral, updateLoan, getCustomerName, ensure
 const { t, locale } = useI18n()
 const search = ref('')
 const message = ref('')
-const applyLatePenalty = ref(true)
+const applyLatePenalty = ref(false)
 const applyCollateralAssociation = ref(false)
 const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
