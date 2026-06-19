@@ -150,6 +150,10 @@
               <Trash2 :size="16" />
               {{ t('customers.deleteCustomer') }}
             </button>
+            <a :href="'/print/invoice/customer/' + selectedCustomer.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+              <Printer :size="16" />
+              {{ t('common.printStatement') }}
+            </a>
             <button class="btn btn-secondary" type="button" @click="closeDetailModal">
               <X :size="16" />
               {{ t('common.close') }}
@@ -526,15 +530,21 @@
                 <td class="muted">{{ payment.notes || '-' }}</td>
                 <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
                 <td>
-                  <button
-                    class="btn btn-secondary"
-                    type="button"
-                    :disabled="payment.isReversed || isSaving"
-                    @click="openPaymentEditModal(payment)"
-                  >
-                    <Pencil :size="16" />
-                    {{ t('payments.editPayment') }}
-                  </button>
+                  <div class="form-inline">
+                    <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                      <Printer :size="16" />
+                      {{ t('common.printReceipt') }}
+                    </a>
+                    <button
+                      class="btn btn-secondary"
+                      type="button"
+                      :disabled="payment.isReversed || isSaving"
+                      @click="openPaymentEditModal(payment)"
+                    >
+                      <Pencil :size="16" />
+                      {{ t('payments.editPayment') }}
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -592,10 +602,16 @@
       <div class="modal-panel card modal-panel-lg">
         <div class="modal-header">
           <h3>{{ t('loans.loanDetail') }}</h3>
-          <button class="btn btn-secondary" type="button" @click="closeCustomerLoanDetail">
-            <X :size="16" />
-            {{ t('common.close') }}
-          </button>
+          <div class="form-inline">
+            <a :href="'/print/invoice/loan/' + selectedCustomerLoanDetail.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+              <Printer :size="16" />
+              {{ t('common.printInvoice') }}
+            </a>
+            <button class="btn btn-secondary" type="button" @click="closeCustomerLoanDetail">
+              <X :size="16" />
+              {{ t('common.close') }}
+            </button>
+          </div>
         </div>
 
         <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedCustomerLoanDetail.id }) }}</p>

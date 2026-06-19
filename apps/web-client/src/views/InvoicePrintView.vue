@@ -14,8 +14,9 @@
         </div>
         <div class="invoice-meta">
           <h1 v-if="isPayment">{{ t('payments.receiptTitle', 'Recibo de Pago') }}</h1>
+          <h1 v-else-if="isCustomer">{{ t('common.customerStatementTitle') }}</h1>
           <h1 v-else>{{ t('loans.invoiceTitle', 'Factura de Préstamo') }}</h1>
-          <p><strong>Nº:</strong> {{ idString }}</p>
+          <p v-if="!isCustomer"><strong>Nº:</strong> {{ idString }}</p>
           <p><strong>Fecha:</strong> {{ dateString }}</p>
         </div>
       </div>
@@ -111,6 +112,44 @@
             <p><strong>Descripción:</strong> {{ loan.description }}</p>
           </div>
         </template>
+
+        <!-- Customer Statement (Estado de Cuenta) -->
+        <template v-else-if="isCustomer && customer">
+          <h3>Resumen de Préstamos</h3>
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th>Préstamo</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th class="text-right">Tasa</th>
+                <th class="text-right">Saldo Principal</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="l in customerLoans" :key="l.id">
+                <td>#{{ l.id }}</td>
+                <td>{{ l.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+                <td>
+                  <span class="status-badge" :class="getLoanStatusClass(l)">
+                    {{ getLoanStatusLabel(l) }}
+                  </span>
+                </td>
+                <td class="text-right">{{ l.monthlyInterestRate }}%</td>
+                <td class="text-right">{{ formatCurrency(l.outstandingPrincipal) }}</td>
+              </tr>
+              <tr v-if="!customerLoans.length">
+                <td colspan="5" class="text-center">No hay préstamos registrados para este cliente.</td>
+              </tr>
+            </tbody>
+            <tfoot v-if="customerLoans.length">
+              <tr>
+                <th colspan="4">TOTAL PRINCIPAL PENDIENTE</th>
+                <th class="text-right">{{ formatCurrency(customerTotalOutstanding) }}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </template>
       </div>
 
       <!-- ── POST-PAYMENT BALANCES (the main new section) ── -->
@@ -182,6 +221,7 @@ const type = computed(() => route.params.type as string)
 const id = computed(() => Number(route.params.id))
 
 const isPayment = computed(() => type.value === 'payment')
+const isCustomer = computed(() => type.value === 'customer')
 const ready = ref(false)
 
 // Post-payment pending interest/penalty fetched from the API
@@ -196,29 +236,46 @@ const payment = computed(() => state.payments.find(p => p.id === id.value))
 const loan = computed(() => {
   if (isPayment.value && payment.value) {
     return state.loans.find(l => l.id === payment.value!.loanId)
-  } else if (!isPayment.value) {
+  } else if (!isPayment.value && !isCustomer.value) {
     return state.loans.find(l => l.id === id.value)
   }
   return undefined
 })
+
 const customer = computed(() => {
+  if (isCustomer.value) {
+    return state.customers.find(c => c.id === id.value)
+  }
   if (loan.value) {
     return state.customers.find(c => c.id === loan.value!.customerId)
   }
   return undefined
 })
 
+const customerLoans = computed(() => {
+  if (!isCustomer.value || !customer.value) return []
+  return state.loans.filter(l => l.customerId === customer.value!.id)
+})
+
+const customerTotalOutstanding = computed(() => {
+  return customerLoans.value.reduce((sum, l) => sum + l.outstandingPrincipal, 0)
+})
+
 const globalSettings = computed(() => state.globalSettings)
 
 const idString = computed(() => {
+  if (isCustomer.value) return `CST-${id.value.toString().padStart(6, '0')}`
   if (isPayment.value) return `PAY-${id.value.toString().padStart(6, '0')}`
   return `LN-${id.value.toString().padStart(6, '0')}`
 })
 
 const dateString = computed(() => {
+  if (isCustomer.value) {
+    return formatDateDMY(new Date().toISOString())
+  }
   if (isPayment.value && payment.value) {
     return formatDateDMY(payment.value.paymentDate)
-  } else if (!isPayment.value && loan.value) {
+  } else if (!isPayment.value && !isCustomer.value && loan.value) {
     return formatDateDMY(loan.value.disbursementDate)
   }
   return ''
@@ -241,23 +298,31 @@ const getPaymentTypeLabel = (p: typeof payment.value) => {
   return 'Pago Mixto'
 }
 
-const loanStatusLabel = computed(() => {
-  if (!loan.value) return ''
+const getLoanStatusLabel = (l: { status: string }) => {
   const map: Record<string, string> = {
     active: 'Activo',
     overdue: 'Vencido',
     closed: 'Liquidado'
   }
-  return map[loan.value.status] ?? loan.value.status
+  return map[l.status] ?? l.status
+}
+
+const loanStatusLabel = computed(() => {
+  if (!loan.value) return ''
+  return getLoanStatusLabel(loan.value)
 })
+
+const getLoanStatusClass = (l: { status: string }) => {
+  return {
+    'status-active': l.status === 'active',
+    'status-overdue': l.status === 'overdue',
+    'status-closed': l.status === 'closed'
+  }
+}
 
 const loanStatusClass = computed(() => {
   if (!loan.value) return ''
-  return {
-    'status-active': loan.value.status === 'active',
-    'status-overdue': loan.value.status === 'overdue',
-    'status-closed': loan.value.status === 'closed'
-  }
+  return getLoanStatusClass(loan.value)
 })
 
 const paymentMethodLabel = computed(() => {
