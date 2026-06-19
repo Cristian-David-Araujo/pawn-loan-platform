@@ -6,7 +6,7 @@
       </template>
     </PageHeader>
 
-    <div class="card mt-16 form-inline">
+    <div class="card mt-16 form-inline" style="overflow: visible;">
       <label>
         {{ t('reporting.fromDate') }}
         <DateInputField v-model="fromDate" :label="t('reporting.fromDate')" :placeholder="datePlaceholder" :title="t('reporting.fromDate')" />
