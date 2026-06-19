@@ -248,7 +248,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="loan in filteredLoans" :key="loan.id" class="clickable-row" @click="openLoanDetail(loan.id)">
+          <tr v-for="loan in paginatedLoans" :key="loan.id" class="clickable-row" @click="openLoanDetail(loan.id)">
             <td>{{ loan.id }}</td>
             <td>{{ getCustomerLabel(loan.customerId) }}</td>
             <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
@@ -269,6 +269,7 @@
           </tr>
         </tbody>
       </table>
+      <Pagination v-model="loansCurrentPage" :totalItems="filteredLoans.length" :itemsPerPage="10" />
       </div>
     </div>
 
@@ -361,7 +362,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="payment in selectedLoanPayments" :key="payment.id">
+              <tr v-for="payment in paginatedLoanPayments" :key="payment.id">
                 <td>#{{ payment.id }}</td>
                 <td>{{ formatDateDMY(payment.paymentDate) }}</td>
                 <td>{{ formatCurrency(payment.totalAmount) }}</td>
@@ -382,6 +383,7 @@
               </tr>
             </tbody>
           </table>
+          <Pagination v-model="loanPaymentsCurrentPage" :totalItems="selectedLoanPayments.length" :itemsPerPage="10" />
         </div>
 
         <div class="mt-16">
@@ -399,7 +401,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in selectedLoanCollateral" :key="item.id">
+              <tr v-for="item in paginatedLoanCollateral" :key="item.id">
                 <td>#{{ item.id }}</td>
                 <td>{{ item.description }}</td>
                 <td>{{ formatCurrency(item.appraisedValue) }}</td>
@@ -409,6 +411,7 @@
               </tr>
             </tbody>
           </table>
+          <Pagination v-model="loanCollateralsCurrentPage" :totalItems="selectedLoanCollateral.length" :itemsPerPage="10" />
         </div>
       </div>
     </div>
@@ -493,7 +496,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="payment in selectedLoanPayments" :key="payment.id">
+                  <tr v-for="payment in paginatedLoanPayments" :key="payment.id">
                     <td>{{ formatDateDMY(payment.paymentDate) }}</td>
                     <td>{{ formatCurrency(payment.totalAmount) }}</td>
                     <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
@@ -503,6 +506,7 @@
                   </tr>
                 </tbody>
               </table>
+              <Pagination v-model="loanPaymentsCurrentPage" :totalItems="selectedLoanPayments.length" :itemsPerPage="10" />
             </div>
           </div>
         </div>
@@ -514,6 +518,8 @@
 </template>
 
 <script setup lang="ts">
+import Pagination from '../components/Pagination.vue'
+import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -946,4 +952,9 @@ const filteredLoans = computed(() => {
     return 0
   })
 })
+
+const { currentPage: loansCurrentPage, paginatedArray: paginatedLoans } = usePagination(filteredLoans)
+const { currentPage: loanPaymentsCurrentPage, paginatedArray: paginatedLoanPayments } = usePagination(selectedLoanPayments)
+const { currentPage: loanCollateralsCurrentPage, paginatedArray: paginatedLoanCollateral } = usePagination(selectedLoanCollateral)
+
 </script>

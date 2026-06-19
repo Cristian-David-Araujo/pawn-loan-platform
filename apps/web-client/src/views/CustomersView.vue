@@ -65,7 +65,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="customer in filteredCustomers" :key="customer.id" class="clickable-row" @click="openCustomerDetail(customer.id)">
+          <tr v-for="customer in paginatedCustomers" :key="customer.id" class="clickable-row" @click="openCustomerDetail(customer.id)">
             <td>{{ customer.id }}</td>
             <td>{{ customer.fullName }}</td>
             <td>{{ customer.documentType }} / {{ customer.documentNumber }}</td>
@@ -75,6 +75,7 @@
           </tr>
         </tbody>
       </table>
+      <Pagination v-model="customerCurrentPage" :totalItems="filteredCustomers.length" :itemsPerPage="10" />
       </div>
     </div>
 
@@ -371,7 +372,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in pendingInterestItems" :key="item.interest_charge_id">
+              <tr v-for="item in paginatedPendingInterestItems" :key="item.interest_charge_id">
                 <td>#{{ item.loan_id }}</td>
                 <td>{{ item.billing_period }}</td>
                 <td>{{ formatDateDMY(item.due_date) }}</td>
@@ -389,6 +390,7 @@
               </tr>
             </tbody>
           </table>
+              <Pagination v-model="pendingInterestCurrentPage" :totalItems="pendingInterestItems.length" :itemsPerPage="10" />
           </div>
         </div>
 
@@ -411,7 +413,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="event in auditFilteredEvents" :key="event.id">
+              <tr v-for="event in paginatedAuditFilteredEvents" :key="event.id">
                 <td>{{ formatDateDMY(event.payment_date) }}</td>
                 <td>{{ paymentTypeLabel(event.payment_type) }}</td>
                 <td>#{{ event.loan_id }}</td>
@@ -424,6 +426,7 @@
               </tr>
             </tbody>
           </table>
+              <Pagination v-model="auditCurrentPage" :totalItems="auditFilteredEvents.length" :itemsPerPage="10" />
           </div>
         </div>
         </template>
@@ -450,7 +453,7 @@
             </thead>
             <tbody>
               <tr
-                v-for="loan in selectedCustomerLoans"
+                v-for="loan in paginatedCustomerLoans"
                 :key="loan.id"
                 class="clickable-row"
                 @click="openCustomerLoanDetail(loan.id)"
@@ -479,6 +482,7 @@
               </tr>
             </tbody>
           </table>
+              <Pagination v-model="loansCurrentPage" :totalItems="selectedCustomerLoans.length" :itemsPerPage="10" />
           </div>
         </div>
         </template>
@@ -516,7 +520,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="payment in selectedCustomerPayments" :key="payment.id">
+              <tr v-for="payment in paginatedCustomerPayments" :key="payment.id">
                 <td>#{{ payment.id }}</td>
                 <td>#{{ payment.loanId }}</td>
                 <td>{{ formatDateDMY(payment.paymentDate) }}</td>
@@ -549,6 +553,7 @@
               </tr>
             </tbody>
           </table>
+              <Pagination v-model="paymentsCurrentPage" :totalItems="selectedCustomerPayments.length" :itemsPerPage="10" />
           </div>
         </div>
         </template>
@@ -574,7 +579,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in selectedCustomerCollateral" :key="item.id">
+              <tr v-for="item in paginatedCustomerCollateral" :key="item.id">
                 <td>#{{ item.id }}</td>
                 <td>#{{ item.loanId }}</td>
                 <td>{{ getLoanTypeLabel(item.loanId) }}</td>
@@ -592,6 +597,7 @@
               </tr>
             </tbody>
           </table>
+              <Pagination v-model="collateralsCurrentPage" :totalItems="selectedCustomerCollateral.length" :itemsPerPage="10" />
           </div>
         </div>
         </template>
@@ -680,7 +686,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="payment in selectedCustomerLoanPayments" :key="payment.id">
+              <tr v-for="payment in paginatedCustomerLoanPayments" :key="payment.id">
                 <td>#{{ payment.id }}</td>
                 <td>{{ formatDateDMY(payment.paymentDate) }}</td>
                 <td>{{ formatCurrency(payment.totalAmount) }}</td>
@@ -693,6 +699,7 @@
               </tr>
             </tbody>
           </table>
+              <Pagination v-model="loanPaymentsCurrentPage" :totalItems="selectedCustomerLoanPayments.length" :itemsPerPage="10" />
         </div>
 
         <div class="mt-16">
@@ -710,7 +717,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in selectedCustomerLoanCollateral" :key="item.id">
+              <tr v-for="item in paginatedCustomerLoanCollateral" :key="item.id">
                 <td>#{{ item.id }}</td>
                 <td>{{ item.description }}</td>
                 <td>{{ formatCurrency(item.appraisedValue) }}</td>
@@ -720,6 +727,7 @@
               </tr>
             </tbody>
           </table>
+              <Pagination v-model="loanCollateralsCurrentPage" :totalItems="selectedCustomerLoanCollateral.length" :itemsPerPage="10" />
         </div>
       </div>
     </div>
@@ -912,6 +920,8 @@
 </template>
 
 <script setup lang="ts">
+import Pagination from '../components/Pagination.vue'
+import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
@@ -1839,4 +1849,13 @@ const filteredCustomers = computed(() => {
     return 0
   })
 })
+
+const { currentPage: customerCurrentPage, paginatedArray: paginatedCustomers } = usePagination(filteredCustomers)
+const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingInterestItems } = usePagination(pendingInterestItems)
+const { currentPage: auditCurrentPage, paginatedArray: paginatedAuditFilteredEvents } = usePagination(auditFilteredEvents)
+const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(selectedCustomerLoans)
+const { currentPage: paymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
+const { currentPage: collateralsCurrentPage, paginatedArray: paginatedCustomerCollateral } = usePagination(selectedCustomerCollateral)
+const { currentPage: loanPaymentsCurrentPage, paginatedArray: paginatedCustomerLoanPayments } = usePagination(selectedCustomerLoanPayments)
+const { currentPage: loanCollateralsCurrentPage, paginatedArray: paginatedCustomerLoanCollateral } = usePagination(selectedCustomerLoanCollateral)
 </script>

@@ -46,7 +46,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in flatPendingItems" :key="item.interest_charge_id">
+          <tr v-for="item in paginatedPendingItems" :key="item.interest_charge_id">
             <td>
               <input
                 type="checkbox"
@@ -74,6 +74,7 @@
         </tbody>
       </table>
       </div>
+      <Pagination v-model="pendingInterestCurrentPage" :totalItems="flatPendingItems.length" :itemsPerPage="10" />
 
       <div class="card mt-16">
         <p>{{ t('payments.selectedItems', { count: selectedChargeIds.size }) }}</p>
@@ -249,7 +250,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="event in filteredPaymentHistory" :key="event.id">
+          <tr v-for="event in paginatedPaymentHistory" :key="event.id">
             <td>{{ formatDateDMY(event.payment_date) }}</td>
             <td>{{ getPaymentTypeLabel(event.payment_type) }}</td>
             <td>#{{ event.loan_id }}</td>
@@ -271,6 +272,7 @@
         </tbody>
       </table>
       </div>
+      <Pagination v-model="paymentHistoryCurrentPage" :totalItems="filteredPaymentHistory.length" :itemsPerPage="10" />
     </div>
 
     <div class="card mt-16" v-if="selectedCustomerId">
@@ -293,7 +295,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="payment in selectedCustomerPayments" :key="payment.id">
+          <tr v-for="payment in paginatedCustomerPayments" :key="payment.id">
             <td>#{{ payment.id }}</td>
             <td>#{{ payment.loanId }}</td>
             <td>{{ formatDateDMY(payment.paymentDate) }}</td>
@@ -317,6 +319,7 @@
           </tr>
         </tbody>
       </table>
+      <Pagination v-model="customerPaymentsCurrentPage" :totalItems="selectedCustomerPayments.length" :itemsPerPage="10" />
     </div>
 
     <div v-if="showPaymentEditModal" class="modal-backdrop" @click.self="closePaymentEditModal">
@@ -383,6 +386,8 @@
 </template>
 
 <script setup lang="ts">
+import Pagination from '../components/Pagination.vue'
+import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -876,4 +881,8 @@ const submitPrincipalPayment = async () => {
 onMounted(async () => {
   await ensureInitialized()
 })
+const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingItems } = usePagination(flatPendingItems)
+const { currentPage: paymentHistoryCurrentPage, paginatedArray: paginatedPaymentHistory } = usePagination(filteredPaymentHistory)
+const { currentPage: customerPaymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
+
 </script>
