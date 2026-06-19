@@ -24,11 +24,7 @@
             {{ t('settings.currencyCode') }}
             <span class="field-help" aria-hidden="true">ⓘ</span>
           </span>
-          <select v-model="form.currencyCode" required>
-            <option value="COP">COP</option>
-            <option value="USD">USD</option>
-            <option value="EUR">EUR</option>
-          </select>
+          <CustomSelect v-model="form.currencyCode" :options="currencyOptions" />
         </label>
         <label :title="t('settings.timezoneHelp')">
           <span class="field-label-row">
@@ -42,11 +38,7 @@
             {{ t('settings.dateFormat') }}
             <span class="field-help" aria-hidden="true">ⓘ</span>
           </span>
-          <select v-model="form.dateFormat" required>
-            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-          </select>
+          <CustomSelect v-model="form.dateFormat" :options="dateFormatOptions" />
         </label>
         <label :title="t('settings.defaultLatePenaltyRateHelp')">
           <span class="field-label-row">
@@ -87,6 +79,7 @@
 </template>
 
 <script setup lang="ts">
+import CustomSelect from '../components/CustomSelect.vue'
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Save, Settings, Sparkles } from 'lucide-vue-next'
@@ -96,6 +89,18 @@ import { usePlatformStore } from '../stores/platformStore'
 const { state, ensureInitialized, updateGlobalSettings } = usePlatformStore()
 const { t } = useI18n()
 const message = ref('')
+
+const currencyOptions = [
+  { value: 'COP', label: 'COP' },
+  { value: 'USD', label: 'USD' },
+  { value: 'EUR', label: 'EUR' }
+]
+
+const dateFormatOptions = [
+  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
+  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
+  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' }
+]
 
 const form = reactive({
   currencyCode: 'COP',

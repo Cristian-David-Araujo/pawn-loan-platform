@@ -58,10 +58,13 @@
             inputClass="topbar-search"
             :placeholder="t('customers.searchPlaceholder')"
           />
-          <select id="locale-select" v-model="selectedLocale" class="locale-select" @change="onLocaleChange">
-            <option value="en">EN</option>
-            <option value="es">ES</option>
-          </select>
+          <CustomSelect 
+            id="locale-select" 
+            v-model="selectedLocale" 
+            inputClass="locale-select" 
+            :options="localeOptions"
+            @change="onLocaleChange" 
+          />
           <button class="btn btn-secondary" type="button" @click="handleLogout">
             <LogOut :size="15" />
             {{ t('app.signOut') }}
@@ -94,6 +97,7 @@ import { persistLocale, type AppLocale } from '../i18n'
 import { useAuthState } from '../modules/authentication/authState'
 import { usePlatformStore } from '../stores/platformStore'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
+import CustomSelect from '../components/CustomSelect.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -112,6 +116,10 @@ const navItems = [
 const { state } = usePlatformStore()
 
 const selectedLocale = ref(locale.value as AppLocale)
+const localeOptions = [
+  { value: 'en', label: 'EN' },
+  { value: 'es', label: 'ES' }
+]
 const customerSearch = ref('')
 const selectedCustomerId = ref<number | null>(null)
 const mobileMenuOpen = ref(false)

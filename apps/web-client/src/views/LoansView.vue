@@ -34,10 +34,7 @@
         </label>
         <label>
           {{ t('loans.loanType') }}
-          <select v-model="form.loanType" required>
-            <option value="pawn">{{ t('common.pawn') }}</option>
-            <option value="personal">{{ t('common.personal') }}</option>
-          </select>
+          <CustomSelect v-model="form.loanType" :options="loanTypeOptions" />
         </label>
         <label>
           {{ t('loans.principalAmount') }}
@@ -184,12 +181,7 @@
     <div class="card mt-16">
       <div class="table-toolbar">
         <input v-model="search" class="table-search" type="text" :placeholder="t('loans.searchPlaceholder')" />
-        <select v-model="statusFilter" class="table-select">
-          <option value="all">{{ t('loans.allStatuses') }}</option>
-          <option value="active">{{ t('common.active') }}</option>
-          <option value="overdue">{{ t('common.overdue') }}</option>
-          <option value="closed">{{ t('common.closed') }}</option>
-        </select>
+        <CustomSelect v-model="statusFilter" inputClass="table-select" :options="statusFilterOptions" />
         <button class="btn btn-secondary" type="button" @click="resetLoanFilters">
           <FilterX :size="16" />
           {{ t('loans.resetFilters') }}
@@ -518,6 +510,7 @@
 </template>
 
 <script setup lang="ts">
+import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref } from 'vue'
@@ -571,6 +564,18 @@ interface InterestPendingResponse {
 const { state, createLoan, createCollateral, updateLoan, getCustomerName, ensureInitialized } = usePlatformStore()
 const router = useRouter()
 const { t, locale } = useI18n()
+
+const loanTypeOptions = computed(() => [
+  { value: 'pawn', label: t('common.pawn') },
+  { value: 'personal', label: t('common.personal') }
+])
+
+const statusFilterOptions = computed(() => [
+  { value: 'all', label: t('loans.allStatuses') },
+  { value: 'active', label: t('common.active') },
+  { value: 'overdue', label: t('common.overdue') },
+  { value: 'closed', label: t('common.closed') }
+])
 const search = ref('')
 const message = ref('')
 const applyLatePenalty = ref(false)

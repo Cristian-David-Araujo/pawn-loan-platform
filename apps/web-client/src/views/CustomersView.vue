@@ -17,11 +17,7 @@
     <div class="card mt-16">
       <div class="table-toolbar">
         <input v-model="search" class="table-search" type="text" :placeholder="t('customers.searchPlaceholder')" />
-        <select v-model="customerStatusFilter" class="table-select">
-          <option value="all">{{ t('loans.allStatuses') }}</option>
-          <option value="active">{{ t('common.active') }}</option>
-          <option value="archived">{{ t('common.archived') }}</option>
-        </select>
+        <CustomSelect v-model="customerStatusFilter" inputClass="table-select" :options="customerStatusFilterOptions" />
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>
       <div class="table-wrap">
@@ -97,9 +93,7 @@
             </label>
             <label>
               {{ t('customers.documentType') }}
-              <select v-model="form.documentType" required>
-                <option v-for="option in documentTypeOptions" :key="option" :value="option">{{ option }}</option>
-              </select>
+              <CustomSelect v-model="form.documentType" :options="formattedDocumentTypeOptions" />
             </label>
             <label>
               {{ t('customers.documentNumber') }}
@@ -188,10 +182,7 @@
             </label>
             <label>
               {{ t('customers.auditFilterLoan') }}
-              <select v-model="auditLoanFilter">
-                <option value="all">{{ t('customers.auditFilterAllLoans') }}</option>
-                <option v-for="loanId in loanAuditFilterOptions" :key="loanId" :value="loanId">#{{ loanId }}</option>
-              </select>
+              <CustomSelect v-model="auditLoanFilter" :options="auditLoanFilterOptions" />
             </label>
             <button class="btn btn-secondary" type="button" @click="resetAuditFilters">
               <FilterX :size="16" />
@@ -311,9 +302,7 @@
             </label>
             <label>
               {{ t('customers.documentType') }}
-              <select v-model="editForm.documentType" required>
-                <option v-for="option in editDocumentTypeOptions" :key="option" :value="option">{{ option }}</option>
-              </select>
+              <CustomSelect v-model="editForm.documentType" :options="formattedDocumentTypeOptions" />
             </label>
             <label>
               {{ t('customers.documentNumber') }}
@@ -321,10 +310,7 @@
             </label>
             <label>
               {{ t('common.status') }}
-              <select v-model="editForm.status" required>
-                <option value="active">{{ t('common.active') }}</option>
-                <option value="archived">{{ t('common.archived') }}</option>
-              </select>
+              <CustomSelect v-model="editForm.status" :options="customerStatusOptions" />
             </label>
             <label>
               {{ t('common.phone') }}
@@ -746,10 +732,7 @@
           <div class="grid grid-2">
             <label>
               {{ t('loans.loanType') }}
-              <select v-model="loanEditForm.loanType" required>
-                <option value="pawn">{{ t('common.pawn') }}</option>
-                <option value="personal">{{ t('common.personal') }}</option>
-              </select>
+              <CustomSelect v-model="loanEditForm.loanType" :options="loanTypeOptions" />
             </label>
             <label>
               {{ t('loans.principalAmount') }}
@@ -789,11 +772,7 @@
             </label>
             <label>
               {{ t('common.status') }}
-              <select v-model="loanEditForm.status" required>
-                <option value="active">{{ t('common.active') }}</option>
-                <option value="overdue">{{ t('common.overdue') }}</option>
-                <option value="closed">{{ t('common.closed') }}</option>
-              </select>
+              <CustomSelect v-model="loanEditForm.status" :options="loanStatusOptions" />
             </label>
           </div>
           <label class="mt-8">
@@ -822,9 +801,7 @@
           <div class="grid grid-2">
             <label>
               {{ t('common.loan') }}
-              <select v-model.number="collateralEditForm.loanId" required>
-                <option v-for="loan in collateralAssignableLoans" :key="loan.id" :value="loan.id">#{{ loan.id }}</option>
-              </select>
+              <CustomSelect v-model.number="collateralEditForm.loanId" :options="collateralLoanIdOptions" />
             </label>
             <label>
               {{ t('common.description') }}
@@ -840,11 +817,7 @@
             </label>
             <label>
               {{ t('common.status') }}
-              <select v-model="collateralEditForm.status" required>
-                <option value="in-custody">{{ t('common.inCustody') }}</option>
-                <option value="released">{{ t('common.released') }}</option>
-                <option value="liquidated">{{ t('common.liquidated') }}</option>
-              </select>
+              <CustomSelect v-model="collateralEditForm.status" :options="collateralStatusOptions" />
             </label>
           </div>
           <button class="btn" type="submit" :disabled="isSaving">
@@ -878,11 +851,7 @@
             </label>
             <label>
               {{ t('payments.paymentMethod') }}
-              <select v-model="paymentEditForm.paymentMethod">
-                <option value="cash">{{ t('common.cash') }}</option>
-                <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-                <option value="other">{{ t('common.other') }}</option>
-              </select>
+              <CustomSelect v-model="paymentEditForm.paymentMethod" :options="paymentMethodOptions" />
             </label>
             <label>
               {{ t('common.total') }}
@@ -920,6 +889,7 @@
 </template>
 
 <script setup lang="ts">
+import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -1029,13 +999,6 @@ const selectedLoanDetailId = ref<number | null>(null)
 const selectedCollateralForEditId = ref<number | null>(null)
 const selectedPaymentForEditId = ref<number | null>(null)
 const documentTypeOptions = ['CC', 'TI', 'NIT', 'CE', 'PAS']
-const editDocumentTypeOptions = computed(() => {
-  if (!editForm.documentType || documentTypeOptions.includes(editForm.documentType)) {
-    return documentTypeOptions
-  }
-
-  return [editForm.documentType, ...documentTypeOptions]
-})
 
 onMounted(async () => {
   await ensureInitialized()
@@ -1206,10 +1169,6 @@ const selectedCustomerLoanCollateral = computed(() => {
 
   return selectedCustomerCollateral.value.filter((item: CollateralItem) => item.loanId === selectedCustomerLoanDetail.value?.id)
 })
-
-const collateralAssignableLoans = computed(() =>
-  allSelectedCustomerLoans.value.filter((loan: Loan) => loan.loanType === 'pawn' && loan.status !== 'closed')
-)
 
 const pendingInterestItems = computed(() => {
   const allItems = pendingInterestData.value?.groups.flatMap((group) => group.items) ?? []
@@ -1858,4 +1817,54 @@ const { currentPage: paymentsCurrentPage, paginatedArray: paginatedCustomerPayme
 const { currentPage: collateralsCurrentPage, paginatedArray: paginatedCustomerCollateral } = usePagination(selectedCustomerCollateral)
 const { currentPage: loanPaymentsCurrentPage, paginatedArray: paginatedCustomerLoanPayments } = usePagination(selectedCustomerLoanPayments)
 const { currentPage: loanCollateralsCurrentPage, paginatedArray: paginatedCustomerLoanCollateral } = usePagination(selectedCustomerLoanCollateral)
+const customerStatusFilterOptions = computed(() => [
+  { value: 'all', label: t('loans.allStatuses') },
+  { value: 'active', label: t('common.active') },
+  { value: 'archived', label: t('common.archived') }
+])
+
+const customerStatusOptions = computed(() => [
+  { value: 'active', label: t('common.active') },
+  { value: 'archived', label: t('common.archived') }
+])
+
+const formattedDocumentTypeOptions = computed(() => 
+  documentTypeOptions.map(o => ({ value: o, label: o }))
+)
+
+const auditLoanFilterOptions = computed(() => {
+  const options = [{ value: 'all', label: t('customers.auditFilterAllLoans') }]
+  loanAuditFilterOptions.value.forEach(loanId => {
+    options.push({ value: String(loanId), label: '#' + loanId })
+  })
+  return options
+})
+
+const loanTypeOptions = computed(() => [
+  { value: 'pawn', label: t('common.pawn') },
+  { value: 'personal', label: t('common.personal') }
+])
+
+const loanStatusOptions = computed(() => [
+  { value: 'active', label: t('common.active') },
+  { value: 'overdue', label: t('common.overdue') },
+  { value: 'closed', label: t('common.closed') }
+])
+
+const collateralLoanIdOptions = computed(() => 
+  selectedCustomerLoans.value.map(l => ({ value: l.id, label: '#' + l.id }))
+)
+
+const collateralStatusOptions = computed(() => [
+  { value: 'in-custody', label: t('common.inCustody') },
+  { value: 'released', label: t('common.released') },
+  { value: 'liquidated', label: t('common.liquidated') }
+])
+
+const paymentMethodOptions = computed(() => [
+  { value: 'cash', label: t('common.cash') },
+  { value: 'bank-transfer', label: t('common.bankTransfer') },
+  { value: 'other', label: t('common.other') }
+])
+
 </script>

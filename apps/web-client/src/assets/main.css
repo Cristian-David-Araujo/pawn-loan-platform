@@ -318,7 +318,9 @@ h4 {
 }
 
 .topbar-actions .customer-autocomplete {
-  width: 280px;
+  width: 100%;
+  max-width: 280px;
+  flex: 1;
 }
 
 .locale-label {
@@ -328,14 +330,14 @@ h4 {
 }
 
 .locale-select {
-  width: auto;
+  width: auto !important;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 0.4rem 0.6rem;
+  padding: 0.4rem 0.6rem !important;
   background: #fff;
   color: var(--text);
   font-size: 0.85rem;
-  min-height: 36px;
+  min-height: 36px !important;
   cursor: pointer;
   font-family: inherit;
   transition: border-color var(--transition);
@@ -805,12 +807,12 @@ tbody tr:nth-child(even) {
 
 .table-search,
 .table-select {
-  width: auto;
+  width: auto !important;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
-  padding: 0.45rem 0.65rem;
+  padding: 0.45rem 0.65rem !important;
   min-width: 220px;
-  min-height: 38px;
+  min-height: 38px !important;
   font-size: 0.85rem;
   background: var(--surface-soft);
   transition: all var(--transition);
@@ -1608,14 +1610,12 @@ ul {
   }
 
   .topbar {
-    align-items: flex-start;
-    flex-direction: column;
     padding: 0.75rem 1rem;
     gap: 0.5rem;
   }
 
   .topbar-actions {
-    width: 100%;
+    width: auto;
   }
 
   .page {

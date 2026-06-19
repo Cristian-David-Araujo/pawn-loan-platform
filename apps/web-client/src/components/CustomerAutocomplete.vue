@@ -112,7 +112,7 @@ onUnmounted(() => {
   left: 0;
   right: 0;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   max-height: 250px;
   overflow-y: auto;
@@ -125,7 +125,7 @@ onUnmounted(() => {
 .autocomplete-dropdown li {
   padding: 10px 12px;
   cursor: pointer;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
   display: flex;
   flex-direction: column;
 }
@@ -137,7 +137,7 @@ onUnmounted(() => {
 }
 .customer-name {
   font-weight: 500;
-  color: var(--text-color);
+  color: var(--text);
 }
 .customer-doc {
   font-size: 0.85rem;
@@ -145,7 +145,7 @@ onUnmounted(() => {
 }
 .autocomplete-dropdown.empty {
   padding: 10px 12px;
-  color: var(--text-muted);
+  color: var(--muted);
   text-align: center;
 }
 </style>

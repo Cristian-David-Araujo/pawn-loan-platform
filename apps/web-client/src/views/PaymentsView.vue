@@ -89,11 +89,7 @@
         <div class="form-inline mt-16" style="align-items: flex-end; border-top: 1px solid var(--line); padding-top: 1rem;">
           <label>
             {{ t('payments.paymentMethod') }}
-            <select v-model="interestPaymentMethod">
-              <option value="cash">{{ t('common.cash') }}</option>
-              <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-              <option value="other">{{ t('common.other') }}</option>
-            </select>
+            <CustomSelect v-model="interestPaymentMethod" :options="paymentMethodOptions" />
           </label>
           <label>
             {{ t('payments.totalAmount') }}
@@ -123,11 +119,7 @@
 
       <label class="mt-16">
         {{ t('common.loan') }}
-        <select v-model.number="selectedPrincipalLoanId">
-          <option v-for="item in principalContextItems" :key="item.loan_id" :value="item.loan_id">
-            #{{ item.loan_id }} - {{ item.loan_type }}
-          </option>
-        </select>
+        <CustomSelect v-model.number="selectedPrincipalLoanId" :options="principalContextOptions" />
       </label>
 
       <div v-if="selectedPrincipalLoan" class="grid grid-3 mt-16">
@@ -170,11 +162,7 @@
         <div class="form-inline mt-16" style="align-items: flex-end; border-top: 1px solid var(--line); padding-top: 1rem;">
           <label>
             {{ t('payments.paymentMethod') }}
-            <select v-model="principalPaymentMethod">
-              <option value="cash">{{ t('common.cash') }}</option>
-              <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-              <option value="other">{{ t('common.other') }}</option>
-            </select>
+            <CustomSelect v-model="principalPaymentMethod" :options="paymentMethodOptions" />
           </label>
           <label>
             {{ t('payments.totalAmount') }}
@@ -208,19 +196,11 @@
         </label>
         <label>
           {{ t('payments.filterLoan') }}
-          <select v-model="historyLoanFilter">
-            <option value="all">{{ t('payments.allLoans') }}</option>
-            <option v-for="loanId in paymentHistoryLoanOptions" :key="loanId" :value="loanId">#{{ loanId }}</option>
-          </select>
+          <CustomSelect v-model="historyLoanFilter" :options="historyLoanFilterOptions" />
         </label>
         <label>
           {{ t('payments.filterType') }}
-          <select v-model="historyTypeFilter">
-            <option value="all">{{ t('payments.allTypes') }}</option>
-            <option value="interest">{{ t('payments.interestTab') }}</option>
-            <option value="principal">{{ t('payments.principalTab') }}</option>
-            <option value="advance">{{ t('customers.advancePayment') }}</option>
-          </select>
+          <CustomSelect v-model="historyTypeFilter" :options="historyTypeFilterOptions" />
         </label>
       </div>
       <div class="form-inline mt-16">
@@ -342,11 +322,7 @@
             </label>
             <label>
               {{ t('payments.paymentMethod') }}
-              <select v-model="paymentEditForm.paymentMethod">
-                <option value="cash">{{ t('common.cash') }}</option>
-                <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-                <option value="other">{{ t('common.other') }}</option>
-              </select>
+              <CustomSelect v-model="paymentEditForm.paymentMethod" :options="paymentMethodOptions" />
             </label>
             <label>
               {{ t('common.total') }}
@@ -386,6 +362,7 @@
 </template>
 
 <script setup lang="ts">
+import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -883,6 +860,34 @@ onMounted(async () => {
 })
 const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingItems } = usePagination(flatPendingItems)
 const { currentPage: paymentHistoryCurrentPage, paginatedArray: paginatedPaymentHistory } = usePagination(filteredPaymentHistory)
+
 const { currentPage: customerPaymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
 
+const paymentMethodOptions = computed(() => [
+  { value: 'cash', label: t('common.cash') },
+  { value: 'bank-transfer', label: t('common.bankTransfer') },
+  { value: 'other', label: t('common.other') }
+])
+
+const principalContextOptions = computed(() => {
+  const options: { value: string | number, label: string }[] = []
+  principalContextItems.value.forEach(item => {
+    options.push({ value: item.loan_id, label: t('common.loan') + ' #' + item.loan_id + ' - ' + t('payments.totalOwed') + ': ' + formatCurrency(item.outstanding_principal) })
+  })
+  return options
+})
+
+const historyLoanFilterOptions = computed(() => {
+  const options = [{ value: 'all', label: t('common.allLoans') }]
+  paymentHistoryLoanOptions.value.forEach(loanId => {
+    options.push({ value: loanId, label: '#' + loanId })
+  })
+  return options
+})
+
+const historyTypeFilterOptions = computed(() => [
+  { value: 'all', label: t('payments.allTypes') },
+  { value: 'interest', label: t('common.interest') },
+  { value: 'principal', label: t('common.principal') }
+])
 </script>
