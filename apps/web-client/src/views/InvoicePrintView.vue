@@ -75,7 +75,7 @@
             </tfoot>
           </table>
           <div class="payment-notes mt-16">
-            <p><strong>Método de Pago:</strong> {{ payment.paymentMethod }}</p>
+            <p><strong>Método de Pago:</strong> {{ paymentMethodLabel }}</p>
             <p v-if="payment.notes"><strong>Notas:</strong> {{ payment.notes }}</p>
           </div>
         </template>
@@ -258,6 +258,13 @@ const loanStatusClass = computed(() => {
     'status-overdue': loan.value.status === 'overdue',
     'status-closed': loan.value.status === 'closed'
   }
+})
+
+const paymentMethodLabel = computed(() => {
+  if (!payment.value) return ''
+  if (payment.value.paymentMethod === 'cash') return t('common.cash')
+  if (payment.value.paymentMethod === 'bank-transfer') return t('common.bankTransfer')
+  return t('common.other')
 })
 
 onMounted(async () => {
