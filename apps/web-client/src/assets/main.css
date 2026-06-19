@@ -298,6 +298,10 @@ h3 {
   gap: 0.5rem;
 }
 
+.topbar-actions .customer-autocomplete {
+  width: 280px;
+}
+
 .locale-label {
   font-size: 0.78rem;
   color: var(--muted);
