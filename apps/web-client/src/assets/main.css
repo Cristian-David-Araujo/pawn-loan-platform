@@ -805,6 +805,7 @@ tbody tr:nth-child(even) {
 
 .table-search,
 .table-select {
+  width: auto;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 0.45rem 0.65rem;
