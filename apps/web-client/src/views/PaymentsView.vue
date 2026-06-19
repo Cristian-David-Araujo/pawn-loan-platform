@@ -11,7 +11,6 @@
         {{ t('common.customer') }}
         <CustomerAutocomplete v-model="selectedCustomerId" :customers="sortedCustomers" :placeholder="t('common.searchPlaceholder')" />
       </label>
-      <span v-if="selectedCustomer" class="pill">{{ selectedCustomer.fullName }}</span>
     </div>
 
     <div class="tabs mt-16">
@@ -26,27 +25,7 @@
     <div v-if="activeTab === 'interest'" class="card mt-16">
       <h3>{{ t('payments.pendingInterestTitle') }}</h3>
 
-      <div class="form-inline mt-16">
-        <label>
-          {{ t('payments.paymentMethod') }}
-          <select v-model="interestPaymentMethod">
-            <option value="cash">{{ t('common.cash') }}</option>
-            <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-            <option value="other">{{ t('common.other') }}</option>
-          </select>
-        </label>
-        <label>
-          {{ t('payments.totalAmount') }}
-          <input v-model.number="interestEnteredAmount" type="number" min="0.01" step="0.01" @input="interestAmountTouched = true" />
-        </label>
-        <button class="btn btn-secondary" type="button" @click="useSuggestedAmount">
-          <Sparkles :size="16" />
-          {{ t('payments.useSuggested') }}
-        </button>
-      </div>
-
-      <div class="table-toolbar mt-16">
-        <span class="table-count">{{ t('payments.totalPending', { amount: formatCurrency(totalPendingOutstanding) }) }}</span>
+      <div class="table-toolbar mt-16" style="justify-content: flex-end;">
         <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedSelectedAmount) }) }}</span>
       </div>
 
@@ -67,7 +46,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="item in flatPendingItems" :key="item.interest_charge_id">
+          <tr v-for="item in paginatedPendingItems" :key="item.interest_charge_id">
             <td>
               <input
                 type="checkbox"
@@ -95,6 +74,7 @@
         </tbody>
       </table>
       </div>
+      <Pagination v-model="pendingInterestCurrentPage" :totalItems="flatPendingItems.length" :itemsPerPage="10" />
 
       <div class="card mt-16">
         <p>{{ t('payments.selectedItems', { count: selectedChargeIds.size }) }}</p>
@@ -106,7 +86,22 @@
           {{ t('payments.notes') }}
           <input v-model="interestNotes" />
         </label>
-        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" class="mt-16">
+        <div class="form-inline mt-16" style="align-items: flex-end; border-top: 1px solid var(--line); padding-top: 1rem;">
+          <label>
+            {{ t('payments.paymentMethod') }}
+            <CustomSelect v-model="interestPaymentMethod" :options="paymentMethodOptions" />
+          </label>
+          <label>
+            {{ t('payments.totalAmount') }}
+            <CurrencyInput v-model="interestEnteredAmount" @input="interestAmountTouched = true" />
+          </label>
+          <button class="btn btn-secondary" type="button" @click="useSuggestedAmount">
+            <Sparkles :size="16" />
+            {{ t('payments.useSuggested') }}
+          </button>
+
+          <div style="flex: 1;"></div>
+
           <label class="checkbox-row" style="margin-bottom: 0;">
             <input v-model="printReceiptOnSave" type="checkbox" />
             {{ t('common.printReceiptOnSave') }}
@@ -124,11 +119,7 @@
 
       <label class="mt-16">
         {{ t('common.loan') }}
-        <select v-model.number="selectedPrincipalLoanId">
-          <option v-for="item in principalContextItems" :key="item.loan_id" :value="item.loan_id">
-            #{{ item.loan_id }} - {{ item.loan_type }}
-          </option>
-        </select>
+        <CustomSelect v-model.number="selectedPrincipalLoanId" :options="principalContextOptions" />
       </label>
 
       <div v-if="selectedPrincipalLoan" class="grid grid-3 mt-16">
@@ -158,29 +149,28 @@
         </div>
       </div>
 
-      <div v-if="selectedPrincipalLoan" class="form mt-16">
-        <label>
-          {{ t('payments.totalAmount') }}
-          <input v-model.number="principalAmount" type="number" min="0.01" step="0.01" />
-        </label>
-        <label>
-          {{ t('payments.paymentMethod') }}
-          <select v-model="principalPaymentMethod">
-            <option value="cash">{{ t('common.cash') }}</option>
-            <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-            <option value="other">{{ t('common.other') }}</option>
-          </select>
-        </label>
+      <div v-if="selectedPrincipalLoan" class="card mt-16">
         <label class="checkbox-row">
           <input v-model="allowPrincipalWithUnpaidInterest" type="checkbox" />
           {{ t('payments.allowWithUnpaidInterest') }}
         </label>
-        <label>
+        <label class="mt-16">
           {{ t('payments.notes') }}
           <input v-model="principalNotes" />
         </label>
 
-        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" class="mt-16">
+        <div class="form-inline mt-16" style="align-items: flex-end; border-top: 1px solid var(--line); padding-top: 1rem;">
+          <label>
+            {{ t('payments.paymentMethod') }}
+            <CustomSelect v-model="principalPaymentMethod" :options="paymentMethodOptions" />
+          </label>
+          <label>
+            {{ t('payments.totalAmount') }}
+            <CurrencyInput v-model="principalAmount" />
+          </label>
+
+          <div style="flex: 1;"></div>
+
           <label class="checkbox-row" style="margin-bottom: 0;">
             <input v-model="printReceiptOnSave" type="checkbox" />
             {{ t('common.printReceiptOnSave') }}
@@ -206,19 +196,11 @@
         </label>
         <label>
           {{ t('payments.filterLoan') }}
-          <select v-model="historyLoanFilter">
-            <option value="all">{{ t('payments.allLoans') }}</option>
-            <option v-for="loanId in paymentHistoryLoanOptions" :key="loanId" :value="loanId">#{{ loanId }}</option>
-          </select>
+          <CustomSelect v-model="historyLoanFilter" :options="historyLoanFilterOptions" />
         </label>
         <label>
           {{ t('payments.filterType') }}
-          <select v-model="historyTypeFilter">
-            <option value="all">{{ t('payments.allTypes') }}</option>
-            <option value="interest">{{ t('payments.interestTab') }}</option>
-            <option value="principal">{{ t('payments.principalTab') }}</option>
-            <option value="advance">{{ t('customers.advancePayment') }}</option>
-          </select>
+          <CustomSelect v-model="historyTypeFilter" :options="historyTypeFilterOptions" />
         </label>
       </div>
       <div class="form-inline mt-16">
@@ -248,7 +230,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="event in filteredPaymentHistory" :key="event.id">
+          <tr v-for="event in paginatedPaymentHistory" :key="event.id">
             <td>{{ formatDateDMY(event.payment_date) }}</td>
             <td>{{ getPaymentTypeLabel(event.payment_type) }}</td>
             <td>#{{ event.loan_id }}</td>
@@ -270,6 +252,7 @@
         </tbody>
       </table>
       </div>
+      <Pagination v-model="paymentHistoryCurrentPage" :totalItems="filteredPaymentHistory.length" :itemsPerPage="10" />
     </div>
 
     <div class="card mt-16" v-if="selectedCustomerId">
@@ -292,7 +275,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="payment in selectedCustomerPayments" :key="payment.id">
+          <tr v-for="payment in paginatedCustomerPayments" :key="payment.id">
             <td>#{{ payment.id }}</td>
             <td>#{{ payment.loanId }}</td>
             <td>{{ formatDateDMY(payment.paymentDate) }}</td>
@@ -316,6 +299,7 @@
           </tr>
         </tbody>
       </table>
+      <Pagination v-model="customerPaymentsCurrentPage" :totalItems="selectedCustomerPayments.length" :itemsPerPage="10" />
     </div>
 
     <div v-if="showPaymentEditModal" class="modal-backdrop" @click.self="closePaymentEditModal">
@@ -338,31 +322,27 @@
             </label>
             <label>
               {{ t('payments.paymentMethod') }}
-              <select v-model="paymentEditForm.paymentMethod">
-                <option value="cash">{{ t('common.cash') }}</option>
-                <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-                <option value="other">{{ t('common.other') }}</option>
-              </select>
+              <CustomSelect v-model="paymentEditForm.paymentMethod" :options="paymentMethodOptions" />
             </label>
             <label>
               {{ t('common.total') }}
-              <input v-model.number="paymentEditForm.totalAmount" type="number" min="0.01" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.totalAmount" :required="true" />
             </label>
             <label>
               {{ t('common.interest') }}
-              <input v-model.number="paymentEditForm.allocatedToInterest" type="number" min="0" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.allocatedToInterest" :required="true" />
             </label>
             <label>
               {{ t('payments.penalty') }}
-              <input v-model.number="paymentEditForm.allocatedToPenalty" type="number" min="0" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.allocatedToPenalty" :required="true" />
             </label>
             <label>
               {{ t('common.fees') }}
-              <input v-model.number="paymentEditForm.allocatedToFees" type="number" min="0" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.allocatedToFees" :required="true" />
             </label>
             <label>
               {{ t('common.principal') }}
-              <input v-model.number="paymentEditForm.allocatedToPrincipal" type="number" min="0" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.allocatedToPrincipal" :required="true" />
             </label>
           </div>
           <label class="mt-8">
@@ -382,12 +362,16 @@
 </template>
 
 <script setup lang="ts">
+import CustomSelect from '../components/CustomSelect.vue'
+import Pagination from '../components/Pagination.vue'
+import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { CircleDollarSign, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
+import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
@@ -505,10 +489,6 @@ const paymentEditForm = ref({
   paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other',
   notes: ''
 })
-
-const selectedCustomer = computed(() =>
-  selectedCustomerId.value === null ? null : state.customers.find((item) => item.id === selectedCustomerId.value) ?? null
-)
 
 const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
 
@@ -878,4 +858,36 @@ const submitPrincipalPayment = async () => {
 onMounted(async () => {
   await ensureInitialized()
 })
+const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingItems } = usePagination(flatPendingItems)
+const { currentPage: paymentHistoryCurrentPage, paginatedArray: paginatedPaymentHistory } = usePagination(filteredPaymentHistory)
+
+const { currentPage: customerPaymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
+
+const paymentMethodOptions = computed(() => [
+  { value: 'cash', label: t('common.cash') },
+  { value: 'bank-transfer', label: t('common.bankTransfer') },
+  { value: 'other', label: t('common.other') }
+])
+
+const principalContextOptions = computed(() => {
+  const options: { value: string | number, label: string }[] = []
+  principalContextItems.value.forEach(item => {
+    options.push({ value: item.loan_id, label: t('common.loan') + ' #' + item.loan_id + ' - ' + t('payments.totalOwed') + ': ' + formatCurrency(item.outstanding_principal) })
+  })
+  return options
+})
+
+const historyLoanFilterOptions = computed(() => {
+  const options = [{ value: 'all', label: t('common.allLoans') }]
+  paymentHistoryLoanOptions.value.forEach(loanId => {
+    options.push({ value: loanId, label: '#' + loanId })
+  })
+  return options
+})
+
+const historyTypeFilterOptions = computed(() => [
+  { value: 'all', label: t('payments.allTypes') },
+  { value: 'interest', label: t('common.interest') },
+  { value: 'principal', label: t('common.principal') }
+])
 </script>

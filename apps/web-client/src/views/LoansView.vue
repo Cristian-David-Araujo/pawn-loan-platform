@@ -34,24 +34,11 @@
         </label>
         <label>
           {{ t('loans.loanType') }}
-          <select v-model="form.loanType" required>
-            <option value="pawn">{{ t('common.pawn') }}</option>
-            <option value="personal">{{ t('common.personal') }}</option>
-          </select>
+          <CustomSelect v-model="form.loanType" :options="loanTypeOptions" />
         </label>
         <label>
           {{ t('loans.principalAmount') }}
-          <input
-            :value="form.principalAmount ? form.principalAmount.toLocaleString('en-US') : ''"
-            @input="(e) => {
-              let val = (e.target as HTMLInputElement).value.replace(/[^\d]/g, '');
-              form.principalAmount = val ? parseInt(val, 10) : 0;
-              (e.target as HTMLInputElement).value = form.principalAmount ? form.principalAmount.toLocaleString('en-US') : '';
-            }"
-            type="text"
-            inputmode="numeric"
-            required
-          />
+          <CurrencyInput v-model="form.principalAmount" :required="true" />
         </label>
         <label :title="t('loans.monthlyInterestRateHelp')">
           <span class="field-label-row">
@@ -136,7 +123,7 @@
         </label>
         <label>
           {{ t('collateral.appraisedValue') }}
-          <input v-model.number="collateralForm.appraisedValue" type="number" min="1" required />
+          <CurrencyInput v-model="collateralForm.appraisedValue" :required="true" />
         </label>
         <label>
           {{ t('collateral.storageLocation') }}
@@ -194,12 +181,7 @@
     <div class="card mt-16">
       <div class="table-toolbar">
         <input v-model="search" class="table-search" type="text" :placeholder="t('loans.searchPlaceholder')" />
-        <select v-model="statusFilter" class="table-select">
-          <option value="all">{{ t('loans.allStatuses') }}</option>
-          <option value="active">{{ t('common.active') }}</option>
-          <option value="overdue">{{ t('common.overdue') }}</option>
-          <option value="closed">{{ t('common.closed') }}</option>
-        </select>
+        <CustomSelect v-model="statusFilter" inputClass="table-select" :options="statusFilterOptions" />
         <button class="btn btn-secondary" type="button" @click="resetLoanFilters">
           <FilterX :size="16" />
           {{ t('loans.resetFilters') }}
@@ -258,7 +240,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="loan in filteredLoans" :key="loan.id" class="clickable-row" @click="openLoanDetail(loan.id)">
+          <tr v-for="loan in paginatedLoans" :key="loan.id" class="clickable-row" @click="openLoanDetail(loan.id)">
             <td>{{ loan.id }}</td>
             <td>{{ getCustomerLabel(loan.customerId) }}</td>
             <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
@@ -279,6 +261,7 @@
           </tr>
         </tbody>
       </table>
+      <Pagination v-model="loansCurrentPage" :totalItems="filteredLoans.length" :itemsPerPage="10" />
       </div>
     </div>
 
@@ -371,7 +354,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="payment in selectedLoanPayments" :key="payment.id">
+              <tr v-for="payment in paginatedLoanPayments" :key="payment.id">
                 <td>#{{ payment.id }}</td>
                 <td>{{ formatDateDMY(payment.paymentDate) }}</td>
                 <td>{{ formatCurrency(payment.totalAmount) }}</td>
@@ -392,6 +375,7 @@
               </tr>
             </tbody>
           </table>
+          <Pagination v-model="loanPaymentsCurrentPage" :totalItems="selectedLoanPayments.length" :itemsPerPage="10" />
         </div>
 
         <div class="mt-16">
@@ -409,7 +393,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in selectedLoanCollateral" :key="item.id">
+              <tr v-for="item in paginatedLoanCollateral" :key="item.id">
                 <td>#{{ item.id }}</td>
                 <td>{{ item.description }}</td>
                 <td>{{ formatCurrency(item.appraisedValue) }}</td>
@@ -419,6 +403,7 @@
               </tr>
             </tbody>
           </table>
+          <Pagination v-model="loanCollateralsCurrentPage" :totalItems="selectedLoanCollateral.length" :itemsPerPage="10" />
         </div>
       </div>
     </div>
@@ -503,7 +488,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="payment in selectedLoanPayments" :key="payment.id">
+                  <tr v-for="payment in paginatedLoanPayments" :key="payment.id">
                     <td>{{ formatDateDMY(payment.paymentDate) }}</td>
                     <td>{{ formatCurrency(payment.totalAmount) }}</td>
                     <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
@@ -513,6 +498,7 @@
                   </tr>
                 </tbody>
               </table>
+              <Pagination v-model="loanPaymentsCurrentPage" :totalItems="selectedLoanPayments.length" :itemsPerPage="10" />
             </div>
           </div>
         </div>
@@ -524,12 +510,16 @@
 </template>
 
 <script setup lang="ts">
+import CustomSelect from '../components/CustomSelect.vue'
+import Pagination from '../components/Pagination.vue'
+import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { FilePlus2, FilterX, HandCoins, Pencil, Save, Trash2, X, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
+import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
@@ -574,6 +564,18 @@ interface InterestPendingResponse {
 const { state, createLoan, createCollateral, updateLoan, getCustomerName, ensureInitialized } = usePlatformStore()
 const router = useRouter()
 const { t, locale } = useI18n()
+
+const loanTypeOptions = computed(() => [
+  { value: 'pawn', label: t('common.pawn') },
+  { value: 'personal', label: t('common.personal') }
+])
+
+const statusFilterOptions = computed(() => [
+  { value: 'all', label: t('loans.allStatuses') },
+  { value: 'active', label: t('common.active') },
+  { value: 'overdue', label: t('common.overdue') },
+  { value: 'closed', label: t('common.closed') }
+])
 const search = ref('')
 const message = ref('')
 const applyLatePenalty = ref(false)
@@ -955,4 +957,9 @@ const filteredLoans = computed(() => {
     return 0
   })
 })
+
+const { currentPage: loansCurrentPage, paginatedArray: paginatedLoans } = usePagination(filteredLoans)
+const { currentPage: loanPaymentsCurrentPage, paginatedArray: paginatedLoanPayments } = usePagination(selectedLoanPayments)
+const { currentPage: loanCollateralsCurrentPage, paginatedArray: paginatedLoanCollateral } = usePagination(selectedLoanCollateral)
+
 </script>

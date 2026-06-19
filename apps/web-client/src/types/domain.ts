@@ -55,6 +55,13 @@ export interface Payment {
 
 export interface GlobalSettings {
   id: number
+  appName: string
+  companyName: string | null
+  companyDocumentType: string | null
+  companyDocumentNumber: string | null
+  companyAddress: string | null
+  companyPhone: string | null
+  companyEmail: string | null
   currencyCode: string
   timezone: string
   dateFormat: string

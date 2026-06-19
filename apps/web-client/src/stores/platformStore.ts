@@ -59,6 +59,13 @@ interface BackendPayment {
 
 interface BackendGlobalSettings {
   id: number
+  app_name: string
+  company_name: string | null
+  company_document_type: string | null
+  company_document_number: string | null
+  company_address: string | null
+  company_phone: string | null
+  company_email: string | null
   currency_code: string
   timezone: string
   date_format: string
@@ -150,6 +157,13 @@ interface UpdatePaymentPayload {
 }
 
 interface UpdateGlobalSettingsPayload {
+  appName: string
+  companyName: string | null
+  companyDocumentType: string | null
+  companyDocumentNumber: string | null
+  companyAddress: string | null
+  companyPhone: string | null
+  companyEmail: string | null
   currencyCode: string
   timezone: string
   dateFormat: string
@@ -224,13 +238,20 @@ const mapPayment = (item: BackendPayment): Payment => ({
   isReversed: item.is_reversed
 })
 
-const mapGlobalSettings = (item: BackendGlobalSettings): GlobalSettings => ({
-  id: item.id,
-  currencyCode: item.currency_code,
-  timezone: item.timezone,
-  dateFormat: item.date_format,
-  defaultLatePenaltyRate: item.default_late_penalty_rate,
-  interestGenerationLeadDays: item.interest_generation_lead_days ?? 10
+const mapGlobalSettings = (data: BackendGlobalSettings): GlobalSettings => ({
+  id: data.id,
+  appName: data.app_name,
+  companyName: data.company_name,
+  companyDocumentType: data.company_document_type,
+  companyDocumentNumber: data.company_document_number,
+  companyAddress: data.company_address,
+  companyPhone: data.company_phone,
+  companyEmail: data.company_email,
+  currencyCode: data.currency_code,
+  timezone: data.timezone,
+  dateFormat: data.date_format,
+  defaultLatePenaltyRate: data.default_late_penalty_rate,
+  interestGenerationLeadDays: data.interest_generation_lead_days ?? 10
 })
 
 const splitName = (fullName: string) => {
@@ -465,9 +486,16 @@ const updatePayment = async (payload: UpdatePaymentPayload) => {
 }
 
 const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
-  await apiClient.request<BackendGlobalSettings>('/settings', {
+  const result = await apiClient.request<BackendGlobalSettings>('/settings', {
     method: 'PUT',
     body: JSON.stringify({
+      app_name: payload.appName,
+      company_name: payload.companyName,
+      company_document_type: payload.companyDocumentType,
+      company_document_number: payload.companyDocumentNumber,
+      company_address: payload.companyAddress,
+      company_phone: payload.companyPhone,
+      company_email: payload.companyEmail,
       currency_code: payload.currencyCode,
       timezone: payload.timezone,
       date_format: payload.dateFormat,

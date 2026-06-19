@@ -23,7 +23,6 @@ def _ensure_global_settings(db: Session) -> GlobalSettings:
 @router.get("", response_model=GlobalSettingsRead)
 def get_global_settings(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
 ) -> GlobalSettings:
     return _ensure_global_settings(db)
 
@@ -35,6 +34,16 @@ def update_global_settings(
     current_user: User = Depends(get_current_user),
 ) -> GlobalSettings:
     settings = _ensure_global_settings(db)
+
+    if payload.app_name is not None:
+        settings.app_name = payload.app_name
+    
+    settings.company_name = payload.company_name
+    settings.company_document_type = payload.company_document_type
+    settings.company_document_number = payload.company_document_number
+    settings.company_address = payload.company_address
+    settings.company_phone = payload.company_phone
+    settings.company_email = payload.company_email
 
     settings.currency_code = payload.currency_code.upper()
     settings.timezone = payload.timezone
