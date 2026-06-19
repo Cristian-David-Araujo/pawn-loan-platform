@@ -298,12 +298,6 @@
             <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
           </div>
         </div>
-
-        <div class="stats-inline mt-16">
-          <span class="pill">{{ t('customers.pendingInterestOnly', { amount: formatCurrency(totalPendingInterest) }) }}</span>
-          <span class="pill">{{ t('customers.pendingPenaltyOnly', { amount: formatCurrency(totalPendingPenalty) }) }}</span>
-          <span class="pill">{{ t('customers.unpaidAccruedInterest', { amount: formatCurrency(totalAccruedUnpaidInterest) }) }}</span>
-        </div>
         </template>
 
         <!-- ── Tab: Edit ─────────────────────────── -->
@@ -1211,8 +1205,7 @@ const pendingInterestItems = computed(() => {
   return allItems.filter((item) => isLoanSelectedByAuditFilter(item.loan_id) && isInAuditDateRange(item.due_date))
 })
 
-const totalPendingInterest = computed(() => pendingInterestItems.value.reduce((sum, item) => sum + item.remaining_pending_amount, 0))
-const totalPendingPenalty = computed(() => pendingInterestItems.value.reduce((sum, item) => sum + item.penalty_amount, 0))
+
 const totalPendingOutstanding = computed(() => pendingInterestItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0))
 const availableAdvanceBalance = computed(() => pendingInterestData.value?.available_advance_balance ?? 0)
 
@@ -1220,9 +1213,7 @@ const totalOutstandingPrincipal = computed(() =>
   (principalContextData.value?.items ?? []).reduce((sum, loan) => sum + loan.outstanding_principal, 0)
 )
 
-const totalAccruedUnpaidInterest = computed(() =>
-  (principalContextData.value?.items ?? []).reduce((sum, loan) => sum + loan.accrued_unpaid_interest, 0)
-)
+
 
 const totalCustomerPaid = computed(() =>
   selectedCustomerPayments.value.reduce((sum: number, payment: Payment) => sum + payment.totalAmount, 0)

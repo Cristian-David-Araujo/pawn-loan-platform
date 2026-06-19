@@ -12,6 +12,7 @@
       <li 
         v-for="customer in filteredCustomers" 
         :key="customer.id" 
+        @mousedown.prevent="selectCustomer(customer)"
         @click.stop="selectCustomer(customer)"
       >
         <span class="customer-name">{{ customer.fullName }}</span>
@@ -76,6 +77,10 @@ const selectCustomer = (customer: any) => {
   searchQuery.value = `${customer.fullName}`
   isOpen.value = false
   emit('update:modelValue', customer.id)
+  if (containerRef.value) {
+    const input = containerRef.value.querySelector('input')
+    if (input) input.blur()
+  }
 }
 
 const handleClickOutside = (e: MouseEvent) => {

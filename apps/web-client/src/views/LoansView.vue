@@ -41,7 +41,17 @@
         </label>
         <label>
           {{ t('loans.principalAmount') }}
-          <input v-model.number="form.principalAmount" type="number" min="1" required />
+          <input
+            :value="form.principalAmount ? form.principalAmount.toLocaleString('en-US') : ''"
+            @input="(e) => {
+              let val = (e.target as HTMLInputElement).value.replace(/[^\d]/g, '');
+              form.principalAmount = val ? parseInt(val, 10) : 0;
+              (e.target as HTMLInputElement).value = form.principalAmount ? form.principalAmount.toLocaleString('en-US') : '';
+            }"
+            type="text"
+            inputmode="numeric"
+            required
+          />
         </label>
         <label :title="t('loans.monthlyInterestRateHelp')">
           <span class="field-label-row">
