@@ -6,7 +6,7 @@
       </template>
     </PageHeader>
 
-    <form class="card form mt-16" @submit.prevent="handleCreateLoan" style="overflow: visible;">
+    <form class="card form mt-16" @submit.prevent="handleCreateLoan">
       <div class="form-section">
         <div class="form-section-head">
           <h3 class="form-section-title">{{ t('loans.loanDataSection') }}</h3>

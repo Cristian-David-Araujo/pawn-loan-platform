@@ -6,7 +6,7 @@
       </template>
     </PageHeader>
 
-    <div class="card mt-16 form-inline" style="overflow: visible;">
+    <div class="card mt-16 form-inline">
       <label>
         {{ t('common.customer') }}
         <CustomerAutocomplete v-model="selectedCustomerId" :customers="sortedCustomers" :placeholder="t('common.searchPlaceholder')" />
@@ -877,9 +877,5 @@ const submitPrincipalPayment = async () => {
 
 onMounted(async () => {
   await ensureInitialized()
-  if (sortedCustomers.value.length) {
-    selectedCustomerId.value = sortedCustomers.value[0].id
-    await loadCustomerPaymentData()
-  }
 })
 </script>
