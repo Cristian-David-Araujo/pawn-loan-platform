@@ -44,6 +44,7 @@ export const messages = {
       interest: 'Interest',
       fees: 'Fees',
       search: 'Search',
+      searchPlaceholder: 'Search...',
       actions: 'Actions',
       type: 'Type',
       active: 'Active',
@@ -240,6 +241,7 @@ export const messages = {
     payments: {
       title: 'Payments',
       subtitle: 'Collect monthly interest first, then manage principal payments with traceability.',
+      originalPrincipal: 'Original principal',
       interestTab: 'Interest Payments',
       principalTab: 'Principal Payments',
       pendingInterestTitle: 'Pending accrued interest by period',
@@ -446,6 +448,7 @@ export const messages = {
       interest: 'Interes',
       fees: 'Cargos',
       search: 'Buscar',
+      searchPlaceholder: 'Buscar cliente...',
       actions: 'Acciones',
       type: 'Tipo',
       active: 'Activo',
@@ -642,6 +645,7 @@ export const messages = {
     payments: {
       title: 'Pagos',
       subtitle: 'Cobrar primero interes mensual y luego gestionar capital con trazabilidad.',
+      originalPrincipal: 'Capital original',
       interestTab: 'Pagos de Interes',
       principalTab: 'Pagos de Capital',
       pendingInterestTitle: 'Interes devengado pendiente por periodo',

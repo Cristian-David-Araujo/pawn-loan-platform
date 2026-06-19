@@ -14,11 +14,7 @@
         <div class="grid grid-3">
         <label>
           {{ t('common.customer') }}
-          <select v-model.number="form.customerId" required>
-            <option v-for="customer in sortedCustomers" :key="customer.id" :value="customer.id">
-              {{ customer.fullName }}
-            </option>
-          </select>
+          <CustomerAutocomplete v-model="form.customerId" :customers="sortedCustomers" :placeholder="t('common.searchPlaceholder')" />
         </label>
         <label>
           {{ t('loans.loanType') }}
@@ -504,6 +500,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { FilePlus2, FilterX, HandCoins, Pencil, Save, Trash2, X, Printer } from 'lucide-vue-next'
+import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
@@ -599,16 +596,13 @@ const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.ful
 
 onMounted(async () => {
   await ensureInitialized()
-  if (sortedCustomers.value.length) {
-    form.customerId = sortedCustomers.value[0].id
-  }
   if (state.globalSettings) {
     form.latePenaltyRate = state.globalSettings.defaultLatePenaltyRate
   }
 })
 
 const form = reactive({
-  customerId: 0,
+  customerId: null as number | null,
   loanType: 'pawn' as 'pawn' | 'personal',
   description: '',
   principalAmount: 1000,
@@ -619,6 +613,11 @@ const form = reactive({
 })
 
 const handleCreateLoan = async () => {
+  if (!form.customerId) {
+    message.value = 'Por favor selecciona un cliente.'
+    return
+  }
+
   const disbursementDate = toIsoDate(form.disbursementDate)
   if (!disbursementDate) {
     message.value = t('messages.invalidDateFormat')
@@ -630,6 +629,7 @@ const handleCreateLoan = async () => {
 
   const payload = {
     ...form,
+    customerId: form.customerId as number,
     disbursementDate,
     latePenaltyRate: applyLatePenalty.value ? form.latePenaltyRate : 0,
     dueDay: disbursementDay

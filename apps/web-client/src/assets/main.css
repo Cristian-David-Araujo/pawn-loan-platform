@@ -398,7 +398,6 @@ h3 {
   padding: 1.25rem;
   box-shadow: var(--shadow-sm);
   transition: box-shadow var(--transition), border-color var(--transition);
-  overflow-x: auto;
 }
 
 /* ═══════════════════════════════════════════════
