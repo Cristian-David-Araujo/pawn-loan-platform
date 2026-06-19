@@ -1,17 +1,19 @@
 <template>
   <div class="customer-autocomplete" ref="containerRef">
     <input 
+      :id="id"
       type="text" 
       v-model="searchQuery" 
       @focus="isOpen = true"
       @input="isOpen = true"
       :placeholder="placeholder" 
-      class="w-100"
+      :class="['w-100', inputClass]"
     />
     <ul v-if="isOpen && filteredCustomers.length > 0" class="autocomplete-dropdown">
       <li 
         v-for="customer in filteredCustomers" 
         :key="customer.id" 
+        @mousedown.prevent="selectCustomer(customer)"
         @click.stop="selectCustomer(customer)"
       >
         <span class="customer-name">{{ customer.fullName }}</span>
@@ -32,6 +34,8 @@ const props = defineProps<{
   modelValue: number | null
   customers: any[]
   placeholder?: string
+  inputClass?: string
+  id?: string
 }>()
 
 const emit = defineEmits<{
@@ -76,6 +80,10 @@ const selectCustomer = (customer: any) => {
   searchQuery.value = `${customer.fullName}`
   isOpen.value = false
   emit('update:modelValue', customer.id)
+  if (containerRef.value) {
+    const input = containerRef.value.querySelector('input')
+    if (input) input.blur()
+  }
 }
 
 const handleClickOutside = (e: MouseEvent) => {
