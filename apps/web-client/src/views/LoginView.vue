@@ -7,8 +7,8 @@
         </span>
       </div>
       <header class="login-header">
-        <h1 class="page-title">{{ t('auth.title') }}</h1>
-        <p class="page-subtitle">{{ t('auth.subtitle') }}</p>
+        <h1 class="page-title">{{ appName || t('auth.title') }}</h1>
+        <p v-if="companyName" class="page-subtitle">{{ companyName }}</p>
       </header>
 
       <p v-if="error" class="notice" style="background: var(--danger-soft); color: #b91c1c; border-color: var(--danger-border);">{{ error }}</p>
@@ -47,10 +47,28 @@ const { login } = useAuthState()
 
 const isSubmitting = ref(false)
 const error = ref('')
+const appName = ref('')
+const companyName = ref('')
 const form = reactive({
   username: '',
   password: ''
 })
+
+const fetchSettings = async () => {
+  try {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'
+    const response = await fetch(`${API_BASE_URL}/settings`)
+    if (response.ok) {
+      const settings = await response.json()
+      appName.value = settings.app_name
+      companyName.value = settings.company_name
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
+fetchSettings()
 
 const handleSubmit = async () => {
   if (isSubmitting.value) {
