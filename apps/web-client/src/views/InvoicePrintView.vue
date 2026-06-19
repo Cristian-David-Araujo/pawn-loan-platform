@@ -7,9 +7,18 @@
     <div class="invoice-box" v-if="ready">
       <div class="invoice-header">
         <div class="company-details">
-          <h2>{{ t('app.title') }}</h2>
-          <p v-if="globalSettings?.currencyCode">
-            {{ t('settings.currencyCode') }}: {{ globalSettings.currencyCode }}
+          <h2>{{ globalSettings?.companyName || globalSettings?.appName || t('app.title') }}</h2>
+          <p v-if="globalSettings?.companyDocumentNumber">
+            {{ globalSettings.companyDocumentType || 'NIT/CC' }}: {{ globalSettings.companyDocumentNumber }}
+          </p>
+          <p v-if="globalSettings?.companyAddress">
+            {{ globalSettings.companyAddress }}
+          </p>
+          <p v-if="globalSettings?.companyPhone">
+            Tel: {{ globalSettings.companyPhone }}
+          </p>
+          <p v-if="globalSettings?.companyEmail">
+            Email: {{ globalSettings.companyEmail }}
           </p>
         </div>
         <div class="invoice-meta">

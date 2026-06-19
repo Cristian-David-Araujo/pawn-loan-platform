@@ -157,6 +157,13 @@ class GlobalSettings(Base):
     __tablename__ = "global_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    app_name: Mapped[str] = mapped_column(String(100), default="PawnPlatform")
+    company_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
+    company_document_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    company_document_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    company_address: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    company_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    company_email: Mapped[str | None] = mapped_column(String(100), nullable=True)
     currency_code: Mapped[str] = mapped_column(String(3), default="COP")
     timezone: Mapped[str] = mapped_column(String(80), default="America/Bogota")
     date_format: Mapped[str] = mapped_column(String(20), default="DD/MM/YYYY")

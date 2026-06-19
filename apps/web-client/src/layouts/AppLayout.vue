@@ -6,8 +6,8 @@
           <Shield :size="18" />
         </span>
         <div>
-          <h1 class="brand">{{ t('app.title') }}</h1>
-          <p class="brand-subtitle">{{ t('app.subtitle') }}</p>
+          <h1 class="brand">{{ state.globalSettings?.appName || t('app.title') }}</h1>
+          <p v-if="state.globalSettings?.companyName" class="brand-subtitle">{{ state.globalSettings.companyName }}</p>
         </div>
       </div>
 
