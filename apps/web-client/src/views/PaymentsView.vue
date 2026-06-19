@@ -6,14 +6,10 @@
       </template>
     </PageHeader>
 
-    <div class="card mt-16 form-inline">
+    <div class="card mt-16 form-inline" style="overflow: visible;">
       <label>
         {{ t('common.customer') }}
-        <select v-model.number="selectedCustomerId" @change="loadCustomerPaymentData" required>
-          <option v-for="customer in sortedCustomers" :key="customer.id" :value="customer.id">
-            {{ customer.fullName }} (#{{ customer.id }})
-          </option>
-        </select>
+        <CustomerAutocomplete v-model="selectedCustomerId" :customers="sortedCustomers" :placeholder="t('common.searchPlaceholder')" />
       </label>
       <span v-if="selectedCustomer" class="pill">{{ selectedCustomer.fullName }}</span>
     </div>
@@ -386,10 +382,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { CircleDollarSign, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards, Printer } from 'lucide-vue-next'
+import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
@@ -464,6 +461,16 @@ const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const activeTab = ref<'interest' | 'principal'>('interest')
 const printReceiptOnSave = ref(true)
 const selectedCustomerId = ref<number | null>(null)
+
+watch(selectedCustomerId, (newId) => {
+  if (newId) {
+    loadCustomerPaymentData()
+  } else {
+    pendingInterest.value = null
+    principalContext.value = null
+    paymentHistory.value = []
+  }
+})
 const selectedPrincipalLoanId = ref<number | null>(null)
 const principalAmount = ref(0)
 const principalPaymentMethod = ref<'cash' | 'bank-transfer' | 'other'>('cash')
