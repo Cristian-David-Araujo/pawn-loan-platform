@@ -230,6 +230,7 @@
                 <span v-if="getLoanSortBadge('status')" class="sort-indicator">{{ getLoanSortBadge('status') }}</span>
               </button>
             </th>
+            <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -243,9 +244,14 @@
             <td>{{ loan.monthlyInterestRate }}%</td>
             <td>{{ getLoanCollateralLabel(loan.id, loan.loanType) }}</td>
             <td>{{ t(`common.${loan.status}`) }}</td>
+            <td>
+              <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
+                <Printer :size="16" />
+              </a>
+            </td>
           </tr>
           <tr v-if="!filteredLoans.length">
-            <td colspan="9">{{ t('loans.noLoansForFilter') }}</td>
+            <td colspan="10">{{ t('loans.noLoansForFilter') }}</td>
           </tr>
         </tbody>
       </table>
@@ -392,6 +398,104 @@
         </div>
       </div>
     </div>
+
+    <!-- ── Loan Detail Modal ──────────────────────────── -->
+    <div v-if="showLoanDetailModal && selectedLoan" class="modal-backdrop" @click.self="closeLoanDetail">
+      <div class="modal-panel card modal-panel-lg">
+        <div class="modal-header">
+          <h3>{{ t('loans.loanDetail') }}</h3>
+          <div class="form-inline">
+            <a :href="'/print/invoice/loan/' + selectedLoan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;">
+              <Printer :size="16" />
+            </a>
+            <button class="btn btn-secondary btn-icon" type="button" @click="closeLoanDetail">
+              <X :size="16" />
+            </button>
+          </div>
+        </div>
+
+        <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedLoan.id }) }}</p>
+
+        <div class="grid grid-4 mt-16">
+          <div class="card stat-card stat-accent-indigo">
+            <p class="stat-label">{{ t('common.customer') }}</p>
+            <p class="stat-value">{{ getCustomerLabel(selectedLoan.customerId) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-blue">
+            <p class="stat-label">{{ t('common.type') }}</p>
+            <p class="stat-value">
+              {{ selectedLoan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}
+            </p>
+          </div>
+          <div class="card stat-card stat-accent-green">
+            <p class="stat-label">{{ t('common.principal') }}</p>
+            <p class="stat-value">{{ formatCurrency(selectedLoan.principalAmount) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-amber">
+            <p class="stat-label">{{ t('loans.outstanding') }}</p>
+            <p class="stat-value">{{ formatCurrency(selectedLoan.outstandingPrincipal) }}</p>
+          </div>
+        </div>
+
+        <div class="stats-inline mt-16">
+          <span class="pill">{{ t('common.status') }}: {{ t(`common.${selectedLoan.status}`) }}</span>
+          <span class="pill" :title="t('loans.graceDaysHelp')">{{ t('loans.dueDay') }}: {{ selectedLoan.dueDay }}</span>
+          <span class="pill">{{ t('loans.rate') }}: {{ selectedLoan.monthlyInterestRate }}%</span>
+          <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedLoan.disbursementDate) }}</span>
+        </div>
+
+        <div class="mt-16 stats-inline">
+          <span class="muted"><strong>{{ t('loans.description') }}:</strong> {{ selectedLoan.description || t('loans.noDescription') }}</span>
+        </div>
+
+        <div v-if="financialDataLoading" class="mt-16 text-center muted">
+          {{ t('common.loading') }}
+        </div>
+        <div v-else>
+          <div class="grid grid-2 mt-16">
+            <div class="card stat-card stat-accent-amber">
+              <p class="stat-label">{{ t('payments.totalPendingInterest') }}</p>
+              <p class="stat-value">{{ formatCurrency(totalPendingInterest) }}</p>
+            </div>
+            <div class="card stat-card stat-accent-blue">
+              <p class="stat-label">{{ t('payments.totalPendingPenalty') }}</p>
+              <p class="stat-value">{{ formatCurrency(totalPendingPenalty) }}</p>
+            </div>
+          </div>
+
+          <div class="mt-16">
+            <h3>{{ t('loans.loanPayments') }}</h3>
+            <p class="muted" v-if="!selectedLoanPayments.length">{{ t('loans.noLoanPayments') }}</p>
+            <div v-else class="table-wrap mt-16">
+              <table>
+                <thead>
+                  <tr>
+                    <th>{{ t('common.date') }}</th>
+                    <th>{{ t('common.total') }}</th>
+                    <th>{{ t('payments.penalty') }}</th>
+                    <th>{{ t('common.interest') }}</th>
+                    <th>{{ t('common.fees') }}</th>
+                    <th>{{ t('common.principal') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="payment in selectedLoanPayments" :key="payment.id">
+                    <td>{{ formatDateDMY(payment.paymentDate) }}</td>
+                    <td>{{ formatCurrency(payment.totalAmount) }}</td>
+                    <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                    <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                    <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
+                    <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
   </section>
 </template>
 
@@ -404,6 +508,7 @@ import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
+import { apiClient } from '../services/api'
 
 type SortDirection = 'asc' | 'desc'
 type LoanSortKey = 'date' | 'id' | 'customer' | 'principal' | 'outstanding' | 'rate' | 'status'
@@ -419,6 +524,28 @@ interface CollateralQueueItem {
   storageLocation: string
 }
 
+interface InterestPendingItem {
+  interest_charge_id: number
+  loan_id: number
+  remaining_pending_amount: number
+  overdue: boolean
+  penalty_amount: number
+}
+
+interface InterestPendingGroup {
+  billing_period: string
+  items: InterestPendingItem[]
+}
+
+interface InterestPendingResponse {
+  customer_id: number
+  groups: InterestPendingGroup[]
+  total_pending_interest: number
+  total_pending_penalty: number
+  total_outstanding: number
+}
+
+
 const { state, createLoan, createCollateral, updateLoan, getCustomerName, ensureInitialized } = usePlatformStore()
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -431,6 +558,36 @@ const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
+const financialDataLoading = ref(false)
+const financialDataError = ref(false)
+const pendingInterestData = ref<InterestPendingResponse | null>(null)
+
+const totalPendingInterest = computed(() => {
+  if (!pendingInterestData.value) return 0
+  let total = 0
+  for (const group of pendingInterestData.value.groups) {
+    for (const item of group.items) {
+      if (item.loan_id === selectedLoanId.value) {
+        total += item.remaining_pending_amount
+      }
+    }
+  }
+  return total
+})
+
+const totalPendingPenalty = computed(() => {
+  if (!pendingInterestData.value) return 0
+  let total = 0
+  for (const group of pendingInterestData.value.groups) {
+    for (const item of group.items) {
+      if (item.loan_id === selectedLoanId.value) {
+        total += item.penalty_amount
+      }
+    }
+  }
+  return total
+})
+
 const editingDescription = ref(false)
 const descriptionDraft = ref('')
 const isSavingDescription = ref(false)
@@ -613,11 +770,27 @@ const resetLoanFilters = () => {
   loanSortPriority.value = [{ key: 'date', direction: 'desc' }]
 }
 
-const openLoanDetail = (loanId: number) => {
+const openLoanDetail = async (loanId: number) => {
   selectedLoanId.value = loanId
   showLoanDetailModal.value = true
   editingDescription.value = false
   descriptionDraft.value = ''
+  
+  const loan = state.loans.find((l) => l.id === loanId)
+  if (!loan) return
+  
+  financialDataLoading.value = true
+  financialDataError.value = false
+  
+  try {
+    const pending = await apiClient.request<InterestPendingResponse>(`/payments/customers/${loan.customerId}/interest-pending`)
+    pendingInterestData.value = pending
+  } catch (err) {
+    financialDataError.value = true
+    pendingInterestData.value = null
+  } finally {
+    financialDataLoading.value = false
+  }
 }
 
 const closeLoanDetail = () => {

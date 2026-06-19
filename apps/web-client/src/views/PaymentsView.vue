@@ -230,6 +230,10 @@
           <FilterX :size="16" />
           {{ t('payments.resetHistoryFilters') }}
         </button>
+        <button class="btn btn-secondary" type="button" @click="printHistory">
+          <Printer :size="16" />
+          {{ t('common.printHistory') }}
+        </button>
       </div>
       <div class="table-wrap">
       <table>
@@ -244,6 +248,7 @@
             <th>{{ t('payments.penalty') }}</th>
             <th>{{ t('common.principal') }}</th>
             <th>{{ t('common.method') }}</th>
+            <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -257,9 +262,14 @@
             <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
             <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
             <td>{{ getPaymentMethodLabel(event.payment_method) }}</td>
+            <td>
+              <a :href="'/print/invoice/payment/' + event.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
+                <Printer :size="16" />
+              </a>
+            </td>
           </tr>
           <tr v-if="!filteredPaymentHistory.length">
-            <td colspan="9">{{ t('payments.noHistory') }}</td>
+            <td colspan="10">{{ t('payments.noHistory') }}</td>
           </tr>
         </tbody>
       </table>
@@ -299,13 +309,11 @@
             <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
             <td>
               <div class="form-inline">
-                <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
                   <Printer :size="16" />
-                  {{ t('common.printReceipt') }}
                 </a>
-                <button class="btn btn-secondary" type="button" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
+                <button class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
                   <Pencil :size="16" />
-                  {{ t('payments.editPayment') }}
                 </button>
               </div>
             </td>
@@ -632,24 +640,24 @@ const formatCurrency = (amount: number) =>
     amount
   )
 
-const getPaymentTypeLabel = (type: string) => {
-  if (type === 'interest') {
-    return t('payments.interestTab')
-  }
-  if (type === 'principal') {
-    return t('payments.principalTab')
-  }
-  if (type === 'advance') {
-    return t('customers.advancePayment')
-  }
-  return type
+const getPaymentTypeLabel = (paymentType: string) => {
+  if (paymentType === 'partial_principal_payment') return t('payments.typePartialPrincipal')
+  if (paymentType === 'interest_payment' || paymentType === 'interest') return t('payments.typeInterest')
+  if (paymentType === 'penalty_payment') return t('payments.typePenalty')
+  if (paymentType === 'full_payoff') return t('payments.typeFullPayoff')
+  if (paymentType === 'advance_payment' || paymentType === 'advance') return t('payments.typeAdvance')
+  if (paymentType === 'interest_advance_payment') return t('payments.typeInterestAdvance')
+  if (paymentType === 'mixed_payment') return t('payments.typeMixed')
+  if (paymentType === 'principal') return t('payments.principalTab')
+  return paymentType
 }
 
 const getPaymentMethodLabel = (method: string) => {
-  if (method === 'cash') {
+  const m = method.toLowerCase()
+  if (m === 'cash') {
     return t('common.cash')
   }
-  if (method === 'bank-transfer') {
+  if (m === 'bank-transfer' || m === 'bank_transfer') {
     return t('common.bankTransfer')
   }
   return t('common.other')
@@ -660,6 +668,10 @@ const resetHistoryFilters = () => {
   historyToDate.value = ''
   historyLoanFilter.value = 'all'
   historyTypeFilter.value = 'all'
+}
+
+const printHistory = () => {
+  window.print()
 }
 
 const openPaymentEditModal = (payment: {
