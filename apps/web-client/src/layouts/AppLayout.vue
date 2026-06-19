@@ -51,13 +51,12 @@
           </div>
         </div>
         <div class="topbar-actions">
-          <input
+          <CustomerAutocomplete
             id="nav-filter"
-            v-model="customerSearch"
-            class="topbar-search"
-            type="text"
+            v-model="selectedCustomerId"
+            :customers="state.customers"
+            inputClass="topbar-search"
             :placeholder="t('customers.searchPlaceholder')"
-            @keydown.enter.prevent="handleCustomerSearch"
           />
           <select id="locale-select" v-model="selectedLocale" class="locale-select" @change="onLocaleChange">
             <option value="en">EN</option>
@@ -93,6 +92,8 @@ import {
 } from 'lucide-vue-next'
 import { persistLocale, type AppLocale } from '../i18n'
 import { useAuthState } from '../modules/authentication/authState'
+import { usePlatformStore } from '../stores/platformStore'
+import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -108,8 +109,11 @@ const navItems = [
   { to: '/settings', labelKey: 'app.settings', icon: Settings }
 ]
 
+const { state } = usePlatformStore()
+
 const selectedLocale = ref(locale.value as AppLocale)
 const customerSearch = ref('')
+const selectedCustomerId = ref<number | null>(null)
 const mobileMenuOpen = ref(false)
 const currentUsername = computed(() => authState.username || 'admin')
 const userInitial = computed(() => currentUsername.value.charAt(0).toUpperCase())
@@ -123,9 +127,33 @@ watch(
   () => route.query.q,
   (value) => {
     customerSearch.value = typeof value === 'string' ? value : ''
+    // Try to auto-select customer if they match the query exactly
+    if (customerSearch.value) {
+      const match = state.customers.find(c => c.fullName === customerSearch.value || c.documentNumber === customerSearch.value)
+      if (match) {
+        selectedCustomerId.value = match.id
+      } else {
+        selectedCustomerId.value = null
+      }
+    } else {
+      selectedCustomerId.value = null
+    }
   },
   { immediate: true }
 )
+
+watch(selectedCustomerId, (id) => {
+  if (id) {
+    const cust = state.customers.find(c => c.id === id)
+    if (cust) {
+      mobileMenuOpen.value = false
+      void router.push({ name: 'customers', query: { q: cust.fullName } })
+    }
+  } else if (!customerSearch.value) {
+    // If cleared, maybe go to customers without filter?
+    // Actually just do nothing.
+  }
+})
 
 const onLocaleChange = () => {
   locale.value = selectedLocale.value
@@ -138,14 +166,7 @@ const handleLogout = () => {
   void router.push('/login')
 }
 
-const handleCustomerSearch = () => {
-  const query = customerSearch.value.trim()
-  mobileMenuOpen.value = false
-  void router.push({
-    name: 'customers',
-    query: query ? { q: query } : {}
-  })
-}
+
 </script>
 
 <style scoped>

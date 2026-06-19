@@ -1,12 +1,13 @@
 <template>
   <div class="customer-autocomplete" ref="containerRef">
     <input 
+      :id="id"
       type="text" 
       v-model="searchQuery" 
       @focus="isOpen = true"
       @input="isOpen = true"
       :placeholder="placeholder" 
-      class="w-100"
+      :class="['w-100', inputClass]"
     />
     <ul v-if="isOpen && filteredCustomers.length > 0" class="autocomplete-dropdown">
       <li 
@@ -33,6 +34,8 @@ const props = defineProps<{
   modelValue: number | null
   customers: any[]
   placeholder?: string
+  inputClass?: string
+  id?: string
 }>()
 
 const emit = defineEmits<{
