@@ -73,7 +73,13 @@ export const messages = {
       returnToSystem: 'Return to system',
       loanInfo: 'Loan information',
       loanNumber: 'Loan number',
-      newOutstandingBalance: 'New outstanding principal'
+      newOutstandingBalance: 'New outstanding principal',
+      remainingBalancesTitle: 'Remaining balances after this payment',
+      remainingPrincipal: 'Remaining principal',
+      remainingInterest: 'Remaining interest',
+      remainingPenalty: 'Remaining penalty / late fees',
+      loanStatus: 'Loan status',
+      receiptPaymentType: 'Payment type'
     },
     dashboard: {
       title: 'Dashboard',
@@ -457,7 +463,13 @@ export const messages = {
       returnToSystem: 'Volver al sistema',
       loanInfo: 'Información del Préstamo',
       loanNumber: 'Nº Préstamo',
-      newOutstandingBalance: 'Nuevo Saldo a Capital'
+      newOutstandingBalance: 'Nuevo Saldo a Capital',
+      remainingBalancesTitle: 'Saldos pendientes después de este pago',
+      remainingPrincipal: 'Capital pendiente',
+      remainingInterest: 'Interés pendiente',
+      remainingPenalty: 'Mora / Penalización pendiente',
+      loanStatus: 'Estado del préstamo',
+      receiptPaymentType: 'Tipo de pago'
     },
     dashboard: {
       title: 'Panel',
