@@ -745,11 +745,11 @@
             </label>
             <label>
               {{ t('loans.principalAmount') }}
-              <input v-model.number="loanEditForm.principalAmount" type="number" min="1" required />
+              <CurrencyInput v-model="loanEditForm.principalAmount" :required="true" />
             </label>
             <label>
               {{ t('loans.outstanding') }}
-              <input v-model.number="loanEditForm.outstandingPrincipal" type="number" min="0" required />
+              <CurrencyInput v-model="loanEditForm.outstandingPrincipal" :required="true" />
             </label>
             <label>
               {{ t('loans.monthlyInterestRate') }}
@@ -824,7 +824,7 @@
             </label>
             <label>
               {{ t('collateral.appraisedValue') }}
-              <input v-model.number="collateralEditForm.appraisedValue" type="number" min="1" required />
+              <CurrencyInput v-model="collateralEditForm.appraisedValue" :required="true" />
             </label>
             <label>
               {{ t('collateral.storageLocation') }}
@@ -878,23 +878,23 @@
             </label>
             <label>
               {{ t('common.total') }}
-              <input v-model.number="paymentEditForm.totalAmount" type="number" min="0.01" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.totalAmount" :required="true" />
             </label>
             <label>
               {{ t('common.interest') }}
-              <input v-model.number="paymentEditForm.allocatedToInterest" type="number" min="0" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.allocatedToInterest" :required="true" />
             </label>
             <label>
               {{ t('payments.penalty') }}
-              <input v-model.number="paymentEditForm.allocatedToPenalty" type="number" min="0" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.allocatedToPenalty" :required="true" />
             </label>
             <label>
               {{ t('common.fees') }}
-              <input v-model.number="paymentEditForm.allocatedToFees" type="number" min="0" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.allocatedToFees" :required="true" />
             </label>
             <label>
               {{ t('common.principal') }}
-              <input v-model.number="paymentEditForm.allocatedToPrincipal" type="number" min="0" step="0.01" required />
+              <CurrencyInput v-model="paymentEditForm.allocatedToPrincipal" :required="true" />
             </label>
           </div>
           <label class="mt-8">
@@ -917,6 +917,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
+import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'

@@ -41,17 +41,7 @@
         </label>
         <label>
           {{ t('loans.principalAmount') }}
-          <input
-            :value="form.principalAmount ? form.principalAmount.toLocaleString('en-US') : ''"
-            @input="(e) => {
-              let val = (e.target as HTMLInputElement).value.replace(/[^\d]/g, '');
-              form.principalAmount = val ? parseInt(val, 10) : 0;
-              (e.target as HTMLInputElement).value = form.principalAmount ? form.principalAmount.toLocaleString('en-US') : '';
-            }"
-            type="text"
-            inputmode="numeric"
-            required
-          />
+          <CurrencyInput v-model="form.principalAmount" :required="true" />
         </label>
         <label :title="t('loans.monthlyInterestRateHelp')">
           <span class="field-label-row">
@@ -136,7 +126,7 @@
         </label>
         <label>
           {{ t('collateral.appraisedValue') }}
-          <input v-model.number="collateralForm.appraisedValue" type="number" min="1" required />
+          <CurrencyInput v-model="collateralForm.appraisedValue" :required="true" />
         </label>
         <label>
           {{ t('collateral.storageLocation') }}
@@ -530,6 +520,7 @@ import { useI18n } from 'vue-i18n'
 import { FilePlus2, FilterX, HandCoins, Pencil, Save, Trash2, X, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
+import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
