@@ -173,6 +173,32 @@
 
         <p v-if="hasCustomerCreditTraceability" class="notice mt-16" style="background: var(--warning-soft); color: #92400e; border-color: var(--warning-border);">{{ t('customers.traceabilityDeleteHint') }}</p>
 
+        <article class="card mt-16">
+          <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
+          <p class="muted">{{ t('customers.globalAuditFiltersHint') }}</p>
+          <div class="audit-filter-grid mt-16">
+            <label>
+              {{ t('customers.auditFilterFrom') }}
+              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" :placeholder="t('settings.dateFormat')" />
+            </label>
+            <label>
+              {{ t('customers.auditFilterTo') }}
+              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" :placeholder="t('settings.dateFormat')" />
+            </label>
+            <label>
+              {{ t('customers.auditFilterLoan') }}
+              <select v-model="auditLoanFilter">
+                <option value="all">{{ t('customers.auditFilterAllLoans') }}</option>
+                <option v-for="loanId in loanAuditFilterOptions" :key="loanId" :value="loanId">#{{ loanId }}</option>
+              </select>
+            </label>
+            <button class="btn btn-secondary" type="button" @click="resetAuditFilters">
+              <FilterX :size="16" />
+              {{ t('customers.auditResetFilters') }}
+            </button>
+          </div>
+        </article>
+
         <!-- ── Tabs ──────────────────────────────────── -->
         <div class="detail-tabs mt-16">
           <button class="tab-btn" :class="{ active: detailTab === 'overview' }" type="button" @click="detailTab = 'overview'">
@@ -202,32 +228,6 @@
 
         <!-- ── Tab: Overview ────────────────────────── -->
         <template v-if="detailTab === 'overview'">
-        <article class="card mt-16">
-          <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
-          <p class="muted">{{ t('customers.globalAuditFiltersHint') }}</p>
-          <div class="audit-filter-grid mt-16">
-            <label>
-              {{ t('customers.auditFilterFrom') }}
-              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" :placeholder="t('settings.dateFormat')" />
-            </label>
-            <label>
-              {{ t('customers.auditFilterTo') }}
-              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" :placeholder="t('settings.dateFormat')" />
-            </label>
-            <label>
-              {{ t('customers.auditFilterLoan') }}
-              <select v-model="auditLoanFilter">
-                <option value="all">{{ t('customers.auditFilterAllLoans') }}</option>
-                <option v-for="loanId in loanAuditFilterOptions" :key="loanId" :value="loanId">#{{ loanId }}</option>
-              </select>
-            </label>
-            <button class="btn btn-secondary" type="button" @click="resetAuditFilters">
-              <FilterX :size="16" />
-              {{ t('customers.auditResetFilters') }}
-            </button>
-          </div>
-        </article>
-
         <div class="grid grid-2 mt-16">
           <article class="card audit-summary-card">
             <h3>{{ t('customers.auditSnapshotTitle') }}</h3>
@@ -470,18 +470,17 @@
                 <td>{{ loan.monthlyInterestRate }}%</td>
                 <td>{{ t(`common.${loan.status}`) }}</td>
                 <td>
-                  <button class="btn btn-secondary" type="button" @click.stop="openLoanEditModal(loan)">
-                    <Pencil :size="16" />
-                    {{ t('customers.editLoan') }}
-                  </button>
-                  <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;" @click.stop>
-                    <Printer :size="16" />
-                    {{ t('common.printInvoice') }}
-                  </a>
-                  <button class="btn btn-secondary" type="button" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
-                    <Trash2 :size="16" />
-                    {{ t('customers.deleteLoan') }}
-                  </button>
+                  <div class="form-inline">
+                    <button class="btn btn-secondary btn-icon" type="button" :title="t('customers.editLoan')" @click.stop="openLoanEditModal(loan)">
+                      <Pencil :size="16" />
+                    </button>
+                    <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
+                      <Printer :size="16" />
+                    </a>
+                    <button class="btn btn-secondary btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
+                      <Trash2 :size="16" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -493,8 +492,16 @@
         <!-- ── Tab: Payments (customer payments) continues ── -->
         <template v-if="detailTab === 'payments'">
         <div class="mt-16">
-          <h3>{{ t('customers.customerPayments') }}</h3>
-          <p class="muted">{{ t('customers.totalPaid', { amount: formatCurrency(totalCustomerPaid) }) }}</p>
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <h3>{{ t('customers.customerPayments') }}</h3>
+              <p class="muted">{{ t('customers.totalPaid', { amount: formatCurrency(totalCustomerPaid) }) }}</p>
+            </div>
+            <button class="btn btn-secondary" type="button" @click="printHistory" v-if="selectedCustomerPayments.length">
+              <Printer :size="16" />
+              {{ t('common.printHistory') }}
+            </button>
+          </div>
           <p class="muted" v-if="!selectedCustomerPayments.length">{{ t('customers.noPayments') }}</p>
           <div v-else class="table-wrap mt-16">
           <table>
@@ -531,18 +538,17 @@
                 <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
                 <td>
                   <div class="form-inline">
-                    <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+                    <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
                       <Printer :size="16" />
-                      {{ t('common.printReceipt') }}
                     </a>
                     <button
-                      class="btn btn-secondary"
+                      class="btn btn-secondary btn-icon"
                       type="button"
+                      :title="t('payments.editPayment')"
                       :disabled="payment.isReversed || isSaving"
                       @click="openPaymentEditModal(payment)"
                     >
                       <Pencil :size="16" />
-                      {{ t('payments.editPayment') }}
                     </button>
                   </div>
                 </td>
@@ -1660,6 +1666,10 @@ const getLoanTypeLabel = (loanId: number) => {
   return loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal')
 }
 
+const printHistory = () => {
+  window.print()
+}
+
 const getLoanStatusLabel = (loanId: number) => {
   const loan = getLoanById(loanId)
   if (!loan) {
@@ -1669,10 +1679,11 @@ const getLoanStatusLabel = (loanId: number) => {
 }
 
 const paymentMethodLabel = (method: string) => {
-  if (method === 'cash') {
+  const m = method.toLowerCase()
+  if (m === 'cash') {
     return t('common.cash')
   }
-  if (method === 'bank-transfer') {
+  if (m === 'bank-transfer' || m === 'bank_transfer') {
     return t('common.bankTransfer')
   }
   return t('common.other')
@@ -1701,15 +1712,14 @@ const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => 
 }
 
 const paymentTypeLabel = (paymentType: string) => {
-  if (paymentType === 'interest') {
-    return t('payments.interestTab')
-  }
-  if (paymentType === 'principal') {
-    return t('payments.principalTab')
-  }
-  if (paymentType === 'advance') {
-    return t('customers.advancePayment')
-  }
+  if (paymentType === 'partial_principal_payment') return t('payments.typePartialPrincipal')
+  if (paymentType === 'interest_payment' || paymentType === 'interest') return t('payments.typeInterest')
+  if (paymentType === 'penalty_payment') return t('payments.typePenalty')
+  if (paymentType === 'full_payoff') return t('payments.typeFullPayoff')
+  if (paymentType === 'advance_payment' || paymentType === 'advance') return t('payments.typeAdvance')
+  if (paymentType === 'interest_advance_payment') return t('payments.typeInterestAdvance')
+  if (paymentType === 'mixed_payment') return t('payments.typeMixed')
+  if (paymentType === 'principal') return t('payments.principalTab')
   return paymentType
 }
 

@@ -245,9 +245,8 @@
             <td>{{ getLoanCollateralLabel(loan.id, loan.loanType) }}</td>
             <td>{{ t(`common.${loan.status}`) }}</td>
             <td>
-              <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;" @click.stop>
+              <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
                 <Printer :size="16" />
-                {{ t('common.printInvoice') }}
               </a>
             </td>
           </tr>
