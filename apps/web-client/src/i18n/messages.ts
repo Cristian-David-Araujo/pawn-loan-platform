@@ -308,7 +308,9 @@ export const messages = {
       loanOption: 'Loan #{id} - {customer}',
       searchPlaceholder: 'Search by payment id, loan id or customer...',
       allMethods: 'All methods',
-      totalPayments: 'Payments: {count}'
+      totalPayments: 'Payments: {count}',
+      totalPendingInterest: 'Total pending interest',
+      totalPendingPenalty: 'Total pending penalty'
     },
     settings: {
       title: 'Settings',
@@ -708,7 +710,9 @@ export const messages = {
       loanOption: 'Prestamo #{id} - {customer}',
       searchPlaceholder: 'Buscar por id de pago, prestamo o cliente...',
       allMethods: 'Todos los metodos',
-      totalPayments: 'Pagos: {count}'
+      totalPayments: 'Pagos: {count}',
+      totalPendingInterest: 'Total interes pendiente',
+      totalPendingPenalty: 'Total mora pendiente'
     },
     settings: {
       title: 'Configuraciones',

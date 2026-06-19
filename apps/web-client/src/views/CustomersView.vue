@@ -609,13 +609,11 @@
         <div class="modal-header">
           <h3>{{ t('loans.loanDetail') }}</h3>
           <div class="form-inline">
-            <a :href="'/print/invoice/loan/' + selectedCustomerLoanDetail.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+            <a :href="'/print/invoice/loan/' + selectedCustomerLoanDetail.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;">
               <Printer :size="16" />
-              {{ t('common.printInvoice') }}
             </a>
-            <button class="btn btn-secondary" type="button" @click="closeCustomerLoanDetail">
+            <button class="btn btn-secondary btn-icon" type="button" @click="closeCustomerLoanDetail">
               <X :size="16" />
-              {{ t('common.close') }}
             </button>
           </div>
         </div>
@@ -652,6 +650,22 @@
 
         <div class="mt-16 stats-inline">
           <span class="muted"><strong>{{ t('loans.description') }}:</strong> {{ selectedCustomerLoanDetail.description || t('loans.noDescription') }}</span>
+        </div>
+
+        <div v-if="financialDataLoading" class="mt-16 text-center muted">
+          {{ t('common.loading') }}
+        </div>
+        <div v-else>
+          <div class="grid grid-2 mt-16">
+            <div class="card stat-card stat-accent-amber">
+              <p class="stat-label">{{ t('payments.totalPendingInterest') }}</p>
+              <p class="stat-value">{{ formatCurrency(totalPendingInterestForLoan) }}</p>
+            </div>
+            <div class="card stat-card stat-accent-blue">
+              <p class="stat-label">{{ t('payments.totalPendingPenalty') }}</p>
+              <p class="stat-value">{{ formatCurrency(totalPendingPenaltyForLoan) }}</p>
+            </div>
+          </div>
         </div>
 
         <div class="mt-16">
@@ -1152,6 +1166,32 @@ const selectedCustomerLoanPayments = computed(() => {
   return selectedCustomerPayments.value
     .filter((payment: Payment) => payment.loanId === selectedCustomerLoanDetail.value?.id)
     .sort((a, b) => new Date(b.paymentDate).getTime() - new Date(a.paymentDate).getTime())
+})
+
+const totalPendingInterestForLoan = computed(() => {
+  if (!pendingInterestData.value || !selectedCustomerLoanDetail.value) return 0
+  let total = 0
+  for (const group of pendingInterestData.value.groups) {
+    for (const item of group.items) {
+      if (item.loan_id === selectedCustomerLoanDetail.value.id) {
+        total += item.remaining_pending_amount
+      }
+    }
+  }
+  return total
+})
+
+const totalPendingPenaltyForLoan = computed(() => {
+  if (!pendingInterestData.value || !selectedCustomerLoanDetail.value) return 0
+  let total = 0
+  for (const group of pendingInterestData.value.groups) {
+    for (const item of group.items) {
+      if (item.loan_id === selectedCustomerLoanDetail.value.id) {
+        total += item.penalty_amount
+      }
+    }
+  }
+  return total
 })
 
 const selectedCustomerLoanCollateral = computed(() => {
