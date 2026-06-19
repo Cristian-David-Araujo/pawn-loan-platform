@@ -1675,6 +1675,20 @@ ul {
   .stat-value {
     font-size: 1.25rem;
   }
+
+  /* Mobile Accessibility & Touch Targets */
+  .btn, .btn-icon, .tab-btn, .sort-header-btn {
+    min-height: 44px;
+  }
+
+  input, select, textarea {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  th, td {
+    padding: 1rem 0.75rem;
+  }
 }
 
 /* ═══════════════════════════════════════════════
