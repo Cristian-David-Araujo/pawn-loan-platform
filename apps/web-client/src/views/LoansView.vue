@@ -4,9 +4,25 @@
       <template #icon>
         <HandCoins :size="18" />
       </template>
+      <template #actions>
+        <button class="btn" type="button" @click="openCreateLoanModal">
+          <FilePlus2 :size="16" />
+          {{ t('loans.createLoan') }}
+        </button>
+      </template>
     </PageHeader>
 
-    <form class="card form mt-16" @submit.prevent="handleCreateLoan">
+    <!-- ── Create Loan Modal ──────────────────────────── -->
+    <div v-if="showCreateLoanModal" class="modal-backdrop" @click.self="closeCreateLoanModal">
+      <div class="modal-panel card modal-panel-lg">
+        <div class="modal-header">
+          <h3>{{ t('loans.createLoan') }}</h3>
+          <button class="btn btn-secondary btn-icon" type="button" @click="closeCreateLoanModal">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <form class="form mt-16" @submit.prevent="handleCreateLoan">
       <div class="form-section">
         <div class="form-section-head">
           <h3 class="form-section-title">{{ t('loans.loanDataSection') }}</h3>
@@ -162,6 +178,8 @@
         </button>
       </div>
     </form>
+      </div>
+    </div>
 
     <div class="card mt-16">
       <div class="table-toolbar">
@@ -555,6 +573,9 @@ const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
+const showCreateLoanModal = ref(false)
+const openCreateLoanModal = () => { showCreateLoanModal.value = true }
+const closeCreateLoanModal = () => { showCreateLoanModal.value = false }
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
 const pendingInterestData = ref<InterestPendingResponse | null>(null)
@@ -675,6 +696,7 @@ const handleCreateLoan = async () => {
   if (printInvoiceOnSave.value) {
     router.push(`/print/invoice/loan/${createdLoan.id}`)
   }
+  closeCreateLoanModal()
 }
 
 const collateralForm = reactive({
