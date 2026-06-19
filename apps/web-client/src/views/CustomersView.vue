@@ -470,6 +470,10 @@
                     <Pencil :size="16" />
                     {{ t('customers.editLoan') }}
                   </button>
+                  <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;" @click.stop>
+                    <Printer :size="16" />
+                    {{ t('common.printInvoice') }}
+                  </a>
                   <button class="btn btn-secondary" type="button" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
                     <Trash2 :size="16" />
                     {{ t('customers.deleteLoan') }}
@@ -881,7 +885,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X } from 'lucide-vue-next'
+import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'

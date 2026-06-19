@@ -230,6 +230,7 @@
                 <span v-if="getLoanSortBadge('status')" class="sort-indicator">{{ getLoanSortBadge('status') }}</span>
               </button>
             </th>
+            <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -243,9 +244,15 @@
             <td>{{ loan.monthlyInterestRate }}%</td>
             <td>{{ getLoanCollateralLabel(loan.id, loan.loanType) }}</td>
             <td>{{ t(`common.${loan.status}`) }}</td>
+            <td>
+              <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;" @click.stop>
+                <Printer :size="16" />
+                {{ t('common.printInvoice') }}
+              </a>
+            </td>
           </tr>
           <tr v-if="!filteredLoans.length">
-            <td colspan="9">{{ t('loans.noLoansForFilter') }}</td>
+            <td colspan="10">{{ t('loans.noLoansForFilter') }}</td>
           </tr>
         </tbody>
       </table>
