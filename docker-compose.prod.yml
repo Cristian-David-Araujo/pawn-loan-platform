@@ -19,11 +19,7 @@ services:
         condition: service_healthy
 
   web-client:
-    build:
-      context: ./apps/web-client
-      dockerfile: Dockerfile.prod
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    image: ghcr.io/cristian-david-araujo/pawn-loan-platform/web-client:${IMAGE_TAG:-latest}
     container_name: pawn-web-client-prod
     restart: unless-stopped
     healthcheck:
@@ -34,9 +30,7 @@ services:
       start_period: 10s
 
   db-bootstrap:
-    build:
-      context: ./apps/api-server
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/cristian-david-araujo/pawn-loan-platform/api-server:${IMAGE_TAG:-latest}
     container_name: pawn-db-bootstrap-prod
     restart: "no"
     env_file:
@@ -56,9 +50,7 @@ services:
         condition: service_healthy
 
   api-server:
-    build:
-      context: ./apps/api-server
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/cristian-david-araujo/pawn-loan-platform/api-server:${IMAGE_TAG:-latest}
     container_name: pawn-api-server-prod
     restart: unless-stopped
     env_file:

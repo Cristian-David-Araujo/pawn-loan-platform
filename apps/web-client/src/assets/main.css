@@ -654,6 +654,12 @@ label {
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.25);
 }
 
+.btn-icon {
+  padding: 0.55rem;
+  aspect-ratio: 1;
+  justify-content: center;
+}
+
 .btn:hover {
   background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
@@ -1710,4 +1716,32 @@ ul {
 
 .loading-pulse {
   animation: pulse 2s infinite;
+}
+/* ═══════════════════════════════════════════════
+   PRINT
+   ═══════════════════════════════════════════════ */
+@media print {
+  .sidebar,
+  .topbar,
+  .quick-actions,
+  .actions,
+  .table-toolbar,
+  .btn,
+  .form-actions {
+    display: none !important;
+  }
+  
+  .app-content {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .page {
+    padding: 0 !important;
+  }
+  
+  .card {
+    border: none;
+    box-shadow: none;
+  }
 }
