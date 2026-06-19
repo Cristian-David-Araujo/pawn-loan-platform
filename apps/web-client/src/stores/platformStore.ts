@@ -486,7 +486,7 @@ const updatePayment = async (payload: UpdatePaymentPayload) => {
 }
 
 const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
-  await apiClient.request<BackendGlobalSettings>('/settings', {
+  const result = await apiClient.request<BackendGlobalSettings>('/settings', {
     method: 'PUT',
     body: JSON.stringify({
       app_name: payload.appName,
