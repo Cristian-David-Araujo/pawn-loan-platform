@@ -11,7 +11,6 @@
         {{ t('common.customer') }}
         <CustomerAutocomplete v-model="selectedCustomerId" :customers="sortedCustomers" :placeholder="t('common.searchPlaceholder')" />
       </label>
-      <span v-if="selectedCustomer" class="pill">{{ selectedCustomer.fullName }}</span>
     </div>
 
     <div class="tabs mt-16">
@@ -508,10 +507,6 @@ const paymentEditForm = ref({
   paymentMethod: 'cash' as 'cash' | 'bank-transfer' | 'other',
   notes: ''
 })
-
-const selectedCustomer = computed(() =>
-  selectedCustomerId.value === null ? null : state.customers.find((item) => item.id === selectedCustomerId.value) ?? null
-)
 
 const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
 
