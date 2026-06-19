@@ -382,10 +382,10 @@ onMounted(async () => {
   width: 100%;
   max-width: 800px;
   padding: 40px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  color: #334155;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
+  border-radius: var(--radius-lg, 8px);
+  color: var(--text, #334155);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
 }
 
 .invoice-header {
@@ -403,7 +403,7 @@ onMounted(async () => {
 
 .invoice-meta h1 {
   margin: 0 0 10px 0;
-  color: #3b82f6;
+  color: var(--accent, #4f46e5);
   font-size: 24px;
   text-align: right;
 }
@@ -444,9 +444,10 @@ onMounted(async () => {
 }
 
 .print-table th {
-  background-color: #f8fafc;
+  background-color: var(--surface-soft, #f8fafc);
   font-weight: 600;
-  color: #475569;
+  color: var(--text, #475569);
+  border-bottom: 2px solid var(--line-light, #e2e8f0);
 }
 
 .print-table tfoot th {
@@ -464,8 +465,8 @@ onMounted(async () => {
 }
 
 .balances-section h3 {
-  color: #1e40af;
-  border-bottom-color: #bfdbfe;
+  color: var(--accent, #4f46e5);
+  border-bottom-color: var(--line-light, #e2e8f0);
 }
 
 .balances-table td {
@@ -528,10 +529,10 @@ onMounted(async () => {
 }
 
 .payment-notes {
-  background: #f8fafc;
+  background: var(--surface-soft, #f8fafc);
   padding: 15px;
-  border-radius: 6px;
-  border-left: 4px solid #3b82f6;
+  border-radius: var(--radius-md, 6px);
+  border-left: 4px solid var(--accent, #4f46e5);
 }
 
 .invoice-footer {
