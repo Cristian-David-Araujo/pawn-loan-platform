@@ -26,27 +26,7 @@
     <div v-if="activeTab === 'interest'" class="card mt-16">
       <h3>{{ t('payments.pendingInterestTitle') }}</h3>
 
-      <div class="form-inline mt-16">
-        <label>
-          {{ t('payments.paymentMethod') }}
-          <select v-model="interestPaymentMethod">
-            <option value="cash">{{ t('common.cash') }}</option>
-            <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-            <option value="other">{{ t('common.other') }}</option>
-          </select>
-        </label>
-        <label>
-          {{ t('payments.totalAmount') }}
-          <input v-model.number="interestEnteredAmount" type="number" min="0.01" step="0.01" @input="interestAmountTouched = true" />
-        </label>
-        <button class="btn btn-secondary" type="button" @click="useSuggestedAmount">
-          <Sparkles :size="16" />
-          {{ t('payments.useSuggested') }}
-        </button>
-      </div>
-
-      <div class="table-toolbar mt-16">
-        <span class="table-count">{{ t('payments.totalPending', { amount: formatCurrency(totalPendingOutstanding) }) }}</span>
+      <div class="table-toolbar mt-16" style="justify-content: flex-end;">
         <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedSelectedAmount) }) }}</span>
       </div>
 
@@ -106,7 +86,26 @@
           {{ t('payments.notes') }}
           <input v-model="interestNotes" />
         </label>
-        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" class="mt-16">
+        <div class="form-inline mt-16" style="align-items: flex-end; border-top: 1px solid var(--line); padding-top: 1rem;">
+          <label>
+            {{ t('payments.paymentMethod') }}
+            <select v-model="interestPaymentMethod">
+              <option value="cash">{{ t('common.cash') }}</option>
+              <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
+              <option value="other">{{ t('common.other') }}</option>
+            </select>
+          </label>
+          <label>
+            {{ t('payments.totalAmount') }}
+            <input v-model.number="interestEnteredAmount" type="number" min="0.01" step="0.01" @input="interestAmountTouched = true" />
+          </label>
+          <button class="btn btn-secondary" type="button" @click="useSuggestedAmount">
+            <Sparkles :size="16" />
+            {{ t('payments.useSuggested') }}
+          </button>
+
+          <div style="flex: 1;"></div>
+
           <label class="checkbox-row" style="margin-bottom: 0;">
             <input v-model="printReceiptOnSave" type="checkbox" />
             {{ t('common.printReceiptOnSave') }}
@@ -158,29 +157,32 @@
         </div>
       </div>
 
-      <div v-if="selectedPrincipalLoan" class="form mt-16">
-        <label>
-          {{ t('payments.totalAmount') }}
-          <input v-model.number="principalAmount" type="number" min="0.01" step="0.01" />
-        </label>
-        <label>
-          {{ t('payments.paymentMethod') }}
-          <select v-model="principalPaymentMethod">
-            <option value="cash">{{ t('common.cash') }}</option>
-            <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
-            <option value="other">{{ t('common.other') }}</option>
-          </select>
-        </label>
+      <div v-if="selectedPrincipalLoan" class="card mt-16">
         <label class="checkbox-row">
           <input v-model="allowPrincipalWithUnpaidInterest" type="checkbox" />
           {{ t('payments.allowWithUnpaidInterest') }}
         </label>
-        <label>
+        <label class="mt-16">
           {{ t('payments.notes') }}
           <input v-model="principalNotes" />
         </label>
 
-        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;" class="mt-16">
+        <div class="form-inline mt-16" style="align-items: flex-end; border-top: 1px solid var(--line); padding-top: 1rem;">
+          <label>
+            {{ t('payments.paymentMethod') }}
+            <select v-model="principalPaymentMethod">
+              <option value="cash">{{ t('common.cash') }}</option>
+              <option value="bank-transfer">{{ t('common.bankTransfer') }}</option>
+              <option value="other">{{ t('common.other') }}</option>
+            </select>
+          </label>
+          <label>
+            {{ t('payments.totalAmount') }}
+            <input v-model.number="principalAmount" type="number" min="0.01" step="0.01" />
+          </label>
+
+          <div style="flex: 1;"></div>
+
           <label class="checkbox-row" style="margin-bottom: 0;">
             <input v-model="printReceiptOnSave" type="checkbox" />
             {{ t('common.printReceiptOnSave') }}
