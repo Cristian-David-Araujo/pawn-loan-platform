@@ -57,6 +57,8 @@ export const messages = {
     common: {
       id: 'ID',
       name: 'Name',
+      createdBy: 'Created by',
+      receivedBy: 'Received by',
       status: 'Status',
       date: 'Date',
       total: 'Total',
@@ -500,6 +502,8 @@ export const messages = {
     common: {
       id: 'ID',
       name: 'Nombre',
+      createdBy: 'Registrado por',
+      receivedBy: 'Recibido por',
       status: 'Estado',
       date: 'Fecha',
       total: 'Total',

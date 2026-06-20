@@ -1,6 +1,7 @@
 from datetime import date
 
 from pydantic import BaseModel, ConfigDict
+from src.modules.authentication.schemas import UserSummary
 
 
 class PaymentCreate(BaseModel):
@@ -41,6 +42,7 @@ class PaymentRead(BaseModel):
     notes: str
     received_by: int | None
     is_reversed: bool
+    receiver: UserSummary | None = None
 
 
 class InterestPendingItem(BaseModel):

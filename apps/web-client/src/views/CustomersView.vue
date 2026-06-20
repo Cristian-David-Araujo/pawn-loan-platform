@@ -593,133 +593,17 @@
       </div>
     </div>
 
-    <div v-if="showCustomerLoanDetailModal && selectedCustomerLoanDetail" class="modal-backdrop" @click.self="closeCustomerLoanDetail">
-      <div class="modal-panel card modal-panel-lg">
-        <div class="modal-header">
-          <h3>{{ t('loans.loanDetail') }}</h3>
-          <div class="form-inline">
-            <a :href="'/print/invoice/loan/' + selectedCustomerLoanDetail.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;">
-              <Printer :size="16" />
-            </a>
-            <button class="btn btn-secondary btn-icon" type="button" @click="closeCustomerLoanDetail">
-              <X :size="16" />
-            </button>
-          </div>
-        </div>
-
-        <p class="muted mt-16">{{ t('loans.selectedLoan', { id: selectedCustomerLoanDetail.id }) }}</p>
-
-        <div class="grid grid-4 mt-16">
-          <div class="card stat-card stat-accent-indigo">
-            <p class="stat-label">{{ t('common.customer') }}</p>
-            <p class="stat-value">{{ selectedCustomer?.fullName }}</p>
-          </div>
-          <div class="card stat-card stat-accent-blue">
-            <p class="stat-label">{{ t('common.type') }}</p>
-            <p class="stat-value">
-              {{ selectedCustomerLoanDetail.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}
-            </p>
-          </div>
-          <div class="card stat-card stat-accent-green">
-            <p class="stat-label">{{ t('common.principal') }}</p>
-            <p class="stat-value">{{ formatCurrency(selectedCustomerLoanDetail.principalAmount) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-amber">
-            <p class="stat-label">{{ t('loans.outstanding') }}</p>
-            <p class="stat-value">{{ formatCurrency(selectedCustomerLoanDetail.outstandingPrincipal) }}</p>
-          </div>
-        </div>
-
-        <div class="stats-inline mt-16">
-          <span class="pill">{{ t('common.status') }}: {{ t(`common.${selectedCustomerLoanDetail.status}`) }}</span>
-          <span class="pill" :title="t('loans.graceDaysHelp')">{{ t('loans.dueDay') }}: {{ selectedCustomerLoanDetail.dueDay }}</span>
-          <span class="pill">{{ t('loans.rate') }}: {{ selectedCustomerLoanDetail.monthlyInterestRate }}%</span>
-          <span class="pill">{{ t('common.date') }}: {{ formatDateDMY(selectedCustomerLoanDetail.disbursementDate) }}</span>
-        </div>
-
-        <div class="mt-16 stats-inline">
-          <span class="muted"><strong>{{ t('loans.description') }}:</strong> {{ selectedCustomerLoanDetail.description || t('loans.noDescription') }}</span>
-        </div>
-
-        <div v-if="financialDataLoading" class="mt-16 text-center muted">
-          {{ t('common.loading') }}
-        </div>
-        <div v-else>
-          <div class="grid grid-2 mt-16">
-            <div class="card stat-card stat-accent-amber">
-              <p class="stat-label">{{ t('payments.totalPendingInterest') }}</p>
-              <p class="stat-value">{{ formatCurrency(totalPendingInterestForLoan) }}</p>
-            </div>
-            <div class="card stat-card stat-accent-blue">
-              <p class="stat-label">{{ t('payments.totalPendingPenalty') }}</p>
-              <p class="stat-value">{{ formatCurrency(totalPendingPenaltyForLoan) }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-16">
-          <h3>{{ t('loans.loanPayments') }}</h3>
-          <p class="muted" v-if="!selectedCustomerLoanPayments.length">{{ t('loans.noLoanPayments') }}</p>
-          <table v-else>
-            <thead>
-              <tr>
-                <th>{{ t('common.id') }}</th>
-                <th>{{ t('common.date') }}</th>
-                <th>{{ t('common.total') }}</th>
-                <th>{{ t('payments.penalty') }}</th>
-                <th>{{ t('common.interest') }}</th>
-                <th>{{ t('common.fees') }}</th>
-                <th>{{ t('common.principal') }}</th>
-                <th>{{ t('common.method') }}</th>
-                <th>{{ t('payments.notes') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="payment in paginatedCustomerLoanPayments" :key="payment.id">
-                <td>#{{ payment.id }}</td>
-                <td>{{ formatDateDMY(payment.paymentDate) }}</td>
-                <td>{{ formatCurrency(payment.totalAmount) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-                <td>{{ paymentMethodLabel(payment.paymentMethod) }}</td>
-                <td class="muted">{{ payment.notes || '-' }}</td>
-              </tr>
-            </tbody>
-          </table>
-              <Pagination v-model="loanPaymentsCurrentPage" :totalItems="selectedCustomerLoanPayments.length" :itemsPerPage="10" />
-        </div>
-
-        <div class="mt-16">
-          <h3>{{ t('loans.loanCollateral') }}</h3>
-          <p class="muted" v-if="!selectedCustomerLoanCollateral.length">{{ t('loans.noLoanCollateral') }}</p>
-          <table v-else>
-            <thead>
-              <tr>
-                <th>{{ t('common.id') }}</th>
-                <th>{{ t('common.description') }}</th>
-                <th>{{ t('collateral.appraisedValue') }}</th>
-                <th>{{ t('collateral.custodyCode') }}</th>
-                <th>{{ t('collateral.location') }}</th>
-                <th>{{ t('common.status') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in paginatedCustomerLoanCollateral" :key="item.id">
-                <td>#{{ item.id }}</td>
-                <td>{{ item.description }}</td>
-                <td>{{ formatCurrency(item.appraisedValue) }}</td>
-                <td>{{ item.custodyCode }}</td>
-                <td>{{ item.storageLocation }}</td>
-                <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
-              </tr>
-            </tbody>
-          </table>
-              <Pagination v-model="loanCollateralsCurrentPage" :totalItems="selectedCustomerLoanCollateral.length" :itemsPerPage="10" />
-        </div>
-      </div>
-    </div>
+    <LoanDetailModal
+      :show="showCustomerLoanDetailModal"
+      :loan="selectedCustomerLoanDetail"
+      :customerName="selectedCustomer?.fullName || ''"
+      :payments="selectedCustomerLoanPayments"
+      :collaterals="selectedCustomerLoanCollateral"
+      :financialDataLoading="financialDataLoading"
+      :totalPendingInterest="totalPendingInterestForLoan"
+      :totalPendingPenalty="totalPendingPenaltyForLoan"
+      @close="closeCustomerLoanDetail"
+    />
 
     <div v-if="showLoanEditModal" class="modal-backdrop" @click.self="closeLoanEditModal">
       <div class="modal-panel card">
@@ -897,6 +781,7 @@ import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import LoanDetailModal from '../components/LoanDetailModal.vue'
 import { useRoute } from 'vue-router'
 import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
@@ -1820,8 +1705,6 @@ const { currentPage: auditCurrentPage, paginatedArray: paginatedAuditFilteredEve
 const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(selectedCustomerLoans)
 const { currentPage: paymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
 const { currentPage: collateralsCurrentPage, paginatedArray: paginatedCustomerCollateral } = usePagination(selectedCustomerCollateral)
-const { currentPage: loanPaymentsCurrentPage, paginatedArray: paginatedCustomerLoanPayments } = usePagination(selectedCustomerLoanPayments)
-const { currentPage: loanCollateralsCurrentPage, paginatedArray: paginatedCustomerLoanCollateral } = usePagination(selectedCustomerLoanCollateral)
 const customerStatusFilterOptions = computed(() => [
   { value: 'all', label: t('loans.allStatuses') },
   { value: 'active', label: t('common.active') },

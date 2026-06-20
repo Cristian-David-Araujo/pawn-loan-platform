@@ -17,6 +17,7 @@ interface BackendCustomer {
   status: string
   created_at: string
   updated_at: string
+  created_by?: any
 }
 
 interface BackendLoan {
@@ -31,6 +32,7 @@ interface BackendLoan {
   disbursement_date: string
   due_day: number
   status: Loan['status']
+  created_by?: any
 }
 
 interface BackendCollateral {
@@ -55,6 +57,7 @@ interface BackendPayment {
   payment_method: Payment['paymentMethod']
   notes: string
   is_reversed: boolean
+  receiver?: any
 }
 
 interface BackendGlobalSettings {
@@ -197,7 +200,8 @@ const mapCustomer = (item: BackendCustomer): Customer => ({
   city: item.city,
   status: item.status === 'active' ? 'active' : 'archived',
   createdAt: item.created_at,
-  updatedAt: item.updated_at
+  updatedAt: item.updated_at,
+  created_by: item.created_by
 })
 
 const mapLoan = (item: BackendLoan): Loan => ({
@@ -211,7 +215,8 @@ const mapLoan = (item: BackendLoan): Loan => ({
   latePenaltyRate: item.late_penalty_rate,
   disbursementDate: item.disbursement_date,
   dueDay: item.due_day,
-  status: item.status
+  status: item.status,
+  created_by: item.created_by
 })
 
 const mapCollateral = (item: BackendCollateral): CollateralItem => ({

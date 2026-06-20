@@ -226,6 +226,7 @@
             <th>{{ t('payments.penalty') }}</th>
             <th>{{ t('common.principal') }}</th>
             <th>{{ t('common.method') }}</th>
+            <th>{{ t('common.receivedBy', 'Received by') }}</th>
             <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
@@ -240,6 +241,7 @@
             <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
             <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
             <td>{{ getPaymentMethodLabel(event.payment_method) }}</td>
+            <td>{{ event?.operator?.full_name || event?.operator?.username || '-' }}</td>
             <td>
               <a :href="'/print/invoice/payment/' + event.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
                 <Printer :size="16" />
@@ -269,6 +271,7 @@
             <th>{{ t('payments.penalty') }}</th>
             <th>{{ t('common.principal') }}</th>
             <th>{{ t('common.method') }}</th>
+            <th>{{ t('common.receivedBy', 'Received by') }}</th>
             <th>{{ t('payments.notes') }}</th>
             <th>{{ t('common.status') }}</th>
             <th>{{ t('common.actions') }}</th>
@@ -284,6 +287,7 @@
             <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
             <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
             <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
+            <td>{{ payment?.receiver?.full_name || payment?.receiver?.username || '-' }}</td>
             <td class="muted">{{ payment.notes || '-' }}</td>
             <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
             <td>
@@ -436,6 +440,7 @@ interface PaymentEvent {
   operator_user_id: number | null
   payment_method: string
   notes: string
+  operator?: any
 }
 
 const { state, ensureInitialized, refreshAll, updatePayment } = usePlatformStore()
@@ -673,6 +678,7 @@ const openPaymentEditModal = (payment: {
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
   notes: string
+  operator?: any
 }) => {
   selectedPaymentEditId.value = payment.id
   paymentEditForm.value = {

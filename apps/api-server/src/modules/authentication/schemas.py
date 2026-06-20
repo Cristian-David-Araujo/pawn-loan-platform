@@ -12,6 +12,13 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class UserSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    full_name: str
+
 class UserCreate(BaseModel):
     username: str
     password: str

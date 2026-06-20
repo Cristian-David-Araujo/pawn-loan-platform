@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime
 
 from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.domain.enums.loan import LoanStatus, LoanType
 from src.domain.enums.user import UserRole
@@ -41,8 +41,11 @@ class Customer(Base):
     address: Mapped[str] = mapped_column(String(200), default="")
     city: Mapped[str] = mapped_column(String(80), default="")
     status: Mapped[str] = mapped_column(String(20), default="active")
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)
+    
+    created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
 
 
 class LoanApplication(Base):
@@ -77,7 +80,10 @@ class Loan(Base):
     due_day: Mapped[int] = mapped_column(Integer)
     status: Mapped[LoanStatus] = mapped_column(Enum(LoanStatus), default=LoanStatus.active)
     renewal_of: Mapped[int | None] = mapped_column(ForeignKey("loans.id"), nullable=True)
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
+    
+    created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
 
 
 class CollateralItem(Base):
@@ -125,6 +131,8 @@ class Payment(Base):
     received_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     is_reversed: Mapped[bool] = mapped_column(default=False)
 
+    receiver: Mapped["User"] = relationship("User", foreign_keys=[received_by], lazy="selectin")
+
 
 class PaymentEvent(Base):
     __tablename__ = "payment_events"
@@ -144,6 +152,8 @@ class PaymentEvent(Base):
     payment_method: Mapped[str] = mapped_column(String(40), default="cash")
     notes: Mapped[str] = mapped_column(Text, default="")
     audit_timestamp: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
+    
+    operator: Mapped["User"] = relationship("User", foreign_keys=[operator_user_id], lazy="selectin")
 
 
 class AuditLog(Base):

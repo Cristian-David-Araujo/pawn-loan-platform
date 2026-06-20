@@ -43,6 +43,7 @@ def create_customer(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Customer already exists")
 
     customer = Customer(**payload.model_dump())
+    customer.created_by_id = current_user.id
     db.add(customer)
     db.commit()
     db.refresh(customer)
