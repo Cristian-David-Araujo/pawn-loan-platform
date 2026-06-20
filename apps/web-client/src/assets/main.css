@@ -1416,7 +1416,7 @@ ul {
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  z-index: 40;
+  z-index: 200;
   animation: backdrop-in 200ms ease-out;
 }
 
