@@ -1,9 +1,12 @@
+import random
 from datetime import date, timedelta
+from typing import List
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus, LoanType
+from src.domain.enums.user import UserRole
 from src.infrastructure.persistence.models import (
     CollateralItem,
     Customer,
@@ -18,6 +21,25 @@ from src.infrastructure.persistence.models import (
 from src.infrastructure.security.password import get_password_hash
 from src.infrastructure.utils.datetime_utils import get_local_date
 
+
+NAMES = ["Juan", "Maria", "Carlos", "Ana", "Luis", "Laura", "Pedro", "Sofia", "Diego", "Carmen", "Javier", "Isabel", "Jose", "Marta", "Miguel", "Lucia", "Andres", "Elena", "Fernando", "Patricia"]
+LAST_NAMES = ["Garcia", "Martinez", "Rodriguez", "Lopez", "Hernandez", "Gonzalez", "Perez", "Sanchez", "Ramirez", "Torres", "Flores", "Rivera", "Gomez", "Diaz", "Cruz", "Reyes", "Morales", "Ortiz"]
+CITIES = ["CDMX", "Guadalajara", "Monterrey", "Puebla", "Tijuana", "Toluca", "Merida", "Cancun", "Queretaro", "Aguascalientes"]
+
+ITEMS = [
+    ("electronics", "Smart TV Samsung 55 4K", 450),
+    ("electronics", "Nintendo Switch OLED", 250),
+    ("electronics", "PlayStation 5", 400),
+    ("jewelry", "Anillo de Oro 18k", 300),
+    ("jewelry", "Cadena de Plata 925", 150),
+    ("electronics", "iPhone 13 Pro 128GB", 600),
+    ("electronics", "Laptop Dell XPS 13", 800),
+    ("vehicles", "Bicicleta de Montaña Trek", 500),
+    ("jewelry", "Reloj Rolex Vintage", 1500),
+    ("tools", "Taladro Inalambrico DeWalt", 120),
+    ("electronics", "iPad Air 5th Gen", 450),
+    ("vehicles", "Motocicleta Italika 150cc", 900),
+]
 
 def seed_database(db: Session, force: bool = False) -> bool:
     """Seed development data. Returns True when seeding is applied."""
@@ -44,218 +66,238 @@ def seed_database(db: Session, force: bool = False) -> bool:
                 currency_code="COP",
                 timezone="America/Bogota",
                 date_format="DD/MM/YYYY",
-                default_late_penalty_rate=0,
+                default_late_penalty_rate=2,
                 interest_generation_lead_days=10,
             )
         )
         db.flush()
 
-    customer_1 = Customer(
-        first_name="Ana",
-        last_name="Torres",
-        document_type="ID",
-        document_number="AT-1001",
-        phone="555-1001",
-        email="ana.torres@example.com",
-        address="Street 100",
-        city="Monterrey",
-        status="active",
-    )
-    customer_2 = Customer(
-        first_name="Luis",
-        last_name="Medina",
-        document_type="ID",
-        document_number="LM-2001",
-        phone="555-2001",
-        email="luis.medina@example.com",
-        address="Street 200",
-        city="Guadalajara",
-        status="active",
-    )
-    customer_3 = Customer(
-        first_name="Carla",
-        last_name="Ramos",
-        document_type="ID",
-        document_number="CR-3001",
-        phone="555-3001",
-        email="carla.ramos@example.com",
-        address="Street 300",
-        city="CDMX",
-        status="active",
-    )
-    db.add_all([customer_1, customer_2, customer_3])
-    db.flush()
-
-    app_1 = LoanApplication(
-        customer_id=customer_1.id,
-        loan_type=LoanType.pawn,
-        requested_amount=1500,
-        monthly_interest_rate=8,
-        term_months=3,
-        notes="Gold jewelry collateral",
-        status="approved",
-        reviewed_by=users["officer"].id,
-        approved_by=users["officer"].id,
-    )
-    app_2 = LoanApplication(
-        customer_id=customer_2.id,
-        loan_type=LoanType.personal,
-        requested_amount=1000,
-        monthly_interest_rate=7,
-        term_months=4,
-        notes="Personal credit",
-        status="approved",
-        reviewed_by=users["officer"].id,
-        approved_by=users["officer"].id,
-    )
-    db.add_all([app_1, app_2])
-    db.flush()
-
     today = get_local_date(db)
+    random.seed(42)  # Deterministic seed
 
-    loan_1 = Loan(
-        application_id=app_1.id,
-        customer_id=customer_1.id,
-        loan_type=LoanType.pawn,
-        description="Prestamo prendario sobre cadena de oro 14k. Cliente recurrente con buen historial.",
-        principal_amount=1500,
-        outstanding_principal=1200,
-        monthly_interest_rate=8,
-        late_penalty_rate=0,
-        disbursement_date=today - timedelta(days=45),
-        due_day=5,
-        status=LoanStatus.active,
-    )
-    loan_2 = Loan(
-        application_id=app_2.id,
-        customer_id=customer_2.id,
-        loan_type=LoanType.personal,
-        description="Prestamo personal para gastos medicos. Presenta atraso de un periodo.",
-        principal_amount=1000,
-        outstanding_principal=950,
-        monthly_interest_rate=7,
-        late_penalty_rate=0,
-        disbursement_date=today - timedelta(days=65),
-        due_day=20,
-        status=LoanStatus.overdue,
-    )
-    loan_3 = Loan(
-        customer_id=customer_3.id,
-        loan_type=LoanType.personal,
-        description="Prestamo personal liquidado en su totalidad. Cerrado sin incidencias.",
-        principal_amount=700,
-        outstanding_principal=0,
-        monthly_interest_rate=6,
-        late_penalty_rate=0,
-        disbursement_date=today - timedelta(days=120),
-        due_day=10,
-        status=LoanStatus.closed,
-    )
-    loan_4 = Loan(
-        customer_id=customer_3.id,
-        loan_type=LoanType.personal,
-        description="Nuevo prestamo personal para capital de trabajo. Primer ciclo de interes en curso.",
-        principal_amount=900,
-        outstanding_principal=900,
-        monthly_interest_rate=6.5,
-        late_penalty_rate=0,
-        disbursement_date=today - timedelta(days=15),
-        due_day=12,
-        status=LoanStatus.active,
-    )
-    db.add_all([loan_1, loan_2, loan_3, loan_4])
+    # 1. Generate 20 Customers
+    customers = []
+    for i in range(1, 21):
+        c = Customer(
+            first_name=random.choice(NAMES),
+            last_name=f"{random.choice(LAST_NAMES)} {random.choice(LAST_NAMES)}",
+            document_type="ID",
+            document_number=f"DOC-{10000+i}",
+            phone=f"555-{random.randint(1000, 9999)}",
+            email=f"user{i}@example.com",
+            address=f"Calle {random.randint(1, 100)}",
+            city=random.choice(CITIES),
+            status="active" if random.random() > 0.1 else "inactive",
+        )
+        db.add(c)
+        customers.append(c)
     db.flush()
 
-    collateral = CollateralItem(
-        loan_id=loan_1.id,
-        item_type="jewelry",
-        description="Gold chain 14k",
-        serial_number="GOLD-14K-001",
-        appraised_value=2200,
-        physical_condition="good",
-        custody_code="CUST-1001",
-        storage_location="Vault A-01",
-        status="in_custody",
-    )
+    # 2. Generate 60 Loans
+    for i in range(1, 61):
+        customer = random.choice(customers)
+        is_pawn = random.random() > 0.3  # 70% Pawn, 30% Personal
+        loan_type = LoanType.pawn if is_pawn else LoanType.personal
+        
+        principal = random.choice([500, 800, 1000, 1500, 2000, 3000, 5000])
+        interest_rate = random.choice([5, 6, 7, 8, 10])
+        term = random.choice([3, 6, 9, 12])
+        
+        # Application
+        app = LoanApplication(
+            customer_id=customer.id,
+            loan_type=loan_type,
+            requested_amount=principal,
+            monthly_interest_rate=interest_rate,
+            term_months=term,
+            notes=f"Solicitud generada auto {i}",
+            status="approved",
+            reviewed_by=users["officer"].id,
+            approved_by=users["officer"].id,
+        )
+        db.add(app)
+        db.flush()
 
-    payment_1 = Payment(
-        loan_id=loan_1.id,
-        payment_date=today - timedelta(days=10),
-        total_amount=320,
-        allocated_to_penalty=0,
-        allocated_to_interest=90,
-        allocated_to_fees=30,
-        allocated_to_principal=200,
-        payment_method="cash",
-        notes="Pago parcial recibido en caja. Cliente cancelo cuota de interes y abono a capital.",
-        received_by=users["cashier"].id,
-    )
-    payment_2 = Payment(
-        loan_id=loan_2.id,
-        payment_date=today - timedelta(days=5),
-        total_amount=150,
-        allocated_to_penalty=20,
-        allocated_to_interest=60,
-        allocated_to_fees=10,
-        allocated_to_principal=60,
-        payment_method="bank-transfer",
-        notes="Transferencia bancaria recibida. Se aplico penalidad por mora segun contrato.",
-        received_by=users["cashier"].id,
-    )
+        # Decide status
+        rand_status = random.random()
+        if rand_status < 0.4:
+            status = LoanStatus.active
+            days_ago = random.randint(5, 60)
+        elif rand_status < 0.6:
+            status = LoanStatus.overdue
+            days_ago = random.randint(45, 120)
+        elif rand_status < 0.8:
+            # Defaulted ONLY for pawn, else overdue
+            status = LoanStatus.defaulted if is_pawn else LoanStatus.overdue
+            days_ago = random.randint(90, 150)
+        else:
+            status = LoanStatus.closed
+            days_ago = random.randint(100, 300)
 
-    interest_1 = InterestCharge(
-        loan_id=loan_1.id,
-        period_start=today - timedelta(days=30),
-        period_end=today,
-        charge_date=today,
-        amount=96,
-        status="generated",
-    )
-    interest_1_previous = InterestCharge(
-        loan_id=loan_1.id,
-        period_start=today - timedelta(days=60),
-        period_end=today - timedelta(days=30),
-        charge_date=today - timedelta(days=30),
-        amount=96,
-        status="generated",
-    )
-    interest_2 = InterestCharge(
-        loan_id=loan_2.id,
-        period_start=today - timedelta(days=30),
-        period_end=today,
-        charge_date=today,
-        amount=66.5,
-        status="generated",
-    )
-    interest_2_previous = InterestCharge(
-        loan_id=loan_2.id,
-        period_start=today - timedelta(days=60),
-        period_end=today - timedelta(days=30),
-        charge_date=today - timedelta(days=30),
-        amount=66.5,
-        status="generated",
-    )
-    interest_2_upcoming = InterestCharge(
-        loan_id=loan_2.id,
-        period_start=today,
-        period_end=today + timedelta(days=30),
-        charge_date=today,
-        amount=66.5,
-        status="generated",
-    )
+        disbursement_date = today - timedelta(days=days_ago)
 
-    db.add_all(
-        [
-            collateral,
-            payment_1,
-            payment_2,
-            interest_1,
-            interest_1_previous,
-            interest_2,
-            interest_2_previous,
-            interest_2_upcoming,
-        ]
-    )
+        # Build Loan
+        loan = Loan(
+            application_id=app.id,
+            customer_id=customer.id,
+            loan_type=loan_type,
+            description=f"Prestamo {loan_type} autogenerado #{i}",
+            principal_amount=principal,
+            outstanding_principal=principal if status != LoanStatus.closed else 0,
+            monthly_interest_rate=interest_rate,
+            late_penalty_rate=2,
+            disbursement_date=disbursement_date,
+            due_day=disbursement_date.day if disbursement_date.day <= 28 else 28,
+            status=status,
+        )
+        db.add(loan)
+        db.flush()
+
+        # Collateral
+        item_cat, item_desc, item_val = random.choice(ITEMS)
+        # Scale value based on principal (rough approximation)
+        scaled_val = principal * random.uniform(1.2, 1.8)
+        
+        if is_pawn:
+            c_status = "in_custody"
+            if status == LoanStatus.defaulted:
+                c_status = "for_sale"
+            elif status == LoanStatus.closed:
+                # 50% sold, 50% returned
+                c_status = random.choice(["sold", "returned"])
+
+            collateral = CollateralItem(
+                loan_id=loan.id,
+                item_type=item_cat,
+                description=item_desc,
+                serial_number=f"SN-{random.randint(1000, 9999)}",
+                appraised_value=round(scaled_val, 2),
+                physical_condition="good",
+                custody_code=f"CUST-{1000+i}",
+                storage_location=f"Rack {random.choice(['A','B','C'])}-{random.randint(1,20)}",
+                status=c_status,
+                sale_price=round(scaled_val * 0.8, 2) if c_status == "sold" else None,
+                sold_at=today - timedelta(days=random.randint(1, 10)) if c_status == "sold" else None,
+            )
+            db.add(collateral)
+            db.flush()
+
+            # If closed via sale, add payment event
+            if c_status == "sold":
+                payment = Payment(
+                    loan_id=loan.id,
+                    payment_date=collateral.sold_at,
+                    total_amount=collateral.sale_price,
+                    allocated_to_penalty=0,
+                    allocated_to_interest=0,
+                    allocated_to_fees=max(0, collateral.sale_price - principal),
+                    allocated_to_principal=principal,
+                    payment_method="collateral_sale",
+                    notes="Venta de remate",
+                    received_by=users["collector"].id,
+                )
+                db.add(payment)
+                db.flush()
+                pe = PaymentEvent(
+                    payment_type="collateral_sale",
+                    payment_id=payment.id,
+                    loan_id=loan.id,
+                    total_entered_amount=collateral.sale_price,
+                    allocated_to_principal=principal,
+                    payment_date=payment.payment_date,
+                    operator_user_id=users["collector"].id,
+                    payment_method="collateral_sale",
+                    notes="Venta de remate"
+                )
+                db.add(pe)
+                db.flush()
+
+        # Generate History (Interest Charges & Partial Payments)
+        months_passed = days_ago // 30
+        for m in range(months_passed):
+            period_start = disbursement_date + timedelta(days=m*30)
+            charge_date = period_start + timedelta(days=30)
+            
+            amt = round(principal * (interest_rate / 100), 2)
+            ic = InterestCharge(
+                loan_id=loan.id,
+                period_start=period_start,
+                period_end=charge_date,
+                charge_date=charge_date,
+                amount=amt,
+                status="generated",
+            )
+            db.add(ic)
+            db.flush()
+
+            # If it's an active or closed loan, they probably paid it
+            if status in [LoanStatus.active, LoanStatus.closed] or (status == LoanStatus.overdue and m < months_passed - 1):
+                p_date = charge_date + timedelta(days=random.randint(0, 5))
+                payment = Payment(
+                    loan_id=loan.id,
+                    payment_date=p_date,
+                    total_amount=amt,
+                    allocated_to_penalty=0,
+                    allocated_to_interest=amt,
+                    allocated_to_fees=0,
+                    allocated_to_principal=0,
+                    payment_method="cash",
+                    notes=f"Pago interes mes {m+1}",
+                    received_by=users["collector"].id,
+                )
+                db.add(payment)
+                db.flush()
+                pe = PaymentEvent(
+                    payment_type="mixed_payment",
+                    payment_id=payment.id,
+                    loan_id=loan.id,
+                    interest_charge_id=ic.id,
+                    billing_period=ic.period_start.strftime("%Y-%m"),
+                    total_entered_amount=amt,
+                    allocated_to_interest=amt,
+                    allocated_to_penalty=0,
+                    allocated_to_principal=0,
+                    payment_date=payment.payment_date,
+                    operator_user_id=users["collector"].id,
+                    payment_method="cash",
+                    notes=payment.notes
+                )
+                db.add(pe)
+                db.flush()
+
+        # If it's a closed loan, and not closed by sale, we need a final payment
+        if status == LoanStatus.closed and (not is_pawn or collateral.status != "sold"):
+            p_date = today - timedelta(days=random.randint(1, 10))
+            payment = Payment(
+                loan_id=loan.id,
+                payment_date=p_date,
+                total_amount=principal,
+                allocated_to_penalty=0,
+                allocated_to_interest=0,
+                allocated_to_fees=0,
+                allocated_to_principal=principal,
+                payment_method="bank-transfer",
+                notes="Pago final (Liquidacion)",
+                received_by=users["collector"].id,
+            )
+            db.add(payment)
+            db.flush()
+            pe = PaymentEvent(
+                payment_type="mixed_payment",
+                payment_id=payment.id,
+                loan_id=loan.id,
+                total_entered_amount=principal,
+                allocated_to_interest=0,
+                allocated_to_penalty=0,
+                allocated_to_principal=principal,
+                payment_date=payment.payment_date,
+                operator_user_id=users["collector"].id,
+                payment_method="bank-transfer",
+                notes=payment.notes
+            )
+            db.add(pe)
+            db.flush()
+
     db.commit()
     return True
 
@@ -263,9 +305,8 @@ def seed_database(db: Session, force: bool = False) -> bool:
 def _ensure_users(db: Session) -> dict[str, User]:
     users: dict[str, User] = {}
     required_users = {
-        "officer": ("officer", "officer123", "loan_officer"),
-        "cashier": ("cashier", "cashier123", "cashier"),
-        "auditor": ("auditor", "auditor123", "auditor"),
+        "officer": ("officer", "officer123", UserRole.loan_officer),
+        "collector": ("collector", "collector123", UserRole.collector),
     }
 
     for key, (username, password, role) in required_users.items():
