@@ -35,3 +35,7 @@ class CollateralRead(BaseModel):
     storage_location: str
     status: str
     created_at: datetime
+
+class CollateralSell(BaseModel):
+    sale_price: float
+    notes: str | None = ""

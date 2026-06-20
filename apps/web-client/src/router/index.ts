@@ -31,6 +31,13 @@ const router = createRouter({
       component: AppLayout,
       meta: { requiresAuth: true },
       children: [
+    {
+      path: '/inventory',
+      name: 'inventory',
+      component: () => import('../views/InventoryView.vue'),
+      meta: { requiresAuth: true }
+    },
+
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: DashboardView, meta: { labelKey: 'app.dashboard' } },
         { path: 'customers', name: 'customers', component: CustomersView, meta: { labelKey: 'app.customers' } },

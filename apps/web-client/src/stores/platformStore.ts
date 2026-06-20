@@ -588,22 +588,45 @@ const dashboardStats = computed(() => {
   }
 })
 
-export const usePlatformStore = () => ({
-  state,
-  dashboardStats,
-  getCustomerName,
-  getCustomerById,
-  ensureInitialized,
-  refreshAll,
-  createCustomer,
-  updateCustomer,
-  deleteCustomer,
-  createLoan,
-  updateLoan,
-  deleteLoan,
-  createCollateral,
-  updateCollateral,
-  createPayment,
-  updatePayment,
-  updateGlobalSettings
-})
+
+  const forecloseLoan = async (loanId: number) => {
+    const response = await apiClient.request<any>(`/loans/${loanId}/foreclose`, { method: 'POST' })
+    return response
+  }
+
+  const sellCollateralItem = async (itemId: number, salePrice: number, notes: string = "") => {
+    const response = await apiClient.request<any>(`/collateral-items/${itemId}/sell`, { 
+      method: 'POST', 
+      body: JSON.stringify({ sale_price: salePrice, notes }) 
+    })
+    return response
+  }
+
+  const fetchCollateralItems = async (status?: string) => {
+    const url = status ? `/collateral-items?status=${status}` : '/collateral-items'
+    const response = await apiClient.request<any[]>(url, { method: 'GET' })
+    return response
+  }
+
+    export const usePlatformStore = () => ({
+    state,
+    dashboardStats,
+    getCustomerName,
+    getCustomerById,
+    ensureInitialized,
+    refreshAll,
+    createCustomer,
+    updateCustomer,
+    deleteCustomer,
+    createLoan,
+    updateLoan,
+    deleteLoan,
+    createCollateral,
+    updateCollateral,
+    createPayment,
+    updatePayment,
+    updateGlobalSettings,
+    forecloseLoan,
+    sellCollateralItem,
+    fetchCollateralItems
+  })

@@ -1,5 +1,21 @@
 export const messages = {
   en: {
+    inventory: {
+      title: 'Inventory',
+      subtitle: 'Manage and sell foreclosed items.',
+      forSaleItems: 'Items for Sale',
+      soldItems: 'Sold Items',
+      statusForSale: 'For Sale',
+      statusSold: 'Sold',
+      sellItem: 'Sell Item',
+      salePrice: 'Sale Price',
+      notes: 'Notes',
+      confirmSellStepOne: 'You are going to sell {item} for {price}. Continue?',
+      confirmSellStepTwo: 'Confirm again to finalize the sale.',
+      noItems: 'No items in inventory.',
+      foreclosureWarning: 'This action will mark the loan as defaulted and move all its collateral items to inventory for sale. This cannot be undone.'
+    },
+
     app: {
       title: 'Pawn Loan Platform',
       subtitle: 'Loan Operations Prototype',
@@ -29,6 +45,22 @@ export const messages = {
       invalidCredentials: 'Invalid username or password.'
     },
     roles: {
+    inventory: {
+      title: 'Inventario y Remates',
+      subtitle: 'Administra y vende los articulos de garantias no reclamadas.',
+      forSaleItems: 'Articulos en Remate',
+      soldItems: 'Articulos Vendidos',
+      statusForSale: 'En Remate',
+      statusSold: 'Vendido',
+      sellItem: 'Registrar Venta',
+      salePrice: 'Precio de Venta',
+      notes: 'Notas (Opcional)',
+      confirmSellStepOne: 'Vas a vender el articulo {item} por {price}. Deseas continuar?',
+      confirmSellStepTwo: 'Confirma nuevamente para registrar la venta en la caja.',
+      noItems: 'No hay articulos en el inventario.',
+      foreclosureWarning: 'Esta accion marcara el prestamo como incobrable y pasara todas sus garantias al inventario de remates para su venta. Esta accion no se puede deshacer.'
+    },
+
       administrator: 'Administrator',
       loan_officer: 'Loan Officer',
       collector: 'Collector'
@@ -256,7 +288,9 @@ export const messages = {
       allStatuses: 'All statuses',
       confirmRegisterLoanStepOne: 'You are about to register a loan for {customer} with amount {amount}. Continue?',
       confirmRegisterLoanStepTwo: 'Please confirm again to complete loan registration.',
-      totalLoans: 'Loans: {count}'
+      totalLoans: 'Loans: {count}',
+      forecloseLoan: 'Foreclose Loan',
+      foreclosed: 'Defaulted'
     },
     collateral: {
       title: 'Collateral',
@@ -434,6 +468,7 @@ export const messages = {
       allocationMustEqualTotal: 'Allocation must equal total amount.',
       settingsUpdated: 'Settings updated.',
       loanRegistered: 'Loan registered.',
+      pawnMustHaveCollateral: 'Pawn loans must have at least one collateral associated.',
       loanUpdated: 'Loan updated.',
       loanDeleted: 'Loan deleted.',
       loanNotFound: 'Loan not found.',
@@ -703,7 +738,9 @@ export const messages = {
       allStatuses: 'Todos los estados',
       confirmRegisterLoanStepOne: 'Vas a registrar un prestamo para {customer} por {amount}. Deseas continuar?',
       confirmRegisterLoanStepTwo: 'Confirma nuevamente para completar el registro del prestamo.',
-      totalLoans: 'Prestamos: {count}'
+      totalLoans: 'Prestamos: {count}',
+      forecloseLoan: 'Pasar a Remate',
+      foreclosed: 'Incobrable'
     },
     collateral: {
       title: 'Garantias',
@@ -881,6 +918,7 @@ export const messages = {
       allocationMustEqualTotal: 'La asignacion debe ser igual al monto total.',
       settingsUpdated: 'Configuraciones actualizadas.',
       loanRegistered: 'Prestamo registrado.',
+      pawnMustHaveCollateral: 'Los prestamos prendarios deben tener al menos una garantia asociada.',
       loanUpdated: 'Prestamo actualizado.',
       loanDeleted: 'Prestamo eliminado.',
       loanNotFound: 'Prestamo no encontrado.',
