@@ -6,8 +6,8 @@
       </template>
     </PageHeader>
 
-    <div class="card mt-16 form-inline">
-      <label>
+    <div class="card mt-16 form-inline" style="position: relative; z-index: 50;">
+      <label style="width: 100%; max-width: 400px;">
         {{ t('common.customer') }}
         <CustomerAutocomplete v-model="selectedCustomerId" :customers="sortedCustomers" :placeholder="t('common.searchPlaceholder')" />
       </label>
