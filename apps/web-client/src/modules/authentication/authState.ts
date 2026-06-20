@@ -13,10 +13,16 @@ interface LoginResponse {
   token_type: string
 }
 
+export enum UserRole {
+  Administrator = 'administrator',
+  LoanOfficer = 'loan_officer',
+  Collector = 'collector'
+}
+
 export interface UserProfile {
   id: number
   username: string
-  role: string
+  role: UserRole
   is_active: boolean
 }
 
@@ -72,13 +78,15 @@ const logout = () => {
   clearAuthSession()
 }
 
+export const hasRole = (roles: UserRole[]) => {
+  if (!state.currentUser) return false
+  return roles.includes(state.currentUser.role as UserRole)
+}
+
 export const useAuthState = () => ({
   state,
   isAuthenticated: computed(() => Boolean(state.accessToken)),
-  hasRole: (roles: string[]) => {
-    if (!state.currentUser) return false
-    return roles.includes(state.currentUser.role)
-  },
+  hasRole,
   login,
   logout,
   fetchCurrentUser

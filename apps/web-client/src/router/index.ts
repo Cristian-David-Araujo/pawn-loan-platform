@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthState } from '../modules/authentication/authState'
+import { useAuthState, UserRole } from '../modules/authentication/authState'
 import AppLayout from '../layouts/AppLayout.vue'
 import DashboardView from '../views/DashboardView.vue'
 import CustomersView from '../views/CustomersView.vue'
@@ -37,9 +37,9 @@ const router = createRouter({
         { path: 'loans', name: 'loans', component: LoansView, meta: { labelKey: 'app.loans' } },
         { path: 'collateral', redirect: '/loans' },
         { path: 'payments', name: 'payments', component: PaymentsView, meta: { labelKey: 'app.payments' } },
-        { path: 'reporting', name: 'reporting', component: ReportingView, meta: { labelKey: 'app.reporting', roles: ['administrator', 'loan_officer'] } },
-        { path: 'settings', name: 'settings', component: SettingsView, meta: { labelKey: 'app.settings', roles: ['administrator'] } },
-        { path: 'users', name: 'users', component: UsersView, meta: { labelKey: 'app.users', roles: ['administrator'] } }
+        { path: 'reporting', name: 'reporting', component: ReportingView, meta: { labelKey: 'app.reporting', roles: [UserRole.Administrator, UserRole.LoanOfficer] } },
+        { path: 'settings', name: 'settings', component: SettingsView, meta: { labelKey: 'app.settings', roles: [UserRole.Administrator] } },
+        { path: 'users', name: 'users', component: UsersView, meta: { labelKey: 'app.users', roles: [UserRole.Administrator] } }
       ]
     }
   ]

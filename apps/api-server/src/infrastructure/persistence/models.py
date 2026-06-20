@@ -4,6 +4,7 @@ from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String,
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.domain.enums.loan import LoanStatus, LoanType
+from src.domain.enums.user import UserRole
 from src.infrastructure.persistence.database import Base
 
 
@@ -17,7 +18,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
-    role: Mapped[str] = mapped_column(String(50), default="loan_officer")
+    role: Mapped[UserRole] = mapped_column(Enum(UserRole, native_enum=False, length=50), default=UserRole.loan_officer)
     is_active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 

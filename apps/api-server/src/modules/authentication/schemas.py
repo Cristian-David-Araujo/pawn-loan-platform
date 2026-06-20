@@ -1,4 +1,5 @@
 from pydantic import BaseModel, ConfigDict
+from src.domain.enums.user import UserRole
 
 
 class LoginRequest(BaseModel):
@@ -14,7 +15,7 @@ class TokenResponse(BaseModel):
 class UserCreate(BaseModel):
     username: str
     password: str
-    role: str = "loan_officer"
+    role: UserRole = UserRole.loan_officer
 
 
 class UserRead(BaseModel):
@@ -22,10 +23,10 @@ class UserRead(BaseModel):
 
     id: int
     username: str
-    role: str
+    role: UserRole
     is_active: bool
 
 class UserUpdate(BaseModel):
-    role: str | None = None
+    role: UserRole | None = None
     is_active: bool | None = None
     password: str | None = None

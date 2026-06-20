@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import CollateralItem, Loan, User
 from src.modules.collateral.schemas import CollateralCreate, CollateralRead, CollateralUpdate
+from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit

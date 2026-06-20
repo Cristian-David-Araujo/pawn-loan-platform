@@ -5,7 +5,7 @@
         <HandCoins :size="18" />
       </template>
       <template #actions>
-        <button v-if="hasRole(['administrator', 'loan_officer'])" class="btn" type="button" @click="openCreateLoanModal">
+        <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn" type="button" @click="openCreateLoanModal">
           <FilePlus2 :size="16" />
           {{ t('loans.createLoan') }}
         </button>
@@ -522,7 +522,7 @@ import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { usePlatformStore } from '../stores/platformStore'
-import { useAuthState } from '../modules/authentication/authState'
+import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 import { apiClient } from '../services/api'
 

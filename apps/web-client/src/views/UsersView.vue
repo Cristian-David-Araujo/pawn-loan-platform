@@ -105,7 +105,7 @@ import { Shield, UserPlus, Pencil, Save, X } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import { apiClient } from '../services/api'
-import { type UserProfile } from '../modules/authentication/authState'
+import { type UserProfile, UserRole } from '../modules/authentication/authState'
 
 const { t } = useI18n()
 
@@ -120,14 +120,14 @@ const error = ref('')
 const form = ref({
   username: '',
   password: '',
-  role: 'loan_officer',
+  role: UserRole.LoanOfficer,
   is_active: true
 })
 
 const roleOptions = [
-  { value: 'administrator', label: t('roles.administrator', 'Administrator') },
-  { value: 'loan_officer', label: t('roles.loan_officer', 'Loan Officer') },
-  { value: 'collector', label: t('roles.collector', 'Collector') }
+  { value: UserRole.Administrator, label: t('roles.administrator', 'Administrator') },
+  { value: UserRole.LoanOfficer, label: t('roles.loan_officer', 'Loan Officer') },
+  { value: UserRole.Collector, label: t('roles.collector', 'Collector') }
 ]
 
 const fetchUsers = async () => {
@@ -148,7 +148,7 @@ const openCreateModal = () => {
   form.value = {
     username: '',
     password: '',
-    role: 'loan_officer',
+    role: UserRole.LoanOfficer,
     is_active: true
   }
   showModal.value = true

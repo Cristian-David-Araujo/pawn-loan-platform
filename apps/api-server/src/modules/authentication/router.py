@@ -6,6 +6,7 @@ from src.infrastructure.persistence.models import User
 from src.infrastructure.security.jwt import create_access_token
 from src.infrastructure.security.password import get_password_hash, verify_password
 from src.modules.authentication.schemas import LoginRequest, TokenResponse, UserCreate, UserRead, UserUpdate
+from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
@@ -37,7 +38,7 @@ def get_me(current_user: User = Depends(get_current_user)) -> User:
 @router.get("/users", response_model=list[UserRead])
 def list_users(
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("administrator")),
+    _: User = Depends(require_roles(UserRole.administrator)),
 ) -> list[User]:
     return list(db.scalars(select(User).order_by(User.id)).all())
 
@@ -46,7 +47,7 @@ def list_users(
 def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles("administrator")),
+    current_user: User = Depends(require_roles(UserRole.administrator)),
 ) -> User:
     existing_user = db.scalar(select(User).where(User.username == payload.username))
     if existing_user is not None:
@@ -79,7 +80,7 @@ def update_user(
     user_id: int,
     payload: UserUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles("administrator")),
+    current_user: User = Depends(require_roles(UserRole.administrator)),
 ) -> User:
     user = db.scalar(select(User).where(User.id == user_id))
     if user is None:

@@ -94,7 +94,7 @@ import {
   Users
 } from 'lucide-vue-next'
 import { persistLocale, type AppLocale } from '../i18n'
-import { useAuthState } from '../modules/authentication/authState'
+import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { usePlatformStore } from '../stores/platformStore'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import CustomSelect from '../components/CustomSelect.vue'
@@ -111,10 +111,10 @@ const navItems = computed(() => {
     { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
     { to: '/payments', labelKey: 'app.payments', icon: ReceiptText }
   ]
-  if (hasRole(['administrator', 'loan_officer'])) {
+  if (hasRole([UserRole.Administrator, UserRole.LoanOfficer])) {
     items.push({ to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 })
   }
-  if (hasRole(['administrator'])) {
+  if (hasRole([UserRole.Administrator])) {
     items.push({ to: '/settings', labelKey: 'app.settings', icon: Settings })
     items.push({ to: '/users', labelKey: 'app.users', icon: Shield })
   }

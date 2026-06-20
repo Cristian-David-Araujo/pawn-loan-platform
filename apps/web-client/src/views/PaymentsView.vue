@@ -291,7 +291,7 @@
                 <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
                   <Printer :size="16" />
                 </a>
-                <button v-if="hasRole(['administrator', 'loan_officer'])" class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
+                <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
                   <Pencil :size="14" />
                 </button>
               </div>
@@ -375,7 +375,7 @@ import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
-import { useAuthState } from '../modules/authentication/authState'
+import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 
 interface InterestPendingItem {
