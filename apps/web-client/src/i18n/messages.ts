@@ -75,6 +75,7 @@ export const messages = {
       search: 'Search',
       searchPlaceholder: 'Search...',
       actions: 'Actions',
+        select: 'Select',
       type: 'Type',
       active: 'Active',
       archived: 'Archived',
@@ -343,7 +344,8 @@ export const messages = {
       allMethods: 'All methods',
       totalPayments: 'Payments: {count}',
       totalPendingInterest: 'Total pending interest',
-      totalPendingPenalty: 'Total pending penalty'
+      totalPendingPenalty: 'Total pending penalty',
+        totalOwed: 'Total owed'
     },
     settings: {
       title: 'Settings',
@@ -520,6 +522,7 @@ export const messages = {
       search: 'Buscar',
       searchPlaceholder: 'Buscar cliente...',
       actions: 'Acciones',
+        select: 'Seleccionar',
       type: 'Tipo',
       active: 'Activo',
       archived: 'Archivado',
@@ -788,7 +791,8 @@ export const messages = {
       allMethods: 'Todos los metodos',
       totalPayments: 'Pagos: {count}',
       totalPendingInterest: 'Total interes pendiente',
-      totalPendingPenalty: 'Total mora pendiente'
+      totalPendingPenalty: 'Total mora pendiente',
+        totalOwed: 'Total adeudado'
     },
     settings: {
       title: 'Ajustes',
