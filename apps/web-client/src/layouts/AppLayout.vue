@@ -30,7 +30,7 @@
           <span class="sidebar-user-avatar">{{ userInitial }}</span>
           <div class="sidebar-user-info">
             <span class="sidebar-user-name">{{ currentUsername }}</span>
-            <span class="sidebar-user-role">{{ authState.currentUser?.role || '' }}</span>
+            <span class="sidebar-user-role">{{ authState.currentUser ? t('roles.' + authState.currentUser.role, authState.currentUser.role) : '' }}</span>
           </div>
         </div>
       </div>
@@ -131,7 +131,7 @@ const localeOptions = [
 const customerSearch = ref('')
 const selectedCustomerId = ref<number | null>(null)
 const mobileMenuOpen = ref(false)
-const currentUsername = computed(() => authState.username || 'admin')
+const currentUsername = computed(() => authState.currentUser?.full_name || authState.username || 'admin')
 const userInitial = computed(() => currentUsername.value.charAt(0).toUpperCase())
 
 const currentRouteLabel = computed(() => {
