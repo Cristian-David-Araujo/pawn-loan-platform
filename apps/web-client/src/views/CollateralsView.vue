@@ -67,12 +67,16 @@
               <!-- Tab Custody Columns -->
               <template v-if="activeTab === 'custody'">
                 <td>
-                  {{ getStatusLabel(item.status) }}
+                  <span :class="['pill', getStatusClass(item.status)]">
+                    {{ getStatusLabel(item.status) }}
+                  </span>
                 </td>
                 <td>
                   <div class="fw-bold">#{{ item.loan_id || item.loanId }}</div>
-                  <div v-if="item.loan_status || item.loanStatus" class="muted text-xs">
-                    {{ t(`common.${(item.loan_status || item.loanStatus).toLowerCase()}`) }}
+                  <div v-if="item.loan_status || item.loanStatus" class="muted text-xs mt-1">
+                    <span :class="['pill', getLoanStatusClass(item.loan_status || item.loanStatus)]">
+                      {{ t(`common.${(item.loan_status || item.loanStatus).toLowerCase()}`) }}
+                    </span>
                   </div>
                 </td>
               </template>
@@ -81,7 +85,9 @@
               <template v-else>
                 <td>#{{ item.loan_id || item.loanId }}</td>
                 <td>
-                  {{ getStatusLabel(item.status) }}
+                  <span :class="['pill', getStatusClass(item.status)]">
+                    {{ getStatusLabel(item.status) }}
+                  </span>
                 </td>
                 <td>{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
                 <td>{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
@@ -209,7 +215,27 @@ const formatDateDMY = (dateString: string) => {
   return `${d}/${m}/${y}`
 }
 
+const getStatusClass = (status: string) => {
+  switch(status) {
+    case 'in_custody': return 'pill-upcoming'
+    case 'returned': return 'pill-current'
+    case 'for_sale': return 'pill-warning'
+    case 'sold': return 'pill-current'
+    case 'released': return 'pill-upcoming'
+    case 'liquidated': return 'pill-overdue'
+    default: return ''
+  }
+}
 
+const getLoanStatusClass = (status: string) => {
+  switch(status.toLowerCase()) {
+    case 'active': return 'pill-current'
+    case 'overdue': return 'pill-warning'
+    case 'defaulted': return 'pill-overdue'
+    case 'closed': return ''
+    default: return ''
+  }
+}
 
 const getStatusLabel = (status: string) => {
   switch(status) {

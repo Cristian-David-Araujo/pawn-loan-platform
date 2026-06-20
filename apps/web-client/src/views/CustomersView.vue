@@ -67,7 +67,11 @@
             <td>{{ customer.documentType }} / {{ customer.documentNumber }}</td>
             <td>{{ customer.phone }}</td>
             <td>{{ customer.city }}</td>
-            <td>{{ customer.status === 'active' ? t('common.active') : t('common.archived') }}</td>
+            <td>
+              <span :class="['pill', customer.status === 'active' ? 'pill-current' : '']">
+                {{ customer.status === 'active' ? t('common.active') : t('common.archived') }}
+              </span>
+            </td>
           </tr>
         </tbody>
       </table>

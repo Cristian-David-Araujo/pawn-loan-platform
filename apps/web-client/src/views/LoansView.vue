@@ -251,7 +251,11 @@
             <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
             <td>{{ loan.monthlyInterestRate }}%</td>
             <td>{{ getLoanCollateralLabel(loan.id, loan.loanType) }}</td>
-            <td>{{ t(`common.${loan.status}`) }}</td>
+            <td>
+              <span :class="['pill', getLoanStatusClass(loan.status)]">
+                {{ t(`common.${loan.status}`) }}
+              </span>
+            </td>
             <td>{{ loan?.created_by?.full_name || loan?.created_by?.username || '-' }}</td>
             <td>
               <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
@@ -360,6 +364,17 @@ const statusFilterOptions = computed(() => [
 const search = ref('')
 const message = ref('')
 const formError = ref('')
+
+const getLoanStatusClass = (status: string) => {
+  switch(status.toLowerCase()) {
+    case 'active': return 'pill-current'
+    case 'overdue': return 'pill-warning'
+    case 'defaulted': return 'pill-overdue'
+    case 'closed': return ''
+    default: return ''
+  }
+}
+
 const applyLatePenalty = ref(false)
 const applyCollateralAssociation = ref(false)
 const printInvoiceOnSave = ref(true)

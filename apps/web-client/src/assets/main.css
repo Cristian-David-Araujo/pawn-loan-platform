@@ -915,6 +915,12 @@ tbody tr:nth-child(even) {
   border-color: var(--info-border);
 }
 
+.pill-warning {
+  background: var(--warning-soft);
+  color: #92400e;
+  border-color: var(--warning-border);
+}
+
 /* ═══════════════════════════════════════════════
    TABS
    ═══════════════════════════════════════════════ */
@@ -1541,6 +1547,8 @@ ul {
   background: linear-gradient(135deg, var(--accent), var(--info));
   box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
 }
+
+
 
 /* ═══════════════════════════════════════════════
    RESPONSIVE: TABLET (1081 - 1200)
