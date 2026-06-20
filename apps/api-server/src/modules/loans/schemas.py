@@ -3,6 +3,7 @@ from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict
 
 from src.domain.enums.loan import LoanStatus, LoanType
+from src.modules.authentication.schemas import UserSummary
 
 
 class LoanApplicationCreate(BaseModel):
@@ -28,6 +29,7 @@ class LoanApplicationRead(BaseModel):
     reviewed_by: int | None
     approved_by: int | None
     created_at: datetime
+    created_by: UserSummary | None = None
 
 
 class LoanCreate(BaseModel):
@@ -59,6 +61,7 @@ class LoanRead(BaseModel):
     status: LoanStatus
     renewal_of: int | None
     created_at: datetime
+    created_by: UserSummary | None = None
 
 
 class LoanUpdate(BaseModel):

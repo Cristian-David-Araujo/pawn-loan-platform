@@ -1118,6 +1118,12 @@ tbody tr:nth-child(even) {
   animation: notice-in 200ms ease-out;
 }
 
+.notice-error {
+  color: #b91c1c;
+  background: var(--danger-soft);
+  border: 1px solid var(--danger-border);
+}
+
 @keyframes notice-in {
   from {
     opacity: 0;

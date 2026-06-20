@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
+from src.modules.authentication.schemas import UserSummary
 
 
 class CustomerBase(BaseModel):
@@ -37,3 +38,4 @@ class CustomerRead(CustomerBase):
     id: int
     created_at: datetime
     updated_at: datetime
+    created_by: UserSummary | None = None

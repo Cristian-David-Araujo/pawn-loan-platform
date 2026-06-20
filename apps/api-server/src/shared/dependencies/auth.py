@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.domain.enums.user import UserRole
 from src.infrastructure.persistence.models import User
 from src.infrastructure.security.jwt import decode_token
 from src.shared.dependencies.db import get_db
@@ -28,7 +29,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
-def require_roles(*roles: str):
+def require_roles(*roles: UserRole):
     def role_dependency(current_user: User = Depends(get_current_user)) -> User:
         if current_user.role not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")

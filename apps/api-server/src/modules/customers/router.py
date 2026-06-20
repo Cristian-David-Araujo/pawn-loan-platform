@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 
 from src.infrastructure.persistence.models import Customer, Loan, LoanApplication, User
 from src.modules.customers.schemas import CustomerCreate, CustomerRead, CustomerUpdate
-from src.shared.dependencies.auth import get_current_user
+from src.domain.enums.user import UserRole
+from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
 
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/customers", tags=["customers"])
 def list_customers(
     q: str | None = Query(default=None),
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> list[Customer]:
     statement = select(Customer)
     if q:
@@ -35,13 +36,14 @@ def list_customers(
 def create_customer(
     payload: CustomerCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Customer:
     duplicate = db.scalar(select(Customer).where(Customer.document_number == payload.document_number))
     if duplicate:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Customer already exists")
 
     customer = Customer(**payload.model_dump())
+    customer.created_by_id = current_user.id
     db.add(customer)
     db.commit()
     db.refresh(customer)
@@ -62,7 +64,7 @@ def create_customer(
 def get_customer(
     customer_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> Customer:
     customer = db.get(Customer, customer_id)
     if customer is None:
@@ -75,7 +77,7 @@ def update_customer(
     customer_id: int,
     payload: CustomerUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Customer:
     customer = db.get(Customer, customer_id)
     if customer is None:
@@ -111,7 +113,7 @@ def update_customer(
 def delete_customer(
     customer_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Response:
     customer = db.get(Customer, customer_id)
     if customer is None:

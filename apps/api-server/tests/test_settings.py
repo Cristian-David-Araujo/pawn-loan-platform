@@ -12,6 +12,7 @@ def test_settings_can_be_updated(client: TestClient, auth_headers: dict[str, str
         "/api/v1/settings",
         headers=auth_headers,
         json={
+            "app_name": "My Pawn Shop",
             "currency_code": "USD",
             "timezone": "America/Bogota",
             "date_format": "DD/MM/YYYY",

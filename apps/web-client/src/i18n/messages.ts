@@ -15,6 +15,7 @@ export const messages = {
       payments: 'Payments',
       reporting: 'Reporting',
       settings: 'Settings',
+      users: 'Users',
       signOut: 'Sign out',
       administrator: 'Administrator'
     },
@@ -27,9 +28,37 @@ export const messages = {
       signingIn: 'Signing in...',
       invalidCredentials: 'Invalid username or password.'
     },
+    roles: {
+      administrator: 'Administrator',
+      loan_officer: 'Loan Officer',
+      collector: 'Collector'
+    },
+    users: {
+      title: 'User Management',
+      subtitle: 'Manage system users and access roles',
+      username: 'Username',
+      fullName: 'Full Name',
+      email: 'Email',
+      phone: 'Phone',
+      documentNumber: 'Document Number',
+      address: 'Address',
+      role: 'Role',
+      isActive: 'User is active',
+      inactive: 'Inactive',
+      password: 'Password',
+      newPassword: 'New Password (Optional)',
+      leaveBlankToKeep: 'Leave blank to keep current',
+      createUser: 'Create User',
+      editUser: 'Edit User',
+      noUsers: 'No users found.',
+      createdSuccess: 'User created successfully',
+      updatedSuccess: 'User updated successfully'
+    },
     common: {
       id: 'ID',
       name: 'Name',
+      createdBy: 'Created by',
+      receivedBy: 'Received by',
       status: 'Status',
       date: 'Date',
       total: 'Total',
@@ -430,8 +459,9 @@ export const messages = {
       collateral: 'Garantias',
       payments: 'Pagos',
       reporting: 'Reportes',
-      settings: 'Configuraciones',
-      signOut: 'Cerrar sesion',
+      settings: 'Ajustes',
+      users: 'Usuarios',
+      signOut: 'Cerrar sesión',
       administrator: 'Administrador'
     },
     auth: {
@@ -441,11 +471,39 @@ export const messages = {
       password: 'Contrasena',
       signIn: 'Iniciar sesion',
       signingIn: 'Ingresando...',
-      invalidCredentials: 'Usuario o contrasena invalidos.'
+      invalidCredentials: 'Usuario o contraseña inválidos.'
+    },
+    roles: {
+      administrator: 'Administrador',
+      loan_officer: 'Asesor',
+      collector: 'Cajero / Recaudador'
+    },
+    users: {
+      title: 'Gestión de Usuarios',
+      subtitle: 'Administra usuarios del sistema y roles de acceso',
+      username: 'Usuario',
+      fullName: 'Nombre Completo',
+      email: 'Correo Electrónico',
+      phone: 'Teléfono',
+      documentNumber: 'Número de Documento',
+      address: 'Dirección',
+      role: 'Rol',
+      isActive: 'Usuario activo',
+      inactive: 'Inactivo',
+      password: 'Contraseña',
+      newPassword: 'Nueva Contraseña (Opcional)',
+      leaveBlankToKeep: 'Dejar en blanco para conservar',
+      createUser: 'Crear Usuario',
+      editUser: 'Editar Usuario',
+      noUsers: 'No se encontraron usuarios.',
+      createdSuccess: 'Usuario creado exitosamente',
+      updatedSuccess: 'Usuario actualizado exitosamente'
     },
     common: {
       id: 'ID',
       name: 'Nombre',
+      createdBy: 'Registrado por',
+      receivedBy: 'Recibido por',
       status: 'Estado',
       date: 'Fecha',
       total: 'Total',

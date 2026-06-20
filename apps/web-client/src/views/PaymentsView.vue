@@ -226,6 +226,7 @@
             <th>{{ t('payments.penalty') }}</th>
             <th>{{ t('common.principal') }}</th>
             <th>{{ t('common.method') }}</th>
+            <th>{{ t('common.receivedBy', 'Received by') }}</th>
             <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
@@ -240,6 +241,7 @@
             <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
             <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
             <td>{{ getPaymentMethodLabel(event.payment_method) }}</td>
+            <td>{{ event?.operator?.full_name || event?.operator?.username || '-' }}</td>
             <td>
               <a :href="'/print/invoice/payment/' + event.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
                 <Printer :size="16" />
@@ -269,6 +271,7 @@
             <th>{{ t('payments.penalty') }}</th>
             <th>{{ t('common.principal') }}</th>
             <th>{{ t('common.method') }}</th>
+            <th>{{ t('common.receivedBy', 'Received by') }}</th>
             <th>{{ t('payments.notes') }}</th>
             <th>{{ t('common.status') }}</th>
             <th>{{ t('common.actions') }}</th>
@@ -284,6 +287,7 @@
             <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
             <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
             <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
+            <td>{{ payment?.receiver?.full_name || payment?.receiver?.username || '-' }}</td>
             <td class="muted">{{ payment.notes || '-' }}</td>
             <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
             <td>
@@ -291,8 +295,8 @@
                 <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
                   <Printer :size="16" />
                 </a>
-                <button class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
-                  <Pencil :size="16" />
+                <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
+                  <Pencil :size="14" />
                 </button>
               </div>
             </td>
@@ -375,6 +379,7 @@ import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
+import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 
 interface InterestPendingItem {
@@ -435,9 +440,11 @@ interface PaymentEvent {
   operator_user_id: number | null
   payment_method: string
   notes: string
+  operator?: any
 }
 
 const { state, ensureInitialized, refreshAll, updatePayment } = usePlatformStore()
+const { hasRole } = useAuthState()
 const router = useRouter()
 const { t, locale } = useI18n()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
@@ -671,6 +678,7 @@ const openPaymentEditModal = (payment: {
   allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
   notes: string
+  operator?: any
 }) => {
   selectedPaymentEditId.value = payment.id
   paymentEditForm.value = {

@@ -5,7 +5,8 @@ from sqlalchemy.orm import Session
 from src.infrastructure.persistence.models import User
 from src.infrastructure.security.jwt import create_access_token
 from src.infrastructure.security.password import get_password_hash, verify_password
-from src.modules.authentication.schemas import LoginRequest, TokenResponse, UserCreate, UserRead
+from src.modules.authentication.schemas import LoginRequest, TokenResponse, UserCreate, UserRead, UserUpdate
+from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
@@ -29,10 +30,15 @@ def refresh_token(current_user: User = Depends(get_current_user)) -> TokenRespon
     return TokenResponse(access_token=token)
 
 
+@router.get("/auth/me", response_model=UserRead)
+def get_me(current_user: User = Depends(get_current_user)) -> User:
+    return current_user
+
+
 @router.get("/users", response_model=list[UserRead])
 def list_users(
     db: Session = Depends(get_db),
-    _: User = Depends(require_roles("administrator")),
+    _: User = Depends(require_roles(UserRole.administrator)),
 ) -> list[User]:
     return list(db.scalars(select(User).order_by(User.id)).all())
 
@@ -41,7 +47,7 @@ def list_users(
 def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles("administrator")),
+    current_user: User = Depends(require_roles(UserRole.administrator)),
 ) -> User:
     existing_user = db.scalar(select(User).where(User.username == payload.username))
     if existing_user is not None:
@@ -50,6 +56,11 @@ def create_user(
     user = User(
         username=payload.username,
         hashed_password=get_password_hash(payload.password),
+        full_name=payload.full_name or "",
+        email=payload.email or "",
+        phone=payload.phone or "",
+        document_number=payload.document_number or "",
+        address=payload.address or "",
         role=payload.role,
         is_active=True,
     )
@@ -64,6 +75,61 @@ def create_user(
         entity_id=str(user.id),
         user=current_user,
         new_data=f"username={user.username},role={user.role}",
+    )
+
+    return user
+
+
+@router.put("/users/{user_id}", response_model=UserRead)
+def update_user(
+    user_id: int,
+    payload: UserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.administrator)),
+) -> User:
+    user = db.scalar(select(User).where(User.id == user_id))
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if payload.username is not None:
+        # Check uniqueness if username changed
+        if payload.username != user.username:
+            existing = db.scalar(select(User).where(User.username == payload.username))
+            if existing:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+        user.username = payload.username
+
+    if payload.full_name is not None:
+        user.full_name = payload.full_name
+    if payload.email is not None:
+        user.email = payload.email
+    if payload.phone is not None:
+        user.phone = payload.phone
+    if payload.document_number is not None:
+        user.document_number = payload.document_number
+    if payload.address is not None:
+        user.address = payload.address
+
+    if payload.role is not None:
+        user.role = payload.role
+    if payload.is_active is not None:
+        # Prevent deactivating oneself
+        if user.id == current_user.id and payload.is_active is False:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot deactivate yourself")
+        user.is_active = payload.is_active
+    if payload.password is not None and payload.password.strip():
+        user.hashed_password = get_password_hash(payload.password)
+
+    db.commit()
+    db.refresh(user)
+
+    write_audit(
+        db,
+        action="update_user",
+        entity_type="User",
+        entity_id=str(user.id),
+        user=current_user,
+        new_data=f"role={user.role},active={user.is_active},password_changed={bool(payload.password)}",
     )
 
     return user

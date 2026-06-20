@@ -17,7 +17,8 @@ from src.modules.loans.schemas import (
     LoanUpdate,
     RenewalRequest,
 )
-from src.shared.dependencies.auth import get_current_user
+from src.domain.enums.user import UserRole
+from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
 
@@ -28,7 +29,7 @@ router = APIRouter(tags=["loans"])
 def create_application(
     payload: LoanApplicationCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> LoanApplication:
     application = LoanApplication(**payload.model_dump())
     db.add(application)
@@ -50,7 +51,7 @@ def create_application(
 @router.get("/loan-applications", response_model=list[LoanApplicationRead])
 def list_applications(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> list[LoanApplication]:
     return list(db.scalars(select(LoanApplication).order_by(LoanApplication.id.desc())).all())
 
@@ -59,7 +60,7 @@ def list_applications(
 def approve_application(
     application_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> LoanApplication:
     application = db.get(LoanApplication, application_id)
     if application is None:
@@ -87,7 +88,7 @@ def approve_application(
 def create_loan(
     payload: LoanCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Loan:
     if payload.application_id:
         application = db.get(LoanApplication, payload.application_id)
@@ -143,7 +144,7 @@ def create_loan(
 @router.get("/loans", response_model=list[LoanRead])
 def list_loans(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> list[Loan]:
     return list(db.scalars(select(Loan).order_by(Loan.id.desc())).all())
 
@@ -152,7 +153,7 @@ def list_loans(
 def get_loan(
     loan_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> Loan:
     loan = db.get(Loan, loan_id)
     if loan is None:
@@ -165,7 +166,7 @@ def update_loan(
     loan_id: int,
     payload: LoanUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Loan:
     loan = db.get(Loan, loan_id)
     if loan is None:
@@ -231,7 +232,7 @@ def update_loan(
 def delete_loan(
     loan_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> None:
     loan = db.get(Loan, loan_id)
     if loan is None:
@@ -264,7 +265,7 @@ def renew_loan(
     loan_id: int,
     payload: RenewalRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Loan:
     source = db.get(Loan, loan_id)
     if source is None:
@@ -305,7 +306,7 @@ def close_loan(
     loan_id: int,
     payload: CloseLoanRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Loan:
     loan = db.get(Loan, loan_id)
     if loan is None:

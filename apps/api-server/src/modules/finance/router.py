@@ -8,6 +8,7 @@ from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, Payment, User
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
 from src.modules.finance.schemas import InterestChargeRead, InterestGenerationRequest, LoanBalanceRead
+from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit

@@ -1,6 +1,12 @@
 export type LoanType = 'pawn' | 'personal'
 export type LoanStatus = 'active' | 'overdue' | 'closed'
 
+export interface UserSummary {
+  id: number
+  username: string
+  full_name: string
+}
+
 export interface Customer {
   id: number
   fullName: string
@@ -13,6 +19,7 @@ export interface Customer {
   status: 'active' | 'archived'
   createdAt: string
   updatedAt: string
+  created_by?: UserSummary | null
 }
 
 export interface Loan {
@@ -27,6 +34,7 @@ export interface Loan {
   disbursementDate: string
   dueDay: number
   status: LoanStatus
+  created_by?: UserSummary | null
 }
 
 export interface CollateralItem {
@@ -51,6 +59,7 @@ export interface Payment {
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
   notes: string
   isReversed: boolean
+  receiver?: UserSummary | null
 }
 
 export interface GlobalSettings {

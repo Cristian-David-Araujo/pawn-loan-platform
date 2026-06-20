@@ -87,6 +87,7 @@
           <div class="payment-notes mt-16">
             <p><strong>Método de Pago:</strong> {{ paymentMethodLabel }}</p>
             <p v-if="payment.notes"><strong>Notas:</strong> {{ payment.notes }}</p>
+            <p v-if="payment.receiver"><strong>{{ t('common.receivedBy', 'Recibido por') }}:</strong> {{ payment.receiver.full_name || payment.receiver.username }}</p>
           </div>
         </template>
 
@@ -117,8 +118,9 @@
               </tr>
             </tbody>
           </table>
-          <div class="payment-notes mt-16" v-if="loan.description">
-            <p><strong>Descripción:</strong> {{ loan.description }}</p>
+          <div class="payment-notes mt-16" v-if="loan.description || loan.created_by">
+            <p v-if="loan.description"><strong>Descripción:</strong> {{ loan.description }}</p>
+            <p v-if="loan.created_by"><strong>{{ t('common.createdBy', 'Generado por') }}:</strong> {{ loan.created_by.full_name || loan.created_by.username }}</p>
           </div>
         </template>
 

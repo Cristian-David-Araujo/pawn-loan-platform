@@ -24,7 +24,8 @@ from src.modules.payments.schemas import (
     PrincipalPaymentRequest,
     PrincipalPaymentResponse,
 )
-from src.shared.dependencies.auth import get_current_user
+from src.domain.enums.user import UserRole
+from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
 
@@ -167,7 +168,7 @@ def _pending_interest_items_for_customer(db: Session, customer_id: int, today: d
 def get_pending_interest(
     customer_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> InterestPendingResponse:
     today = get_local_date(db)
     loans = list(
@@ -254,7 +255,7 @@ def get_pending_interest(
 def pay_interest(
     payload: InterestPaymentRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> InterestPaymentResponse:
     if payload.total_amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Total amount must be greater than zero")
@@ -491,7 +492,7 @@ def pay_interest(
 def principal_context(
     customer_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> PrincipalContextResponse:
     loans = list(
         db.scalars(select(Loan).where(Loan.customer_id == customer_id, Loan.status != LoanStatus.closed)).all()
@@ -534,7 +535,7 @@ def principal_context(
 def pay_principal(
     payload: PrincipalPaymentRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> PrincipalPaymentResponse:
     if payload.total_amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Total amount must be greater than zero")
@@ -628,7 +629,7 @@ def pay_principal(
 def customer_payment_history(
     customer_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> list[PaymentEvent]:
     loan_ids = [
         item.id
@@ -649,7 +650,7 @@ def customer_payment_history(
 @router.get("", response_model=list[PaymentRead])
 def list_payments(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> list[Payment]:
     return list(db.query(Payment).order_by(Payment.id.desc()).all())
 
@@ -658,7 +659,7 @@ def list_payments(
 def create_payment(
     payload: PaymentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> Payment:
     loan = db.get(Loan, payload.loan_id)
     if loan is None:
@@ -700,7 +701,7 @@ def update_payment(
     payment_id: int,
     payload: PaymentUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Payment:
     payment = db.get(Payment, payment_id)
     if payment is None:
@@ -796,7 +797,7 @@ def update_payment(
 def reverse_payment(
     payment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Payment:
     payment = db.get(Payment, payment_id)
     if payment is None:
@@ -832,7 +833,7 @@ def reverse_payment(
 def get_payment_event(
     event_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> PaymentEvent:
     event = db.get(PaymentEvent, event_id)
     if event is None:
