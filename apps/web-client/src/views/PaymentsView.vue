@@ -372,6 +372,7 @@ import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { CircleDollarSign, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
@@ -447,6 +448,7 @@ const { state, ensureInitialized, refreshAll, updatePayment } = usePlatformStore
 const { hasRole } = useAuthState()
 const router = useRouter()
 const { t, locale } = useI18n()
+  const { confirm } = useConfirmDialog()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
 const activeTab = ref<'interest' | 'principal'>('interest')
@@ -781,12 +783,12 @@ const submitInterestPayment = async () => {
     return
   }
 
-  const firstConfirmation = window.confirm(t('payments.confirmRegisterInterestStepOne', { amount: formatCurrency(interestAmountToPay.value) }))
+  const firstConfirmation = await confirm(t('payments.confirmRegisterInterestStepOne', { amount: formatCurrency(interestAmountToPay.value) }))
   if (!firstConfirmation) {
     return
   }
 
-  const secondConfirmation = window.confirm(t('payments.confirmRegisterInterestStepTwo'))
+  const secondConfirmation = await confirm(t('payments.confirmRegisterInterestStepTwo'))
   if (!secondConfirmation) {
     return
   }
@@ -825,12 +827,12 @@ const submitPrincipalPayment = async () => {
     return
   }
 
-  const firstConfirmation = window.confirm(t('payments.confirmRegisterPrincipalStepOne', { amount: formatCurrency(principalAmount.value) }))
+  const firstConfirmation = await confirm(t('payments.confirmRegisterPrincipalStepOne', { amount: formatCurrency(principalAmount.value) }))
   if (!firstConfirmation) {
     return
   }
 
-  const secondConfirmation = window.confirm(t('payments.confirmRegisterPrincipalStepTwo'))
+  const secondConfirmation = await confirm(t('payments.confirmRegisterPrincipalStepTwo'))
   if (!secondConfirmation) {
     return
   }

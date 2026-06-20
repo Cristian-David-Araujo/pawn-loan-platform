@@ -164,6 +164,7 @@
       </table>
       </div>
 
+      <p v-if="formError" class="notice notice-warning mt-16">{{ formError }}</p>
       <div class="form-actions" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
         <label class="checkbox-row" style="margin-bottom: 0;">
           <input v-model="printInvoiceOnSave" type="checkbox" />
@@ -291,6 +292,7 @@ import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useConfirmDialog } from '../composables/useConfirmDialog'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import { FilePlus2, FilterX, HandCoins, Trash2, X, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
@@ -342,6 +344,7 @@ const { state, createLoan, createCollateral, getCustomerName, ensureInitialized 
 const { hasRole } = useAuthState()
 const router = useRouter()
 const { t, locale } = useI18n()
+  const { confirm } = useConfirmDialog()
 
 const loanTypeOptions = computed(() => [
   { value: 'pawn', label: t('common.pawn') },
@@ -356,6 +359,7 @@ const statusFilterOptions = computed(() => [
 ])
 const search = ref('')
 const message = ref('')
+const formError = ref('')
 const applyLatePenalty = ref(false)
 const applyCollateralAssociation = ref(false)
 const printInvoiceOnSave = ref(true)
@@ -364,7 +368,7 @@ const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direc
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
 const showCreateLoanModal = ref(false)
-const openCreateLoanModal = () => { showCreateLoanModal.value = true }
+const openCreateLoanModal = () => { formError.value = ''; showCreateLoanModal.value = true }
 const closeCreateLoanModal = () => { showCreateLoanModal.value = false }
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
@@ -422,18 +426,24 @@ const form = reactive({
 
 const handleCreateLoan = async () => {
   if (!form.customerId) {
-    message.value = 'Por favor selecciona un cliente.'
+    formError.value = 'Por favor selecciona un cliente.'
     return
   }
 
   const disbursementDate = toIsoDate(form.disbursementDate)
   if (!disbursementDate) {
-    message.value = t('messages.invalidDateFormat')
+    formError.value = t('messages.invalidDateFormat')
     return
   }
 
   // Extraer el dia de la fecha de desembolso para usarlo como dueDay
   const disbursementDay = parseInt(disbursementDate.split('-')[2], 10)
+
+    if (form.loanType === 'pawn' && (!applyCollateralAssociation.value || collateralQueue.value.length === 0)) {
+      formError.value = t('messages.pawnMustHaveCollateral')
+      return
+    }
+
 
   const payload = {
     ...form,
@@ -443,7 +453,7 @@ const handleCreateLoan = async () => {
     dueDay: disbursementDay
   }
 
-  const firstConfirmation = window.confirm(
+  const firstConfirmation = await confirm(
     t('loans.confirmRegisterLoanStepOne', {
       customer: getCustomerLabel(payload.customerId),
       amount: formatCurrency(payload.principalAmount)
@@ -453,7 +463,7 @@ const handleCreateLoan = async () => {
     return
   }
 
-  const secondConfirmation = window.confirm(t('loans.confirmRegisterLoanStepTwo'))
+  const secondConfirmation = await confirm(t('loans.confirmRegisterLoanStepTwo'))
   if (!secondConfirmation) {
     return
   }

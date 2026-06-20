@@ -4,7 +4,13 @@
       <div class="modal-header">
         <h3>{{ t('loans.loanDetail') }}</h3>
         <div class="form-inline">
+          <button v-if="canForeclose" class="btn btn-danger btn-sm" type="button" :disabled="isForeclosing" @click="confirmForeclose" style="background: #dc2626; color: white; border-color: #dc2626;">
+            <AlertTriangle :size="14" style="margin-right: 4px;" />
+            <span v-if="isForeclosing" class="spinner-small"></span>
+            <span v-else>{{ t('loans.forecloseLoan') }}</span>
+          </button>
           <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;">
+
             <Printer :size="16" />
           </a>
           <button class="btn btn-secondary btn-icon" type="button" @click="closeModal">
@@ -154,7 +160,8 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Printer, X, Pencil, Save } from 'lucide-vue-next'
+import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { Printer, X, Pencil, Save, AlertTriangle } from 'lucide-vue-next'
 import { usePlatformStore } from '../stores/platformStore'
 
 import Pagination from './Pagination.vue'
@@ -176,6 +183,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+  const { confirm: confirmDialog } = useConfirmDialog()
 const store = usePlatformStore()
 
 const loanPaymentsCurrentPage = ref(1)
@@ -220,6 +228,31 @@ const closeModal = () => {
 }
 
 // Description editing
+
+const isForeclosing = ref(false)
+
+const canForeclose = computed(() => {
+  return props.loan?.loanType === 'pawn' && 
+         ['active', 'overdue'].includes(props.loan?.status)
+})
+
+const confirmForeclose = async () => {
+  if (await confirmDialog(t('common.inventory.foreclosureWarning'))) {
+    if (!props.loan) return
+    try {
+      isForeclosing.value = true
+      await store.forecloseLoan(props.loan.id)
+      emit('close')
+      window.location.reload() // simple refresh to update tables
+    } catch (e: any) {
+      console.error(e)
+      alert('Error: ' + (e.response?.data?.detail || e.message))
+    } finally {
+      isForeclosing.value = false
+    }
+  }
+}
+
 const editingDescription = ref(false)
 const descriptionDraft = ref('')
 const isSavingDescription = ref(false)

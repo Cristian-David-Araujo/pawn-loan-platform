@@ -1124,6 +1124,12 @@ tbody tr:nth-child(even) {
   border: 1px solid var(--danger-border);
 }
 
+.notice-warning {
+  color: #b45309;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-border);
+}
+
 @keyframes notice-in {
   from {
     opacity: 0;

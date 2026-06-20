@@ -781,6 +781,7 @@ import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useConfirmDialog } from '../composables/useConfirmDialog'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import { useRoute } from 'vue-router'
 import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
@@ -860,6 +861,7 @@ const {
 } =
   usePlatformStore()
 const { t, locale } = useI18n()
+const { confirm } = useConfirmDialog()
 const route = useRoute()
 const { hasRole } = useAuthState()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
@@ -1372,7 +1374,7 @@ const handleArchiveCustomer = async () => {
     return
   }
 
-  const confirmed = window.confirm(t('customers.archiveCustomerConfirm'))
+  const confirmed = await confirm(t('customers.archiveCustomerConfirm'))
   if (!confirmed) {
     return
   }
@@ -1385,7 +1387,7 @@ const handleActivateCustomer = async () => {
     return
   }
 
-  const confirmed = window.confirm(t('customers.activateCustomerConfirm'))
+  const confirmed = await confirm(t('customers.activateCustomerConfirm'))
   if (!confirmed) {
     return
   }
@@ -1398,7 +1400,7 @@ const handleDeleteCustomer = async () => {
     return
   }
 
-  const confirmed = window.confirm(t('customers.deleteCustomerConfirm'))
+  const confirmed = await confirm(t('customers.deleteCustomerConfirm'))
   if (!confirmed) {
     return
   }
@@ -1465,7 +1467,7 @@ const handleDeleteLoan = async (loanId: number) => {
     return
   }
 
-  const confirmed = window.confirm(t('customers.deleteLoanConfirm'))
+  const confirmed = await confirm(t('customers.deleteLoanConfirm'))
   if (!confirmed) {
     return
   }
