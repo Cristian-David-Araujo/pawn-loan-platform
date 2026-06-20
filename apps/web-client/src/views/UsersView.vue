@@ -22,6 +22,7 @@
             <tr>
               <th>{{ t('common.id', 'ID') }}</th>
               <th>{{ t('users.username', 'Username') }}</th>
+              <th>{{ t('users.fullName', 'Full Name') }}</th>
               <th>{{ t('users.role', 'Role') }}</th>
               <th>{{ t('common.status', 'Status') }}</th>
               <th>{{ t('common.actions', 'Actions') }}</th>
@@ -31,6 +32,7 @@
             <tr v-for="user in users" :key="user.id">
               <td>{{ user.id }}</td>
               <td>{{ user.username }}</td>
+              <td>{{ user.full_name || user.email }}</td>
               <td>{{ t('roles.' + user.role, user.role) }}</td>
               <td>
                 <span class="pill" :class="user.is_active ? 'pill-current' : 'pill-overdue'">
@@ -67,9 +69,35 @@
         </div>
 
         <form class="form mt-16" @submit.prevent="handleSubmit">
+          
+          <label>
+            {{ t('users.fullName', 'Full Name') }}
+            <input v-model="form.full_name" />
+          </label>
+          <div class="form-row">
+            <label>
+              {{ t('users.email', 'Email') }}
+              <input type="email" v-model="form.email" />
+            </label>
+            <label>
+              {{ t('users.phone', 'Phone') }}
+              <input v-model="form.phone" />
+            </label>
+          </div>
+          <div class="form-row">
+            <label>
+              {{ t('users.documentNumber', 'Document Number') }}
+              <input v-model="form.document_number" />
+            </label>
+            <label>
+              {{ t('users.address', 'Address') }}
+              <input v-model="form.address" />
+            </label>
+          </div>
+
           <label>
             {{ t('users.username', 'Username') }}
-            <input v-model="form.username" required :disabled="!!editingUser" />
+            <input v-model="form.username" required />
           </label>
           <label v-if="!editingUser">
             {{ t('users.password', 'Password') }}
@@ -120,6 +148,11 @@ const error = ref('')
 const form = ref({
   username: '',
   password: '',
+  full_name: '',
+  email: '',
+  phone: '',
+  document_number: '',
+  address: '',
   role: UserRole.LoanOfficer,
   is_active: true
 })
@@ -148,6 +181,11 @@ const openCreateModal = () => {
   form.value = {
     username: '',
     password: '',
+    full_name: '',
+    email: '',
+    phone: '',
+    document_number: '',
+    address: '',
     role: UserRole.LoanOfficer,
     is_active: true
   }
@@ -159,6 +197,11 @@ const openEditModal = (user: UserProfile) => {
   form.value = {
     username: user.username,
     password: '',
+    full_name: user.full_name,
+    email: user.email,
+    phone: user.phone,
+    document_number: user.document_number,
+    address: user.address,
     role: user.role,
     is_active: user.is_active
   }
@@ -177,6 +220,12 @@ const handleSubmit = async () => {
   try {
     if (editingUser.value) {
       const payload: any = {
+        username: form.value.username,
+        full_name: form.value.full_name,
+        email: form.value.email,
+        phone: form.value.phone,
+        document_number: form.value.document_number,
+        address: form.value.address,
         role: form.value.role,
         is_active: form.value.is_active
       }
@@ -189,11 +238,16 @@ const handleSubmit = async () => {
       })
       message.value = t('users.updatedSuccess', 'User updated successfully')
     } else {
-      await apiClient.request('/auth/register', {
+      await apiClient.request('/users', {
         method: 'POST',
         body: JSON.stringify({
           username: form.value.username,
           password: form.value.password,
+          full_name: form.value.full_name,
+          email: form.value.email,
+          phone: form.value.phone,
+          document_number: form.value.document_number,
+          address: form.value.address,
           role: form.value.role
         })
       })

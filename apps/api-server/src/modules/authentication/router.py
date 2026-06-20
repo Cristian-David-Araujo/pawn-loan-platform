@@ -56,6 +56,11 @@ def create_user(
     user = User(
         username=payload.username,
         hashed_password=get_password_hash(payload.password),
+        full_name=payload.full_name or "",
+        email=payload.email or "",
+        phone=payload.phone or "",
+        document_number=payload.document_number or "",
+        address=payload.address or "",
         role=payload.role,
         is_active=True,
     )
@@ -85,6 +90,25 @@ def update_user(
     user = db.scalar(select(User).where(User.id == user_id))
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if payload.username is not None:
+        # Check uniqueness if username changed
+        if payload.username != user.username:
+            existing = db.scalar(select(User).where(User.username == payload.username))
+            if existing:
+                raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
+        user.username = payload.username
+
+    if payload.full_name is not None:
+        user.full_name = payload.full_name
+    if payload.email is not None:
+        user.email = payload.email
+    if payload.phone is not None:
+        user.phone = payload.phone
+    if payload.document_number is not None:
+        user.document_number = payload.document_number
+    if payload.address is not None:
+        user.address = payload.address
 
     if payload.role is not None:
         user.role = payload.role

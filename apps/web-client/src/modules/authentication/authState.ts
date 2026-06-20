@@ -22,6 +22,11 @@ export enum UserRole {
 export interface UserProfile {
   id: number
   username: string
+  full_name: string
+  email: string
+  phone: string
+  document_number: string
+  address: string
   role: UserRole
   is_active: boolean
 }
