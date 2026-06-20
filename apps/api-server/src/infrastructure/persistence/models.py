@@ -99,6 +99,8 @@ class CollateralItem(Base):
     custody_code: Mapped[str] = mapped_column(String(40), unique=True)
     storage_location: Mapped[str] = mapped_column(String(120), default="")
     status: Mapped[str] = mapped_column(String(20), default="in_custody")
+    sale_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sold_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 

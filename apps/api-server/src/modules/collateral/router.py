@@ -191,11 +191,14 @@ def sell_collateral(
     from src.infrastructure.persistence.models import Payment, PaymentEvent
     from src.shared.utils.time import now_utc
     
+    sale_date = now_utc()
+    allocated_principal = min(payload.sale_price, loan.outstanding_principal)
+    
     payment = Payment(
         loan_id=loan.id,
-        payment_date=now_utc().date(),
+        payment_date=sale_date.date(),
         total_amount=payload.sale_price,
-        allocated_to_principal=payload.sale_price,
+        allocated_to_principal=allocated_principal,
         payment_method="collateral_sale",
         notes=f"Collateral sold: {payload.notes}" if payload.notes else "Collateral sold",
         received_by=current_user.id
@@ -208,7 +211,7 @@ def sell_collateral(
         payment_id=payment.id,
         loan_id=loan.id,
         total_entered_amount=payload.sale_price,
-        allocated_to_principal=payload.sale_price,
+        allocated_to_principal=allocated_principal,
         payment_date=payment.payment_date,
         operator_user_id=current_user.id,
         payment_method="collateral_sale",
@@ -216,8 +219,15 @@ def sell_collateral(
     )
     db.add(payment_event)
     
-    # Update item status
+    # Update loan principal and status
+    loan.outstanding_principal = max(0, loan.outstanding_principal - allocated_principal)
+    if loan.outstanding_principal <= 0:
+        loan.status = LoanStatus.closed
+    
+    # Update item status and sale fields
     item.status = "sold"
+    item.sale_price = payload.sale_price
+    item.sold_at = sale_date
     
     db.commit()
     db.refresh(item)

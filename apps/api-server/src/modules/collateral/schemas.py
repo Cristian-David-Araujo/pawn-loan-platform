@@ -34,6 +34,8 @@ class CollateralRead(BaseModel):
     custody_code: str
     storage_location: str
     status: str
+    sale_price: float | None = None
+    sold_at: datetime | None = None
     created_at: datetime
 
 class CollateralSell(BaseModel):
