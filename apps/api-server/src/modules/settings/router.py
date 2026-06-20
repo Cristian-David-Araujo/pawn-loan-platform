@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from src.infrastructure.persistence.models import GlobalSettings, User
 from src.modules.settings.schemas import GlobalSettingsRead, GlobalSettingsUpdate
-from src.shared.dependencies.auth import get_current_user
+from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
 
@@ -31,7 +31,7 @@ def get_global_settings(
 def update_global_settings(
     payload: GlobalSettingsUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles("administrator")),
 ) -> GlobalSettings:
     settings = _ensure_global_settings(db)
 

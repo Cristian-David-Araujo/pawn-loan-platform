@@ -30,7 +30,7 @@
           <span class="sidebar-user-avatar">{{ userInitial }}</span>
           <div class="sidebar-user-info">
             <span class="sidebar-user-name">{{ currentUsername }}</span>
-            <span class="sidebar-user-role">{{ t('app.administrator') }}</span>
+            <span class="sidebar-user-role">{{ authState.currentUser?.role || '' }}</span>
           </div>
         </div>
       </div>
@@ -102,16 +102,24 @@ import CustomSelect from '../components/CustomSelect.vue'
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
-const { state: authState, logout } = useAuthState()
+const { state: authState, logout, hasRole } = useAuthState()
 
-const navItems = [
-  { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
-  { to: '/customers', labelKey: 'app.customers', icon: Users },
-  { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
-  { to: '/payments', labelKey: 'app.payments', icon: ReceiptText },
-  { to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 },
-  { to: '/settings', labelKey: 'app.settings', icon: Settings }
-]
+const navItems = computed(() => {
+  const items = [
+    { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
+    { to: '/customers', labelKey: 'app.customers', icon: Users },
+    { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
+    { to: '/payments', labelKey: 'app.payments', icon: ReceiptText }
+  ]
+  if (hasRole(['administrator', 'loan_officer'])) {
+    items.push({ to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 })
+  }
+  if (hasRole(['administrator'])) {
+    items.push({ to: '/settings', labelKey: 'app.settings', icon: Settings })
+    items.push({ to: '/users', labelKey: 'app.users', icon: Shield })
+  }
+  return items
+})
 
 const { state } = usePlatformStore()
 

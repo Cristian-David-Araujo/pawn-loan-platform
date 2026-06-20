@@ -13,9 +13,17 @@ interface LoginResponse {
   token_type: string
 }
 
+export interface UserProfile {
+  id: number
+  username: string
+  role: string
+  is_active: boolean
+}
+
 const state = reactive({
   accessToken: getStoredAccessToken(),
-  username: getStoredUsername()
+  username: getStoredUsername(),
+  currentUser: null as UserProfile | null
 })
 
 const extractErrorMessage = async (response: Response) => {
@@ -42,17 +50,36 @@ const login = async (payload: LoginPayload) => {
   state.accessToken = data.access_token
   state.username = payload.username
   setAuthSession(data.access_token, payload.username)
+  await fetchCurrentUser()
+}
+
+const fetchCurrentUser = async () => {
+  if (!state.accessToken) return
+  const response = await fetch(`${API_BASE_URL}/auth/me`, {
+    headers: { Authorization: `Bearer ${state.accessToken}` }
+  })
+  if (response.ok) {
+    state.currentUser = (await response.json()) as UserProfile
+  } else {
+    logout()
+  }
 }
 
 const logout = () => {
   state.accessToken = ''
   state.username = ''
+  state.currentUser = null
   clearAuthSession()
 }
 
 export const useAuthState = () => ({
   state,
   isAuthenticated: computed(() => Boolean(state.accessToken)),
+  hasRole: (roles: string[]) => {
+    if (!state.currentUser) return false
+    return roles.includes(state.currentUser.role)
+  },
   login,
-  logout
+  logout,
+  fetchCurrentUser
 })

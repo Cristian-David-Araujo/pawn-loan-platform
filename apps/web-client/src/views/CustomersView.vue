@@ -5,7 +5,7 @@
         <Users :size="18" />
       </template>
       <template #actions>
-        <button class="btn" type="button" @click="openCreateModal">
+        <button v-if="hasRole(['administrator', 'loan_officer'])" class="btn" type="button" @click="openCreateModal">
           <UserPlus :size="16" />
           {{ t('customers.createCustomer') }}
         </button>
@@ -141,7 +141,7 @@
               <CheckCircle2 :size="16" />
               {{ t('customers.activateCustomer') }}
             </button>
-            <button class="btn btn-secondary" type="button" :disabled="isSaving" @click="handleDeleteCustomer">
+            <button v-if="hasRole(['administrator'])" class="btn btn-secondary" type="button" :disabled="isSaving" @click="handleDeleteCustomer">
               <Trash2 :size="16" />
               {{ t('customers.deleteCustomer') }}
             </button>
@@ -212,7 +212,7 @@
             {{ t('customers.tabCollateral') }}
             <span v-if="selectedCustomerCollateral.length" class="tab-count">{{ selectedCustomerCollateral.length }}</span>
           </button>
-          <button class="tab-btn" :class="{ active: detailTab === 'edit' }" type="button" @click="detailTab = 'edit'">
+          <button v-if="hasRole(['administrator', 'loan_officer'])" class="tab-btn" :class="{ active: detailTab === 'edit' }" type="button" @click="detailTab = 'edit'">
             <Pencil :size="14" />
             {{ t('customers.tabEdit') }}
           </button>
@@ -420,7 +420,9 @@
         <!-- ── Tab: Loans ─────────────────────────── -->
         <template v-if="detailTab === 'loans'">
         <div class="mt-16">
-          <h3>{{ t('customers.customerLoans') }}</h3>
+          <div class="flex-between">
+            <h3>{{ t('customers.customerLoans') }}</h3>
+          </div>
           <p class="muted" v-if="!selectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
           <div v-else class="table-wrap">
           <table>
@@ -454,13 +456,13 @@
                 <td>{{ t(`common.${loan.status}`) }}</td>
                 <td>
                   <div class="form-inline">
-                    <button class="btn btn-secondary btn-icon" type="button" :title="t('customers.editLoan')" @click.stop="openLoanEditModal(loan)">
-                      <Pencil :size="16" />
+                    <button v-if="hasRole(['administrator', 'loan_officer'])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.editLoan')" @click.stop="openLoanEditModal(loan)">
+                      <Pencil :size="14" />
                     </button>
                     <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
                       <Printer :size="16" />
                     </a>
-                    <button class="btn btn-secondary btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
+                    <button v-if="hasRole(['administrator'])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
                       <Trash2 :size="16" />
                     </button>
                   </div>
@@ -526,6 +528,7 @@
                       <Printer :size="16" />
                     </a>
                     <button
+                      v-if="hasRole(['administrator', 'loan_officer'])"
                       class="btn btn-secondary btn-icon"
                       type="button"
                       :title="t('payments.editPayment')"
@@ -575,7 +578,7 @@
                 <td>{{ item.custodyCode }}</td>
                 <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
                 <td>
-                  <button class="btn btn-secondary" type="button" @click="openCollateralEditModal(item)">
+                  <button v-if="hasRole(['administrator', 'loan_officer'])" class="btn btn-secondary" type="button" @click="openCollateralEditModal(item)">
                     <Pencil :size="16" />
                     {{ t('customers.editCollateral') }}
                   </button>
@@ -901,6 +904,7 @@ import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
+import { useAuthState } from '../modules/authentication/authState'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 
@@ -972,6 +976,7 @@ const {
   usePlatformStore()
 const { t, locale } = useI18n()
 const route = useRoute()
+const { hasRole } = useAuthState()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const message = ref('')
 const search = ref('')

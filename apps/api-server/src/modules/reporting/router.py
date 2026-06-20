@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import CollateralItem, Loan, Payment, User
-from src.shared.dependencies.auth import get_current_user
+from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 
 router = APIRouter(prefix="/reports", tags=["reporting"])
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/reports", tags=["reporting"])
 @router.get("/active-loans")
 def active_loans_report(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("administrator", "loan_officer")),
 ) -> dict:
     loans = list(db.scalars(select(Loan).where(Loan.status == LoanStatus.active)).all())
     return {
@@ -32,7 +32,7 @@ def active_loans_report(
 @router.get("/overdue-loans")
 def overdue_loans_report(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("administrator", "loan_officer")),
 ) -> dict:
     loans = list(db.scalars(select(Loan).where(Loan.status == LoanStatus.overdue)).all())
     return {
@@ -51,7 +51,7 @@ def overdue_loans_report(
 @router.get("/collateral-custody")
 def collateral_custody_report(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("administrator", "loan_officer")),
 ) -> dict:
     items = list(db.scalars(select(CollateralItem).where(CollateralItem.status == "in_custody")).all())
     return {
@@ -71,7 +71,7 @@ def collateral_custody_report(
 @router.get("/cash-summary")
 def cash_summary_report(
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_roles("administrator", "loan_officer")),
 ) -> dict:
     total = db.scalar(select(func.coalesce(func.sum(Payment.total_amount), 0.0)))
     count = db.scalar(select(func.count(Payment.id)))

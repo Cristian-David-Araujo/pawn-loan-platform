@@ -24,3 +24,8 @@ class UserRead(BaseModel):
     username: str
     role: str
     is_active: bool
+
+class UserUpdate(BaseModel):
+    role: str | None = None
+    is_active: bool | None = None
+    password: str | None = None

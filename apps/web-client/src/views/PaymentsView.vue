@@ -291,8 +291,8 @@
                 <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
                   <Printer :size="16" />
                 </a>
-                <button class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
-                  <Pencil :size="16" />
+                <button v-if="hasRole(['administrator', 'loan_officer'])" class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
+                  <Pencil :size="14" />
                 </button>
               </div>
             </td>
@@ -375,6 +375,7 @@ import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
+import { useAuthState } from '../modules/authentication/authState'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 
 interface InterestPendingItem {
@@ -438,6 +439,7 @@ interface PaymentEvent {
 }
 
 const { state, ensureInitialized, refreshAll, updatePayment } = usePlatformStore()
+const { hasRole } = useAuthState()
 const router = useRouter()
 const { t, locale } = useI18n()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
