@@ -33,6 +33,8 @@ export interface Loan {
   latePenaltyRate: number
   disbursementDate: string
   dueDay: number
+  interestDue?: number
+  collateralsCount?: number
   status: LoanStatus
   created_by?: UserSummary | null
 }
@@ -45,6 +47,11 @@ export interface CollateralItem {
   custodyCode: string
   storageLocation: string
   status: 'in-custody' | 'released' | 'liquidated'
+  loanStatus?: string
+  loanPrincipal?: number
+  loanOutstanding?: number
+  loanInterestDue?: number
+  loanRate?: number
 }
 
 export interface Payment {

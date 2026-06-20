@@ -1548,6 +1548,12 @@ ul {
   box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
 }
 
+/* ═══════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════ */
+.text-right { text-align: right !important; }
+.text-center { text-align: center !important; }
+
 
 
 /* ═══════════════════════════════════════════════
