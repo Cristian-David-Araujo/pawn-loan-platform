@@ -110,7 +110,7 @@ const navItems = computed(() => {
     { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
     { to: '/customers', labelKey: 'app.customers', icon: Users },
     { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
-    { to: '/inventory', labelKey: 'app.inventory', icon: Package },
+    { to: '/collaterals', labelKey: 'app.collateral', icon: Shield },
     { to: '/payments', labelKey: 'app.payments', icon: ReceiptText }
   ]
   if (hasRole([UserRole.Administrator, UserRole.LoanOfficer])) {

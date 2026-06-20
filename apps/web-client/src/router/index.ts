@@ -32,10 +32,10 @@ const router = createRouter({
       meta: { requiresAuth: true },
       children: [
     {
-      path: '/inventory',
-      name: 'inventory',
-      component: () => import('../views/InventoryView.vue'),
-      meta: { requiresAuth: true, labelKey: 'app.inventory' }
+      path: '/collaterals',
+      name: 'collaterals',
+      component: () => import('../views/CollateralsView.vue'),
+      meta: { requiresAuth: true, labelKey: 'app.collateral' }
     },
 
         { path: '', redirect: '/dashboard' },

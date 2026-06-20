@@ -1,18 +1,24 @@
 export const messages = {
   en: {
-    inventory: {
-      title: 'Inventory',
-      subtitle: 'Manage and sell foreclosed items.',
+    collaterals: {
+      title: 'Collaterals',
+      subtitle: 'Manage all collateral items, including custody and foreclosure.',
+      tabCustody: 'Custody & Resguard',
+      tabInventory: 'Foreclosure & Inventory',
       forSaleItems: 'Items for Sale',
       soldItems: 'Sold Items',
       statusForSale: 'For Sale',
       statusSold: 'Sold',
+      statusInCustody: 'In Custody',
+      statusReturned: 'Returned',
+      statusReleased: 'Released',
+      statusLiquidated: 'Liquidated',
       sellItem: 'Sell Item',
       salePrice: 'Sale Price',
       notes: 'Notes',
       confirmSellStepOne: 'You are going to sell {item} for {price}. Continue?',
       confirmSellStepTwo: 'Confirm again to finalize the sale.',
-      noItems: 'No items in inventory.',
+      noItems: 'No collateral items found.',
       foreclosureWarning: 'This action will mark the loan as defaulted and move all its collateral items to inventory for sale. This cannot be undone.',
       saleDate: 'Sale Date',
       totalItems: 'Total items: {count}',
@@ -52,28 +58,6 @@ export const messages = {
       invalidCredentials: 'Invalid username or password.'
     },
     roles: {
-    inventory: {
-      title: 'Inventario y Remates',
-      subtitle: 'Administra y vende los articulos de garantias no reclamadas.',
-      forSaleItems: 'Articulos en Remate',
-      soldItems: 'Articulos Vendidos',
-      statusForSale: 'En Remate',
-      statusSold: 'Vendido',
-      sellItem: 'Registrar Venta',
-      salePrice: 'Precio de Venta',
-      notes: 'Notas (Opcional)',
-      confirmSellStepOne: 'Vas a vender el articulo {item} por {price}. Deseas continuar?',
-      confirmSellStepTwo: 'Confirma nuevamente para registrar la venta en la caja.',
-      noItems: 'No hay articulos en el inventario.',
-      foreclosureWarning: 'Esta accion marcara el prestamo como incobrable y pasara todas sus garantias al inventario de remates para su venta. Esta accion no se puede deshacer.',
-      saleDate: 'Fecha de Venta',
-      totalItems: 'Artículos: {count}',
-      invalidPrice: 'Por favor, ingresa un precio válido.',
-      sellError: 'Error al procesar la venta.',
-      continue: 'Continuar',
-      confirm: 'Confirmar'
-    },
-
       administrator: 'Administrator',
       loan_officer: 'Loan Officer',
       collector: 'Collector'
@@ -495,6 +479,33 @@ export const messages = {
     }
   },
   es: {
+    collaterals: {
+      title: 'Garantías',
+      subtitle: 'Administra y vende los artículos de garantías.',
+      tabCustody: 'Resguardo y Custodia',
+      tabInventory: 'Remates e Inventario',
+      forSaleItems: 'Artículos en Remate',
+      soldItems: 'Artículos Vendidos',
+      statusForSale: 'En Remate',
+      statusSold: 'Vendido',
+      statusInCustody: 'En Custodia',
+      statusReturned: 'Devuelta al Cliente',
+      statusReleased: 'Liberada',
+      statusLiquidated: 'Liquidada',
+      sellItem: 'Registrar Venta',
+      salePrice: 'Precio de Venta',
+      notes: 'Notas (Opcional)',
+      confirmSellStepOne: 'Vas a vender el articulo {item} por {price}. Deseas continuar?',
+      confirmSellStepTwo: 'Confirma nuevamente para registrar la venta en la caja.',
+      noItems: 'No se encontraron garantías.',
+      foreclosureWarning: 'Esta accion marcara el prestamo como incobrable y pasara todas sus garantias al inventario de remates para su venta. Esta accion no se puede deshacer.',
+      saleDate: 'Fecha de Venta',
+      totalItems: 'Artículos: {count}',
+      invalidPrice: 'Por favor, ingresa un precio válido.',
+      sellError: 'Error al procesar la venta.',
+      continue: 'Continuar',
+      confirm: 'Confirmar'
+    },
     app: {
       title: 'Plataforma de Prestamos Prendarios',
       subtitle: 'Prototipo de Operaciones de Prestamo',

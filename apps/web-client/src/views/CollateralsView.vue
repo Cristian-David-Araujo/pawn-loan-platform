@@ -1,10 +1,19 @@
 <template>
   <section>
-    <PageHeader :title="t('inventory.title')" :subtitle="t('inventory.subtitle')">
+    <PageHeader :title="t('collaterals.title')" :subtitle="t('collaterals.subtitle')">
       <template #icon>
-        <Package :size="18" />
+        <Shield :size="18" />
       </template>
     </PageHeader>
+
+    <div class="tabs mt-16">
+      <button class="tab-btn" :class="{ active: activeTab === 'custody' }" @click="activeTab = 'custody'" type="button">
+        {{ t('collaterals.tabCustody') }}
+      </button>
+      <button class="tab-btn" :class="{ active: activeTab === 'inventory' }" @click="activeTab = 'inventory'" type="button">
+        {{ t('collaterals.tabInventory') }}
+      </button>
+    </div>
 
     <div class="card mt-16">
       <div class="table-toolbar">
@@ -17,9 +26,9 @@
         <CustomSelect 
           v-model="filterStatus" 
           inputClass="table-select" 
-          :options="statusOptions" 
+          :options="activeTab === 'custody' ? custodyStatusOptions : inventoryStatusOptions" 
         />
-        <span class="table-count">{{ t('inventory.totalItems', { count: filteredItems.length }, { default: `Total: ${filteredItems.length}` }) }}</span>
+        <span class="table-count">{{ t('collaterals.totalItems', { count: filteredItems.length }, { default: `Total: ${filteredItems.length}` }) }}</span>
       </div>
 
       <div v-if="loading" class="text-center muted mt-16 p-16">
@@ -28,14 +37,23 @@
       <div v-else class="table-wrap">
         <table>
           <thead>
-            <tr>
+            <tr v-if="activeTab === 'custody'">
               <th>{{ t('common.id') }}</th>
               <th>{{ t('collateral.custodyCode') }}</th>
               <th>{{ t('common.description') }}</th>
               <th>{{ t('collateral.appraisedValue') }}</th>
               <th>{{ t('common.status') }}</th>
-              <th>{{ t('inventory.salePrice') }}</th>
-              <th>{{ t('inventory.saleDate') }}</th>
+              <th>{{ t('common.loan') }}</th>
+            </tr>
+            <tr v-else>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.description') }}</th>
+              <th>{{ t('collateral.appraisedValue') }}</th>
+              <th>{{ t('common.loan') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th>{{ t('collaterals.salePrice') }}</th>
+              <th>{{ t('collaterals.saleDate') }}</th>
               <th>{{ t('common.actions') }}</th>
             </tr>
           </thead>
@@ -43,32 +61,46 @@
             <tr v-for="item in paginatedItems" :key="item.id">
               <td>{{ item.id }}</td>
               <td>{{ item.custody_code || item.custodyCode }}</td>
-              <td>
-                <div><strong>{{ item.description }}</strong></div>
-                <div v-if="item.serial_number || item.serialNumber" class="muted text-xs">SN: {{ item.serial_number || item.serialNumber }}</div>
-              </td>
+              <td>{{ item.description }}</td>
               <td>{{ formatCurrency(item.appraised_value || item.appraisedValue) }}</td>
-              <td>
-                <span :class="['pill', item.status === 'for_sale' ? 'bg-warning text-warning-dark' : 'bg-success text-success-dark']">
-                  {{ t(`inventory.status${item.status === 'for_sale' ? 'ForSale' : 'Sold'}`) }}
-                </span>
-              </td>
-              <td>{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
-              <td>{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
-              <td>
-                <button 
-                  v-if="item.status === 'for_sale'" 
-                  class="btn btn-secondary btn-sm" 
-                  type="button" 
-                  @click="openSellModal(item)"
-                >
-                  <DollarSign :size="14" />
-                  {{ t('inventory.sellItem') }}
-                </button>
-              </td>
+              
+              <!-- Tab Custody Columns -->
+              <template v-if="activeTab === 'custody'">
+                <td>
+                  {{ getStatusLabel(item.status) }}
+                </td>
+                <td>
+                  <div class="fw-bold">#{{ item.loan_id || item.loanId }}</div>
+                  <div v-if="item.loan_status || item.loanStatus" class="muted text-xs">
+                    {{ t(`common.${(item.loan_status || item.loanStatus).toLowerCase()}`) }}
+                  </div>
+                </td>
+              </template>
+
+              <!-- Tab Inventory Columns -->
+              <template v-else>
+                <td>#{{ item.loan_id || item.loanId }}</td>
+                <td>
+                  {{ getStatusLabel(item.status) }}
+                </td>
+                <td>{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
+                <td>{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
+                <td>
+                  <button 
+                    v-if="item.status === 'for_sale'" 
+                    class="btn btn-secondary btn-icon" 
+                    type="button" 
+                    :title="t('collaterals.sellItem')"
+                    @click="openSellModal(item)"
+                  >
+                    <DollarSign :size="16" />
+                  </button>
+                </td>
+              </template>
+
             </tr>
             <tr v-if="!filteredItems.length">
-              <td colspan="8" class="text-center muted">{{ t('inventory.noItems') }}</td>
+              <td :colspan="activeTab === 'custody' ? 6 : 9" class="text-center muted">{{ t('collaterals.noItems') }}</td>
             </tr>
           </tbody>
         </table>
@@ -76,11 +108,11 @@
       </div>
     </div>
 
-    <!-- Sell Modal (Using standard modal panel) -->
+    <!-- Sell Modal -->
     <div v-if="showSellModal" class="modal-backdrop" @click.self="closeSellModal">
       <div class="modal-panel card">
         <div class="modal-header">
-          <h3>{{ t('inventory.sellItem') }}</h3>
+          <h3>{{ t('collaterals.sellItem') }}</h3>
           <button class="btn btn-secondary btn-icon" type="button" @click="closeSellModal">
             <X :size="16" />
           </button>
@@ -89,18 +121,18 @@
         <div class="mt-16">
           <div v-if="confirmStep === 1">
             <label>
-              {{ t('inventory.salePrice') }}
+              {{ t('collaterals.salePrice') }}
               <input type="number" v-model="salePrice" min="0" step="0.01" class="w-full mt-4" />
             </label>
             <label class="mt-16">
-              {{ t('inventory.notes') }}
+              {{ t('collaterals.notes') }}
               <textarea v-model="saleNotes" rows="3" class="w-full mt-4"></textarea>
             </label>
           </div>
           <div v-else class="text-center p-16">
             <AlertTriangle :size="32" class="text-warning mx-auto mb-8" style="color: #d97706;" />
-            <p><strong>{{ t('inventory.confirmSellStepOne', { item: selectedItem?.description, price: formatCurrency(salePrice || 0) }) }}</strong></p>
-            <p class="muted mt-8">{{ t('inventory.confirmSellStepTwo') }}</p>
+            <p><strong>{{ t('collaterals.confirmSellStepOne', { item: selectedItem?.description, price: formatCurrency(salePrice || 0) }) }}</strong></p>
+            <p class="muted mt-8">{{ t('collaterals.confirmSellStepTwo') }}</p>
           </div>
         </div>
 
@@ -110,7 +142,7 @@
           </button>
           <button class="btn" type="button" @click="handleSell" :disabled="isSubmitting">
             <span v-if="isSubmitting" class="spinner-small"></span>
-            <span v-else>{{ confirmStep === 1 ? t('inventory.continue') : t('inventory.confirm') }}</span>
+            <span v-else>{{ confirmStep === 1 ? t('collaterals.continue') : t('collaterals.confirm') }}</span>
           </button>
         </div>
       </div>
@@ -119,13 +151,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePlatformStore } from '../stores/platformStore'
 import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
-import { Package, Search, DollarSign, X, AlertTriangle } from 'lucide-vue-next'
+import { Shield, Search, DollarSign, X, AlertTriangle } from 'lucide-vue-next'
 
 const { t, locale } = useI18n()
 const store = usePlatformStore()
@@ -133,7 +165,9 @@ const store = usePlatformStore()
 const items = ref<any[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
-const filterStatus = ref('for_sale') // for_sale or sold
+const activeTab = ref('custody')
+
+const filterStatus = ref('')
 const currentPage = ref(1)
 const itemsPerPage = 10
 
@@ -144,10 +178,23 @@ const saleNotes = ref('')
 const isSubmitting = ref(false)
 const confirmStep = ref(1)
 
-const statusOptions = computed(() => [
-  { value: 'for_sale', label: t('inventory.statusForSale') },
-  { value: 'sold', label: t('inventory.statusSold') },
-  { value: '', label: t('loans.allStatuses') }
+watch(activeTab, () => {
+  filterStatus.value = ''
+  currentPage.value = 1
+})
+
+const custodyStatusOptions = computed(() => [
+  { value: '', label: t('loans.allStatuses') },
+  { value: 'in_custody', label: t('collaterals.statusInCustody') },
+  { value: 'returned', label: t('collaterals.statusReturned') },
+  { value: 'released', label: t('collaterals.statusReleased') }
+])
+
+const inventoryStatusOptions = computed(() => [
+  { value: '', label: t('loans.allStatuses') },
+  { value: 'for_sale', label: t('collaterals.statusForSale') },
+  { value: 'sold', label: t('collaterals.statusSold') },
+  { value: 'liquidated', label: t('collaterals.statusLiquidated') }
 ])
 
 const currencyCode = computed(() => store.state.globalSettings?.currencyCode ?? 'COP')
@@ -162,6 +209,22 @@ const formatDateDMY = (dateString: string) => {
   return `${d}/${m}/${y}`
 }
 
+
+
+const getStatusLabel = (status: string) => {
+  switch(status) {
+    case 'in_custody': return t('collaterals.statusInCustody')
+    case 'returned': return t('collaterals.statusReturned')
+    case 'for_sale': return t('collaterals.statusForSale')
+    case 'sold': return t('collaterals.statusSold')
+    case 'released': return t('collaterals.statusReleased')
+    case 'liquidated': return t('collaterals.statusLiquidated')
+    default: return status
+  }
+}
+
+
+
 onMounted(async () => {
   await loadItems()
 })
@@ -169,9 +232,7 @@ onMounted(async () => {
 const loadItems = async () => {
   try {
     loading.value = true
-    const allItems = await store.fetchCollateralItems()
-    // Inventory only cares about for_sale and sold
-    items.value = allItems.filter((i: any) => i.status === 'for_sale' || i.status === 'sold')
+    items.value = await store.fetchCollateralItems()
   } catch (err: any) {
     alert(t('common.errors?.generic') || 'Error fetching data')
   } finally {
@@ -179,8 +240,16 @@ const loadItems = async () => {
   }
 }
 
+const tabItems = computed(() => {
+  if (activeTab.value === 'custody') {
+    return items.value.filter(i => ['in_custody', 'returned', 'released'].includes(i.status))
+  } else {
+    return items.value.filter(i => ['for_sale', 'sold', 'liquidated'].includes(i.status))
+  }
+})
+
 const filteredItems = computed(() => {
-  let result = items.value
+  let result = tabItems.value
 
   if (filterStatus.value) {
     result = result.filter(i => i.status === filterStatus.value)
@@ -195,7 +264,7 @@ const filteredItems = computed(() => {
     )
   }
   
-  return result.sort((a, b) => b.id - a.id) // Sort newest first
+  return result.sort((a, b) => b.id - a.id)
 })
 
 const paginatedItems = computed(() => {
@@ -222,7 +291,7 @@ const closeSellModal = () => {
 const handleSell = async () => {
   if (confirmStep.value === 1) {
     if (!salePrice.value || salePrice.value <= 0) {
-      alert(t('inventory.invalidPrice'))
+      alert(t('collaterals.invalidPrice'))
       return
     }
     confirmStep.value = 2
@@ -236,7 +305,7 @@ const handleSell = async () => {
     closeSellModal()
     await loadItems()
   } catch (err: any) {
-    alert(err.message || t('inventory.sellError'))
+    alert(err.message || t('collaterals.sellError'))
     confirmStep.value = 1
   } finally {
     isSubmitting.value = false
@@ -244,22 +313,3 @@ const handleSell = async () => {
 }
 </script>
 
-<style scoped>
-.pill {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.bg-warning { background-color: #fef3c7; }
-.text-warning-dark { color: #92400e; }
-.bg-success { background-color: #dcfce7; }
-.text-success-dark { color: #166534; }
-.text-warning { color: #d97706; }
-.mx-auto { margin-left: auto; margin-right: auto; }
-.mb-8 { margin-bottom: 0.5rem; }
-.text-xs { font-size: 0.75rem; }
-</style>

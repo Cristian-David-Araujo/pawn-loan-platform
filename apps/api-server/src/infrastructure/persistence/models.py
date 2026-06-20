@@ -102,6 +102,14 @@ class CollateralItem(Base):
     sale_price: Mapped[float | None] = mapped_column(Float, nullable=True)
     sold_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
+    
+    loan: Mapped["Loan"] = relationship("Loan", lazy="selectin")
+
+    @property
+    def loan_status(self) -> str | None:
+        if self.loan and hasattr(self.loan, 'status'):
+            return self.loan.status.value
+        return None
 
 
 class InterestCharge(Base):
