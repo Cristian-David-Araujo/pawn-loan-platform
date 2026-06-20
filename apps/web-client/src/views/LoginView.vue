@@ -11,7 +11,7 @@
         <p v-if="companyName" class="page-subtitle">{{ companyName }}</p>
       </header>
 
-      <p v-if="error" class="notice" style="background: var(--danger-soft); color: #b91c1c; border-color: var(--danger-border);">{{ error }}</p>
+      <p v-if="error" class="notice notice-error">{{ error }}</p>
 
       <form class="login-form" @submit.prevent="handleSubmit">
         <label>
