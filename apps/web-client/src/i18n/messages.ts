@@ -13,7 +13,13 @@ export const messages = {
       confirmSellStepOne: 'You are going to sell {item} for {price}. Continue?',
       confirmSellStepTwo: 'Confirm again to finalize the sale.',
       noItems: 'No items in inventory.',
-      foreclosureWarning: 'This action will mark the loan as defaulted and move all its collateral items to inventory for sale. This cannot be undone.'
+      foreclosureWarning: 'This action will mark the loan as defaulted and move all its collateral items to inventory for sale. This cannot be undone.',
+      saleDate: 'Sale Date',
+      totalItems: 'Total items: {count}',
+      invalidPrice: 'Please enter a valid price.',
+      sellError: 'Error processing sale.',
+      continue: 'Continue',
+      confirm: 'Confirm'
     },
 
     app: {
@@ -27,6 +33,7 @@ export const messages = {
       dashboard: 'Dashboard',
       customers: 'Customers',
       loans: 'Loans',
+      inventory: 'Inventory',
       collateral: 'Collateral',
       payments: 'Payments',
       reporting: 'Reporting',
@@ -58,7 +65,13 @@ export const messages = {
       confirmSellStepOne: 'Vas a vender el articulo {item} por {price}. Deseas continuar?',
       confirmSellStepTwo: 'Confirma nuevamente para registrar la venta en la caja.',
       noItems: 'No hay articulos en el inventario.',
-      foreclosureWarning: 'Esta accion marcara el prestamo como incobrable y pasara todas sus garantias al inventario de remates para su venta. Esta accion no se puede deshacer.'
+      foreclosureWarning: 'Esta accion marcara el prestamo como incobrable y pasara todas sus garantias al inventario de remates para su venta. Esta accion no se puede deshacer.',
+      saleDate: 'Fecha de Venta',
+      totalItems: 'Artículos: {count}',
+      invalidPrice: 'Por favor, ingresa un precio válido.',
+      sellError: 'Error al procesar la venta.',
+      continue: 'Continuar',
+      confirm: 'Confirmar'
     },
 
       administrator: 'Administrator',
@@ -493,6 +506,7 @@ export const messages = {
       dashboard: 'Panel',
       customers: 'Clientes',
       loans: 'Prestamos',
+      inventory: 'Inventario',
       collateral: 'Garantias',
       payments: 'Pagos',
       reporting: 'Reportes',

@@ -1,16 +1,141 @@
+<template>
+  <section>
+    <PageHeader :title="t('inventory.title')" :subtitle="t('inventory.subtitle')">
+      <template #icon>
+        <Package :size="18" />
+      </template>
+    </PageHeader>
+
+    <div class="card mt-16">
+      <div class="table-toolbar">
+        <input 
+          v-model="searchQuery" 
+          class="table-search" 
+          type="text" 
+          :placeholder="t('common.searchPlaceholder')" 
+        />
+        <CustomSelect 
+          v-model="filterStatus" 
+          inputClass="table-select" 
+          :options="statusOptions" 
+        />
+        <span class="table-count">{{ t('inventory.totalItems', { count: filteredItems.length }, { default: `Total: ${filteredItems.length}` }) }}</span>
+      </div>
+
+      <div v-if="loading" class="text-center muted mt-16 p-16">
+        {{ t('common.loading') }}
+      </div>
+      <div v-else class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.description') }}</th>
+              <th>{{ t('collateral.appraisedValue') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th>{{ t('inventory.salePrice') }}</th>
+              <th>{{ t('inventory.saleDate') }}</th>
+              <th>{{ t('common.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in paginatedItems" :key="item.id">
+              <td>{{ item.id }}</td>
+              <td>{{ item.custody_code || item.custodyCode }}</td>
+              <td>
+                <div><strong>{{ item.description }}</strong></div>
+                <div v-if="item.serial_number || item.serialNumber" class="muted text-xs">SN: {{ item.serial_number || item.serialNumber }}</div>
+              </td>
+              <td>{{ formatCurrency(item.appraised_value || item.appraisedValue) }}</td>
+              <td>
+                <span :class="['pill', item.status === 'for_sale' ? 'bg-warning text-warning-dark' : 'bg-success text-success-dark']">
+                  {{ t(`inventory.status${item.status === 'for_sale' ? 'ForSale' : 'Sold'}`) }}
+                </span>
+              </td>
+              <td>{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
+              <td>{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
+              <td>
+                <button 
+                  v-if="item.status === 'for_sale'" 
+                  class="btn btn-secondary btn-sm" 
+                  type="button" 
+                  @click="openSellModal(item)"
+                >
+                  <DollarSign :size="14" />
+                  {{ t('inventory.sellItem') }}
+                </button>
+              </td>
+            </tr>
+            <tr v-if="!filteredItems.length">
+              <td colspan="8" class="text-center muted">{{ t('inventory.noItems') }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <Pagination v-model="currentPage" :totalItems="filteredItems.length" :itemsPerPage="itemsPerPage" />
+      </div>
+    </div>
+
+    <!-- Sell Modal (Using standard modal panel) -->
+    <div v-if="showSellModal" class="modal-backdrop" @click.self="closeSellModal">
+      <div class="modal-panel card">
+        <div class="modal-header">
+          <h3>{{ t('inventory.sellItem') }}</h3>
+          <button class="btn btn-secondary btn-icon" type="button" @click="closeSellModal">
+            <X :size="16" />
+          </button>
+        </div>
+
+        <div class="mt-16">
+          <div v-if="confirmStep === 1">
+            <label>
+              {{ t('inventory.salePrice') }}
+              <input type="number" v-model="salePrice" min="0" step="0.01" class="w-full mt-4" />
+            </label>
+            <label class="mt-16">
+              {{ t('inventory.notes') }}
+              <textarea v-model="saleNotes" rows="3" class="w-full mt-4"></textarea>
+            </label>
+          </div>
+          <div v-else class="text-center p-16">
+            <AlertTriangle :size="32" class="text-warning mx-auto mb-8" style="color: #d97706;" />
+            <p><strong>{{ t('inventory.confirmSellStepOne', { item: selectedItem?.description, price: formatCurrency(salePrice || 0) }) }}</strong></p>
+            <p class="muted mt-8">{{ t('inventory.confirmSellStepTwo') }}</p>
+          </div>
+        </div>
+
+        <div class="form-actions mt-16" style="display: flex; justify-content: flex-end; gap: 1rem;">
+          <button class="btn btn-secondary" type="button" @click="closeSellModal" :disabled="isSubmitting">
+            {{ t('common.cancel') }}
+          </button>
+          <button class="btn" type="button" @click="handleSell" :disabled="isSubmitting">
+            <span v-if="isSubmitting" class="spinner-small"></span>
+            <span v-else>{{ confirmStep === 1 ? t('inventory.continue') : t('inventory.confirm') }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+</template>
+
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePlatformStore } from '../stores/platformStore'
-import { AlertCircle, Package, DollarSign, Search, Filter } from 'lucide-vue-next'
+import PageHeader from '../components/PageHeader.vue'
+import CustomSelect from '../components/CustomSelect.vue'
+import Pagination from '../components/Pagination.vue'
+import { Package, Search, DollarSign, X, AlertTriangle } from 'lucide-vue-next'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const store = usePlatformStore()
 
 const items = ref<any[]>([])
 const loading = ref(true)
 const searchQuery = ref('')
 const filterStatus = ref('for_sale') // for_sale or sold
+const currentPage = ref(1)
+const itemsPerPage = 10
 
 const showSellModal = ref(false)
 const selectedItem = ref<any>(null)
@@ -19,6 +144,24 @@ const saleNotes = ref('')
 const isSubmitting = ref(false)
 const confirmStep = ref(1)
 
+const statusOptions = computed(() => [
+  { value: 'for_sale', label: t('inventory.statusForSale') },
+  { value: 'sold', label: t('inventory.statusSold') },
+  { value: '', label: t('loans.allStatuses') }
+])
+
+const currencyCode = computed(() => store.state.globalSettings?.currencyCode ?? 'COP')
+const formatCurrency = (val: number) => {
+  if (val === null || val === undefined) return '-'
+  return new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: currencyCode.value }).format(val)
+}
+
+const formatDateDMY = (dateString: string) => {
+  if (!dateString) return '-'
+  const [y, m, d] = dateString.split('-')
+  return `${d}/${m}/${y}`
+}
+
 onMounted(async () => {
   await loadItems()
 })
@@ -26,7 +169,9 @@ onMounted(async () => {
 const loadItems = async () => {
   try {
     loading.value = true
-    items.value = await store.fetchCollateralItems()
+    const allItems = await store.fetchCollateralItems()
+    // Inventory only cares about for_sale and sold
+    items.value = allItems.filter((i: any) => i.status === 'for_sale' || i.status === 'sold')
   } catch (err: any) {
     alert(t('common.errors?.generic') || 'Error fetching data')
   } finally {
@@ -35,14 +180,27 @@ const loadItems = async () => {
 }
 
 const filteredItems = computed(() => {
-  return items.value.filter((i: any) => {
-    if (filterStatus.value && i.status !== filterStatus.value) return false
-    if (searchQuery.value) {
-      const q = searchQuery.value.toLowerCase()
-      return i.description.toLowerCase().includes(q) || i.custody_code?.toLowerCase().includes(q)
-    }
-    return true
-  })
+  let result = items.value
+
+  if (filterStatus.value) {
+    result = result.filter(i => i.status === filterStatus.value)
+  }
+
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    result = result.filter(i => 
+      i.description?.toLowerCase().includes(q) || 
+      i.custody_code?.toLowerCase().includes(q) ||
+      i.custodyCode?.toLowerCase().includes(q)
+    )
+  }
+  
+  return result.sort((a, b) => b.id - a.id) // Sort newest first
+})
+
+const paginatedItems = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage
+  return filteredItems.value.slice(start, start + itemsPerPage)
 })
 
 const openSellModal = (item: any) => {
@@ -64,7 +222,7 @@ const closeSellModal = () => {
 const handleSell = async () => {
   if (confirmStep.value === 1) {
     if (!salePrice.value || salePrice.value <= 0) {
-      alert('Ingresa un precio valido')
+      alert(t('inventory.invalidPrice'))
       return
     }
     confirmStep.value = 2
@@ -75,478 +233,33 @@ const handleSell = async () => {
   try {
     isSubmitting.value = true
     await store.sellCollateralItem(selectedItem.value.id, salePrice.value!, saleNotes.value)
-    alert(t('common.success') || 'Success')
     closeSellModal()
     await loadItems()
   } catch (err: any) {
-    alert(err.message || 'Error selling item')
+    alert(err.message || t('inventory.sellError'))
     confirmStep.value = 1
   } finally {
     isSubmitting.value = false
   }
 }
-
-const formatCurrency = (val: number) => {
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP' }).format(val)
-}
 </script>
 
-<template>
-  <div class="inventory-view">
-    <header class="page-header">
-      <div class="header-content">
-        <h1 class="page-title">{{ t('common.inventory.title') }}</h1>
-        <p class="page-subtitle">{{ t('common.inventory.subtitle') }}</p>
-      </div>
-    </header>
-
-    <div class="controls-bar">
-      <div class="search-box">
-        <Search class="search-icon" />
-        <input 
-          v-model="searchQuery"
-          type="text" 
-          :placeholder="t('common.search')"
-          class="search-input"
-        >
-      </div>
-      <div class="filter-box">
-        <Filter class="filter-icon" />
-        <select v-model="filterStatus" class="filter-select">
-          <option value="for_sale">{{ t('common.inventory.statusForSale') }}</option>
-          <option value="sold">{{ t('common.inventory.statusSold') }}</option>
-        </select>
-      </div>
-    </div>
-
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>{{ t('common.loading') }}</p>
-    </div>
-
-    <div v-else-if="filteredItems.length === 0" class="empty-state">
-      <Package class="empty-icon" />
-      <h3>{{ t('common.inventory.noItems') }}</h3>
-    </div>
-
-    <div v-else class="inventory-grid">
-      <div 
-        v-for="item in filteredItems" 
-        :key="item.id"
-        class="inventory-card"
-      >
-        <div class="card-header">
-          <span class="custody-badge">{{ item.custody_code }}</span>
-          <span :class="['status-badge', item.status]">{{ t(`common.inventory.status${item.status === 'for_sale' ? 'ForSale' : 'Sold'}`) }}</span>
-        </div>
-        <div class="card-body">
-          <h3 class="item-desc">{{ item.description }}</h3>
-          <p v-if="item.serial_number" class="item-meta">SN: {{ item.serial_number }}</p>
-          <p class="item-meta">Avalúo: <strong class="appraised">{{ formatCurrency(item.appraised_value) }}</strong></p>
-        </div>
-        <div class="card-footer" v-if="item.status === 'for_sale'">
-          <button class="btn btn-primary w-full" @click="openSellModal(item)">
-            <DollarSign class="btn-icon" />
-            {{ t('common.inventory.sellItem') }}
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Sell Modal -->
-    <div v-if="showSellModal" class="modal-overlay" @click.self="closeSellModal">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2 class="modal-title">{{ t('common.inventory.sellItem') }}</h2>
-          <button class="close-btn" @click="closeSellModal">&times;</button>
-        </div>
-        
-        <div class="modal-body">
-          <div v-if="confirmStep === 1">
-            <div class="form-group">
-              <label>{{ t('common.inventory.salePrice') }}</label>
-              <div class="input-with-icon">
-                <DollarSign class="input-icon" />
-                <input type="number" v-model="salePrice" class="form-input with-icon" min="0" step="0.01">
-              </div>
-            </div>
-            <div class="form-group">
-              <label>{{ t('common.inventory.notes') }}</label>
-              <textarea v-model="saleNotes" class="form-input" rows="3"></textarea>
-            </div>
-          </div>
-          <div v-else class="confirmation-step">
-            <AlertCircle class="warning-icon" />
-            <p>{{ t('common.inventory.confirmSellStepOne', { item: selectedItem?.description, price: formatCurrency(salePrice || 0) }) }}</p>
-            <p class="text-muted mt-2">{{ t('common.inventory.confirmSellStepTwo') }}</p>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button class="btn btn-ghost" @click="closeSellModal" :disabled="isSubmitting">
-            {{ t('common.cancel') }}
-          </button>
-          <button class="btn btn-primary" @click="handleSell" :disabled="isSubmitting">
-            <span v-if="isSubmitting" class="spinner-small"></span>
-            <span v-else>{{ confirmStep === 1 ? t('common.continue') : t('common.confirm') }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <style scoped>
-.inventory-view {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.page-header {
-  margin-bottom: 2rem;
-}
-
-.page-title {
-  font-size: 2rem;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-}
-
-.page-subtitle {
-  color: var(--text-secondary);
-  font-size: 1.1rem;
-}
-
-.controls-bar {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-}
-
-.search-box, .filter-box {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.search-input, .filter-select {
-  padding: 0.75rem 1rem 0.75rem 2.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-surface);
-  color: var(--text-primary);
-  font-size: 0.95rem;
-  min-width: 250px;
-}
-
-.search-icon, .filter-icon {
-  position: absolute;
-  left: 0.75rem;
-  width: 18px;
-  height: 18px;
-  color: var(--text-secondary);
-  pointer-events: none;
-}
-
-.inventory-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-}
-
-.inventory-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.inventory-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-
-.card-header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(0,0,0,0.01);
-}
-
-.custody-badge {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.status-badge {
-  padding: 0.25rem 0.75rem;
+.pill {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-
-.status-badge.for_sale {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.status-badge.sold {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.card-body {
-  padding: 1.5rem 1rem;
-  flex: 1;
-}
-
-.item-desc {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 0.5rem;
-}
-
-.item-meta {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-  margin-bottom: 0.25rem;
-}
-
-.appraised {
-  color: var(--text-primary);
-  font-size: 1.1rem;
-}
-
-.card-footer {
-  padding: 1rem;
-  border-top: 1px solid var(--border-color);
-  background: rgba(0,0,0,0.01);
-}
-
-.btn-primary {
-  background: var(--primary-color);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: var(--primary-hover);
-}
-
-.w-full {
-  width: 100%;
-}
-
-.loading-state, .empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem 2rem;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.empty-icon {
-  width: 48px;
-  height: 48px;
-  margin-bottom: 1rem;
-  opacity: 0.5;
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid var(--border-color);
-  border-top-color: var(--primary-color);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: 1rem;
-  backdrop-filter: blur(4px);
-}
-
-.modal-content {
-  background: var(--bg-surface);
-  border-radius: 16px;
-  width: 100%;
-  max-width: 500px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-}
-
-.modal-header {
-  padding: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 0.5rem;
-  line-height: 1;
-  border-radius: 50%;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: var(--bg-background);
-  color: var(--text-primary);
-}
-
-.modal-body {
-  padding: 1.5rem;
-  overflow-y: auto;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  margin-bottom: 0.5rem;
-}
-
-.input-with-icon {
-  position: relative;
-}
-
-.input-icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-secondary);
-  width: 18px;
-  height: 18px;
-}
-
-.form-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  background: var(--bg-background);
-  color: var(--text-primary);
-  font-size: 1rem;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.form-input.with-icon {
-  padding-left: 2.5rem;
-}
-
-.form-input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
-.confirmation-step {
-  text-align: center;
-  padding: 2rem 1rem;
-}
-
-.warning-icon {
-  width: 48px;
-  height: 48px;
-  color: #f59e0b;
-  margin-bottom: 1rem;
-}
-
-.text-muted {
-  color: var(--text-secondary);
-  font-size: 0.9rem;
-}
-
-.modal-footer {
-  padding: 1.5rem;
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-  background: rgba(0,0,0,0.02);
-  border-radius: 0 0 16px 16px;
-}
-
-.btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.95rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-secondary);
-}
-
-.btn-ghost:hover {
-  background: var(--bg-background);
-  color: var(--text-primary);
-}
-
-.spinner-small {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
+.bg-warning { background-color: #fef3c7; }
+.text-warning-dark { color: #92400e; }
+.bg-success { background-color: #dcfce7; }
+.text-success-dark { color: #166534; }
+.text-warning { color: #d97706; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.mb-8 { margin-bottom: 0.5rem; }
+.text-xs { font-size: 0.75rem; }
 </style>
