@@ -88,11 +88,41 @@ export const hasRole = (roles: UserRole[]) => {
   return roles.includes(state.currentUser.role as UserRole)
 }
 
+const forgotPassword = async (usernameOrEmail: string) => {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username_or_email: usernameOrEmail })
+  })
+
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response))
+  }
+
+  return (await response.json()) as { message: string; reset_token: string | null }
+}
+
+const resetPassword = async (token: string, newPassword: string) => {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, new_password: newPassword })
+  })
+
+  if (!response.ok) {
+    throw new Error(await extractErrorMessage(response))
+  }
+
+  return (await response.json()) as { message: string }
+}
+
 export const useAuthState = () => ({
   state,
   isAuthenticated: computed(() => Boolean(state.accessToken)),
   hasRole,
   login,
   logout,
-  fetchCurrentUser
+  fetchCurrentUser,
+  forgotPassword,
+  resetPassword
 })

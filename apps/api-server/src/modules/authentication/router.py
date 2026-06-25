@@ -1,11 +1,24 @@
+import secrets
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.infrastructure.config.settings import get_settings
 from src.infrastructure.persistence.models import User
 from src.infrastructure.security.jwt import create_access_token
 from src.infrastructure.security.password import get_password_hash, verify_password
-from src.modules.authentication.schemas import LoginRequest, TokenResponse, UserCreate, UserRead, UserUpdate
+from src.modules.authentication.schemas import (
+    ForgotPasswordRequest,
+    ForgotPasswordResponse,
+    LoginRequest,
+    ResetPasswordRequest,
+    ResetPasswordResponse,
+    TokenResponse,
+    UserCreate,
+    UserRead,
+    UserUpdate,
+)
 from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
@@ -33,6 +46,79 @@ def refresh_token(current_user: User = Depends(get_current_user)) -> TokenRespon
 @router.get("/auth/me", response_model=UserRead)
 def get_me(current_user: User = Depends(get_current_user)) -> User:
     return current_user
+
+
+@router.post("/auth/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+) -> ForgotPasswordResponse:
+    settings = get_settings()
+    identifier = payload.username_or_email.strip()
+    user = db.scalar(
+        select(User).where(
+            (User.username == identifier) | (User.email == identifier)
+        )
+    )
+
+    token: str | None = None
+    if user is not None and user.is_active:
+        token = secrets.token_urlsafe(32)
+        user.reset_token = token
+        user.reset_token_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+        db.commit()
+
+        write_audit(
+            db,
+            action="forgot_password",
+            entity_type="User",
+            entity_id=str(user.id),
+            user=user,
+            new_data="password_reset_requested=true",
+        )
+
+    # Anti-user enumeration guarantee: identical response message regardless of user existence.
+    # In production, never leak the token in API responses.
+    expose_token = token if settings.app_env != "production" else None
+    return ForgotPasswordResponse(
+        message="Si la cuenta existe y está activa, recibirás instrucciones para restablecer tu contraseña.",
+        reset_token=expose_token,
+    )
+
+
+@router.post("/auth/reset-password", response_model=ResetPasswordResponse)
+def reset_password(
+    payload: ResetPasswordRequest,
+    db: Session = Depends(get_db),
+) -> ResetPasswordResponse:
+    user = db.scalar(select(User).where(User.reset_token == payload.token))
+    now = datetime.now(timezone.utc)
+
+    if user is None or user.reset_token_expires_at is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token de restablecimiento inválido o expirado")
+
+    expires_at = user.reset_token_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+
+    if expires_at < now or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Token de restablecimiento inválido o expirado")
+
+    user.hashed_password = get_password_hash(payload.new_password)
+    user.reset_token = None
+    user.reset_token_expires_at = None
+    db.commit()
+
+    write_audit(
+        db,
+        action="reset_password",
+        entity_type="User",
+        entity_id=str(user.id),
+        user=user,
+        new_data="password_reset_completed=true",
+    )
+
+    return ResetPasswordResponse(message="Contraseña actualizada exitosamente")
 
 
 @router.get("/users", response_model=list[UserRead])
