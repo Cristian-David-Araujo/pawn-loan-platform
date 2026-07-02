@@ -117,6 +117,91 @@ def test_release_collateral_requires_zero_balance(
 
 
 
+def test_foreclose_and_sell_collateral_flow(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+) -> None:
+    loan = create_loan(principal=500)
+
+    create_item_response = client.post(
+        "/api/v1/collateral-items",
+        headers=auth_headers,
+        json={
+            "loan_id": loan["id"],
+            "description": "Necklace",
+            "appraised_value": 900,
+            "storage_location": "Vault F",
+        },
+    )
+    assert create_item_response.status_code == 201
+    item = create_item_response.json()
+    assert item["status"] == "in_custody"
+
+    # Selling before foreclosure must be rejected
+    early_sell = client.post(
+        f"/api/v1/collateral-items/{item['id']}/sell",
+        headers=auth_headers,
+        json={"sale_price": 600},
+    )
+    assert early_sell.status_code == 400
+
+    foreclose_response = client.post(f"/api/v1/loans/{loan['id']}/foreclose", headers=auth_headers)
+    assert foreclose_response.status_code == 200
+    assert foreclose_response.json()["status"] == "defaulted"
+
+    # Foreclosing twice must be rejected
+    second_foreclose = client.post(f"/api/v1/loans/{loan['id']}/foreclose", headers=auth_headers)
+    assert second_foreclose.status_code == 400
+
+    item_after = client.get(f"/api/v1/collateral-items/{item['id']}", headers=auth_headers).json()
+    assert item_after["status"] == "for_sale"
+
+    sell_response = client.post(
+        f"/api/v1/collateral-items/{item['id']}/sell",
+        headers=auth_headers,
+        json={"sale_price": 600, "notes": "Auction"},
+    )
+    assert sell_response.status_code == 200
+    sold = sell_response.json()
+    assert sold["status"] == "sold"
+    assert sold["sale_price"] == 600
+    assert sold["sold_at"] is not None
+
+    loan_after = client.get(f"/api/v1/loans/{loan['id']}", headers=auth_headers).json()
+    assert loan_after["outstanding_principal"] == 0
+    assert loan_after["status"] == "closed"
+
+
+def test_foreclose_rejects_personal_loan(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+) -> None:
+    customer = create_customer(document_number="FORECLOSE-PERSONAL")
+
+    loan_response = client.post(
+        "/api/v1/loans",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "loan_type": "personal",
+            "principal_amount": 400,
+            "monthly_interest_rate": 5,
+            "disbursement_date": str(date.today()),
+            "due_day": 15,
+        },
+    )
+    assert loan_response.status_code == 201
+
+    foreclose_response = client.post(
+        f"/api/v1/loans/{loan_response.json()['id']}/foreclose",
+        headers=auth_headers,
+    )
+    assert foreclose_response.status_code == 400
+
+
+
 def test_liquidate_collateral_updates_status(client: TestClient, auth_headers: dict[str, str], create_customer) -> None:
     customer = create_customer(document_number="COLL-CUST-1")
 
