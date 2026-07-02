@@ -11,6 +11,7 @@ pyproject.toml
 ./src/domain/entities/__init__.py
 ./src/domain/enums/__init__.py
 ./src/domain/enums/loan.py
+./src/domain/enums/user.py
 ./src/domain/exceptions/__init__.py
 ./src/domain/rules/__init__.py
 ./src/domain/value_objects/__init__.py
@@ -81,6 +82,7 @@ src/domain/__init__.py
 src/domain/entities/__init__.py
 src/domain/enums/__init__.py
 src/domain/enums/loan.py
+src/domain/enums/user.py
 src/domain/exceptions/__init__.py
 src/domain/rules/__init__.py
 src/domain/value_objects/__init__.py

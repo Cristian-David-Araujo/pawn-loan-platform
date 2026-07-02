@@ -16,9 +16,9 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Commit any existing transaction since ALTER TYPE cannot run inside a transaction block
-    op.execute("COMMIT")
-    op.execute("ALTER TYPE loanstatus ADD VALUE IF NOT EXISTS 'defaulted'")
+    # ALTER TYPE ... ADD VALUE must run outside the migration transaction
+    with op.get_context().autocommit_block():
+        op.execute("ALTER TYPE loanstatus ADD VALUE IF NOT EXISTS 'defaulted'")
 
 
 def downgrade() -> None:
