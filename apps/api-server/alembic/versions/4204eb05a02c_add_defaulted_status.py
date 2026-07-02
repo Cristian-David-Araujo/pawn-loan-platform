@@ -1,7 +1,7 @@
 """add_defaulted_status
 
 Revision ID: 4204eb05a02c
-Revises: d053de0e094c
+Revises: 20260625_0005
 Create Date: 2026-06-20 16:16:17.683487
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '4204eb05a02c'
-down_revision = 'd053de0e094c'
+down_revision = '20260625_0005'
 branch_labels = None
 depends_on = None
 
