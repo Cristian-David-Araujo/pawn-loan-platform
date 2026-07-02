@@ -185,6 +185,7 @@
 
     <div class="card mt-16" v-if="selectedCustomerId">
       <h3>{{ t('payments.historyTitle') }}</h3>
+      <p class="muted">{{ t('payments.historyUnifiedHint') }}</p>
       <div class="filter-grid mt-16">
         <label>
           {{ t('payments.filterFromDate') }}
@@ -217,93 +218,98 @@
       <table>
         <thead>
           <tr>
-            <th>{{ t('common.date') }}</th>
-            <th>{{ t('payments.paymentType') }}</th>
-            <th>{{ t('common.loan') }}</th>
-            <th>{{ t('payments.period') }}</th>
-            <th>{{ t('common.total') }}</th>
-            <th>{{ t('common.interest') }}</th>
-            <th>{{ t('payments.penalty') }}</th>
-            <th>{{ t('common.principal') }}</th>
-            <th>{{ t('common.method') }}</th>
-            <th>{{ t('common.receivedBy', 'Received by') }}</th>
-            <th>{{ t('common.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="event in paginatedPaymentHistory" :key="event.id">
-            <td>{{ formatDateDMY(event.payment_date) }}</td>
-            <td>{{ getPaymentTypeLabel(event.payment_type) }}</td>
-            <td>#{{ event.loan_id }}</td>
-            <td>{{ event.billing_period || '-' }}</td>
-            <td>{{ formatCurrency(event.total_entered_amount) }}</td>
-            <td>{{ formatCurrency(event.allocated_to_interest) }}</td>
-            <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
-            <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
-            <td>{{ getPaymentMethodLabel(event.payment_method) }}</td>
-            <td>{{ event?.operator?.full_name || event?.operator?.username || '-' }}</td>
-            <td>
-              <a :href="'/print/invoice/payment/' + event.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
-                <Printer :size="16" />
-              </a>
-            </td>
-          </tr>
-          <tr v-if="!filteredPaymentHistory.length">
-            <td colspan="10">{{ t('payments.noHistory') }}</td>
-          </tr>
-        </tbody>
-      </table>
-      </div>
-      <Pagination v-model="paymentHistoryCurrentPage" :totalItems="filteredPaymentHistory.length" :itemsPerPage="10" />
-    </div>
-
-    <div class="card mt-16" v-if="selectedCustomerId">
-      <h3>{{ t('payments.registeredPaymentsTitle') }}</h3>
-      <p class="muted" v-if="!selectedCustomerPayments.length">{{ t('payments.noRegisteredPayments') }}</p>
-      <table v-else>
-        <thead>
-          <tr>
+            <th width="36"></th>
             <th>{{ t('common.id') }}</th>
             <th>{{ t('common.loan') }}</th>
             <th>{{ t('common.date') }}</th>
-            <th>{{ t('common.total') }}</th>
-            <th>{{ t('common.interest') }}</th>
-            <th>{{ t('payments.penalty') }}</th>
-            <th>{{ t('common.principal') }}</th>
+            <th class="text-right">{{ t('common.total') }}</th>
+            <th class="text-right">{{ t('common.interest') }}</th>
+            <th class="text-right">{{ t('payments.penalty') }}</th>
+            <th class="text-right">{{ t('common.principal') }}</th>
             <th>{{ t('common.method') }}</th>
             <th>{{ t('common.receivedBy', 'Received by') }}</th>
-            <th>{{ t('payments.notes') }}</th>
             <th>{{ t('common.status') }}</th>
             <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="payment in paginatedCustomerPayments" :key="payment.id">
-            <td>#{{ payment.id }}</td>
-            <td>#{{ payment.loanId }}</td>
-            <td>{{ formatDateDMY(payment.paymentDate) }}</td>
-            <td>{{ formatCurrency(payment.totalAmount) }}</td>
-            <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
-            <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-            <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-            <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
-            <td>{{ payment?.receiver?.full_name || payment?.receiver?.username || '-' }}</td>
-            <td class="muted">{{ payment.notes || '-' }}</td>
-            <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
-            <td>
-              <div class="form-inline">
-                <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
-                  <Printer :size="16" />
-                </a>
-                <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
-                  <Pencil :size="14" />
+          <template v-for="payment in paginatedCustomerPayments" :key="payment.id">
+            <tr>
+              <td>
+                <button
+                  class="btn btn-secondary btn-icon"
+                  type="button"
+                  :title="t('payments.paymentBreakdown')"
+                  :aria-expanded="expandedPaymentIds.has(payment.id)"
+                  @click="toggleExpanded(payment.id)"
+                >
+                  <ChevronDown v-if="expandedPaymentIds.has(payment.id)" :size="14" />
+                  <ChevronRight v-else :size="14" />
                 </button>
-              </div>
-            </td>
+              </td>
+              <td>#{{ payment.id }}</td>
+              <td>#{{ payment.loanId }}</td>
+              <td>{{ formatDateDMY(payment.paymentDate) }}</td>
+              <td class="text-right">{{ formatCurrency(payment.totalAmount) }}</td>
+              <td class="text-right">{{ formatCurrency(payment.allocatedToInterest) }}</td>
+              <td class="text-right">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+              <td class="text-right">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+              <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
+              <td>{{ payment?.receiver?.full_name || payment?.receiver?.username || '-' }}</td>
+              <td>
+                <span :class="['pill', payment.isReversed ? 'pill-overdue' : 'pill-current']">
+                  {{ payment.isReversed ? t('payments.reversed') : t('common.active') }}
+                </span>
+              </td>
+              <td>
+                <div class="form-inline">
+                  <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
+                    <Printer :size="16" />
+                  </a>
+                  <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
+                    <Pencil :size="14" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+            <tr v-if="expandedPaymentIds.has(payment.id)" class="payment-detail-row">
+              <td colspan="12">
+                <div class="payment-breakdown">
+                  <p v-if="payment.notes" class="muted"><strong>{{ t('payments.notes') }}:</strong> {{ payment.notes }}</p>
+                  <table v-if="getPaymentEvents(payment.id).length" class="breakdown-table">
+                    <thead>
+                      <tr>
+                        <th>{{ t('payments.paymentType') }}</th>
+                        <th>{{ t('payments.period') }}</th>
+                        <th class="text-right">{{ t('common.total') }}</th>
+                        <th class="text-right">{{ t('common.interest') }}</th>
+                        <th class="text-right">{{ t('payments.penalty') }}</th>
+                        <th class="text-right">{{ t('common.principal') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="event in getPaymentEvents(payment.id)" :key="event.id">
+                        <td>{{ getPaymentTypeLabel(event.payment_type) }}</td>
+                        <td>{{ event.billing_period || '-' }}</td>
+                        <td class="text-right">{{ formatCurrency(event.total_entered_amount) }}</td>
+                        <td class="text-right">{{ formatCurrency(event.allocated_to_interest) }}</td>
+                        <td class="text-right">{{ formatCurrency(event.allocated_to_penalty) }}</td>
+                        <td class="text-right">{{ formatCurrency(event.allocated_to_principal) }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p v-else class="muted">{{ t('payments.noBreakdown') }}</p>
+                </div>
+              </td>
+            </tr>
+          </template>
+          <tr v-if="!filteredCustomerPayments.length">
+            <td colspan="12">{{ t('payments.noHistory') }}</td>
           </tr>
         </tbody>
       </table>
-      <Pagination v-model="customerPaymentsCurrentPage" :totalItems="selectedCustomerPayments.length" :itemsPerPage="10" />
+      </div>
+      <Pagination v-model="customerPaymentsCurrentPage" :totalItems="filteredCustomerPayments.length" :itemsPerPage="10" />
     </div>
 
     <div v-if="showPaymentEditModal" class="modal-backdrop" @click.self="closePaymentEditModal">
@@ -373,7 +379,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
-import { CircleDollarSign, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards, Printer } from 'lucide-vue-next'
+import { CircleDollarSign, ChevronDown, ChevronRight, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
@@ -430,6 +436,7 @@ interface PrincipalContextResponse {
 interface PaymentEvent {
   id: number
   payment_type: string
+  payment_id: number | null
   loan_id: number
   interest_charge_id: number | null
   billing_period: string
@@ -539,8 +546,35 @@ const sortedPaymentHistory = computed(() =>
   [...paymentHistory.value].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
 )
 
+const eventsByPaymentId = computed(() => {
+  const map = new Map<number, PaymentEvent[]>()
+  for (const event of sortedPaymentHistory.value) {
+    if (event.payment_id === null || event.payment_id === undefined) {
+      continue
+    }
+    const list = map.get(event.payment_id) ?? []
+    list.push(event)
+    map.set(event.payment_id, list)
+  }
+  return map
+})
+
+const getPaymentEvents = (paymentId: number) => eventsByPaymentId.value.get(paymentId) ?? []
+
+const expandedPaymentIds = ref(new Set<number>())
+
+const toggleExpanded = (paymentId: number) => {
+  const next = new Set(expandedPaymentIds.value)
+  if (next.has(paymentId)) {
+    next.delete(paymentId)
+  } else {
+    next.add(paymentId)
+  }
+  expandedPaymentIds.value = next
+}
+
 const paymentHistoryLoanOptions = computed(() => {
-  const values = new Set(sortedPaymentHistory.value.map((event) => String(event.loan_id)))
+  const values = new Set(selectedCustomerPayments.value.map((payment) => String(payment.loanId)))
   return [...values].sort((a, b) => Number(a) - Number(b))
 })
 
@@ -558,29 +592,33 @@ const normalizeIso = (value: string) => {
   return parsed.toISOString().slice(0, 10)
 }
 
-const filteredPaymentHistory = computed(() => {
+const filteredCustomerPayments = computed(() => {
   const fromIso = toIsoDate(historyFromDate.value)
   const toIso = toIsoDate(historyToDate.value)
 
-  return sortedPaymentHistory.value.filter((event) => {
-    if (historyLoanFilter.value !== 'all' && String(event.loan_id) !== historyLoanFilter.value) {
+  return selectedCustomerPayments.value.filter((payment) => {
+    if (historyLoanFilter.value !== 'all' && String(payment.loanId) !== historyLoanFilter.value) {
       return false
     }
 
-    if (historyTypeFilter.value !== 'all' && event.payment_type !== historyTypeFilter.value) {
+    if (historyTypeFilter.value === 'interest' && payment.allocatedToInterest <= 0) {
       return false
     }
 
-    const eventIso = normalizeIso(event.payment_date)
-    if (!eventIso) {
+    if (historyTypeFilter.value === 'principal' && payment.allocatedToPrincipal <= 0) {
       return false
     }
 
-    if (fromIso && eventIso < fromIso) {
+    const paymentIso = normalizeIso(payment.paymentDate)
+    if (!paymentIso) {
       return false
     }
 
-    if (toIso && eventIso > toIso) {
+    if (fromIso && paymentIso < fromIso) {
+      return false
+    }
+
+    if (toIso && paymentIso > toIso) {
       return false
     }
 
@@ -869,9 +907,8 @@ onMounted(async () => {
   await ensureInitialized()
 })
 const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingItems } = usePagination(flatPendingItems)
-const { currentPage: paymentHistoryCurrentPage, paginatedArray: paginatedPaymentHistory } = usePagination(filteredPaymentHistory)
 
-const { currentPage: customerPaymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
+const { currentPage: customerPaymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(filteredCustomerPayments)
 
 const paymentMethodOptions = computed(() => [
   { value: 'cash', label: t('common.cash') },
