@@ -174,7 +174,9 @@ export const messages = {
       overdueLoans: 'Overdue Loans',
       collateralInCustody: 'Collateral In Custody',
       outstandingPortfolio: 'Outstanding Portfolio',
-      cashCollected: 'Cash Collected',
+      lentThisMonth: 'Lent This Month',
+      interestCollectedMonth: 'Interest Collected (Month)',
+      cashCollectedMonth: 'Cash Collected (Month)',
       quickActions: 'Quick actions',
       goCustomers: 'Go to customers',
       goLoans: 'Go to loans',
@@ -307,7 +309,11 @@ export const messages = {
       confirmRegisterLoanStepTwo: 'Please confirm again to complete loan registration.',
       totalLoans: 'Loans: {count}',
       forecloseLoan: 'Foreclose Loan',
-      foreclosed: 'Defaulted'
+      foreclosed: 'Defaulted',
+      summaryOutstanding: 'Money on Loan',
+      summaryPendingInterest: 'Pending Interest',
+      summaryActiveLoans: 'Active Loans',
+      summaryOverdueLoans: 'Overdue Loans'
     },
     collateral: {
       title: 'Collateral',
@@ -672,7 +678,9 @@ export const messages = {
       overdueLoans: 'Prestamos Vencidos',
       collateralInCustody: 'Garantias en Custodia',
       outstandingPortfolio: 'Cartera Pendiente',
-      cashCollected: 'Efectivo Cobrado',
+      lentThisMonth: 'Prestado este mes',
+      interestCollectedMonth: 'Interés cobrado (mes)',
+      cashCollectedMonth: 'Recaudado (mes)',
       quickActions: 'Acciones rapidas',
       goCustomers: 'Ir a clientes',
       goLoans: 'Ir a prestamos',
@@ -805,7 +813,11 @@ export const messages = {
       confirmRegisterLoanStepTwo: 'Confirma nuevamente para completar el registro del prestamo.',
       totalLoans: 'Prestamos: {count}',
       forecloseLoan: 'Pasar a Remate',
-      foreclosed: 'Incobrable'
+      foreclosed: 'Incobrable',
+      summaryOutstanding: 'Dinero en préstamo',
+      summaryPendingInterest: 'Interés pendiente',
+      summaryActiveLoans: 'Préstamos activos',
+      summaryOverdueLoans: 'Préstamos vencidos'
     },
     collateral: {
       title: 'Garantias',

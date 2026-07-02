@@ -179,6 +179,13 @@
       </div>
     </div>
 
+    <div class="grid grid-4 mt-16">
+      <StatCard :label="t('loans.summaryOutstanding')" :value="formatCurrency(loanSummary.outstanding)" :icon="HandCoins" tone="amber" />
+      <StatCard :label="t('loans.summaryPendingInterest')" :value="formatCurrency(loanSummary.pendingInterest)" :icon="TrendingUp" tone="indigo" />
+      <StatCard :label="t('loans.summaryActiveLoans')" :value="loanSummary.activeCount" :icon="BadgeDollarSign" tone="green" />
+      <StatCard :label="t('loans.summaryOverdueLoans')" :value="loanSummary.overdueCount" :icon="ClockAlert" tone="amber" />
+    </div>
+
     <div class="card mt-16">
       <div class="table-toolbar">
         <input v-model="search" class="table-search" type="text" :placeholder="t('loans.searchPlaceholder')" />
@@ -310,11 +317,12 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
-import { FilePlus2, FilterX, HandCoins, Trash2, X, Printer } from 'lucide-vue-next'
+import { BadgeDollarSign, ClockAlert, FilePlus2, FilterX, HandCoins, Trash2, TrendingUp, X, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
+import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
@@ -668,6 +676,17 @@ const selectedLoanCollateral = computed(() => {
   }
 
   return state.collateralItems.filter((item) => item.loanId === selectedLoan.value?.id)
+})
+
+const loanSummary = computed(() => {
+  const openLoans = state.loans.filter((loan) => loan.status === 'active' || loan.status === 'overdue')
+
+  return {
+    outstanding: openLoans.reduce((sum, loan) => sum + loan.outstandingPrincipal, 0),
+    pendingInterest: openLoans.reduce((sum, loan) => sum + (loan.interestDue ?? 0), 0),
+    activeCount: state.loans.filter((loan) => loan.status === 'active').length,
+    overdueCount: state.loans.filter((loan) => loan.status === 'overdue').length
+  }
 })
 
 const filteredLoans = computed(() => {

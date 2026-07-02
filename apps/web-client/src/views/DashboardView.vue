@@ -17,7 +17,14 @@
         :icon="HandCoins"
         tone="amber"
       />
-      <StatCard :label="t('dashboard.cashCollected')" :value="formatCurrency(stats.cashCollected)" :icon="Wallet" tone="green" />
+      <StatCard :label="t('dashboard.lentThisMonth')" :value="formatCurrency(stats.lentThisMonth)" :icon="HandCoins" tone="indigo" />
+      <StatCard
+        :label="t('dashboard.interestCollectedMonth')"
+        :value="formatCurrency(stats.interestCollectedMonth)"
+        :icon="TrendingUp"
+        tone="green"
+      />
+      <StatCard :label="t('dashboard.cashCollectedMonth')" :value="formatCurrency(stats.cashCollectedMonth)" :icon="Wallet" tone="green" />
     </div>
 
     <article class="card mt-16">
@@ -51,6 +58,7 @@ import {
   HandCoins,
   LayoutDashboard,
   ShieldCheck,
+  TrendingUp,
   Users,
   Wallet
 } from 'lucide-vue-next'

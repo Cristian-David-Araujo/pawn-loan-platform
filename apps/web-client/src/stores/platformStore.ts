@@ -590,7 +590,17 @@ const dashboardStats = computed(() => {
   const activeLoans = state.loans.filter((item) => item.status === 'active').length
   const overdueLoans = state.loans.filter((item) => item.status === 'overdue').length
   const portfolioOutstanding = state.loans.reduce((sum, item) => sum + item.outstandingPrincipal, 0)
-  const cashCollected = state.payments.reduce((sum, item) => sum + item.totalAmount, 0)
+
+  const now = new Date()
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const isCurrentMonth = (dateString: string) => dateString?.slice(0, 7) === currentMonth
+
+  const monthPayments = state.payments.filter((item) => !item.isReversed && isCurrentMonth(item.paymentDate))
+  const cashCollectedMonth = monthPayments.reduce((sum, item) => sum + item.totalAmount, 0)
+  const interestCollectedMonth = monthPayments.reduce((sum, item) => sum + item.allocatedToInterest, 0)
+  const lentThisMonth = state.loans
+    .filter((item) => isCurrentMonth(item.disbursementDate))
+    .reduce((sum, item) => sum + item.principalAmount, 0)
 
   return {
     customers: state.customers.length,
@@ -598,7 +608,9 @@ const dashboardStats = computed(() => {
     overdueLoans,
     collateralInCustody: state.collateralItems.filter((item) => item.status === 'in-custody').length,
     portfolioOutstanding,
-    cashCollected
+    cashCollectedMonth,
+    interestCollectedMonth,
+    lentThisMonth
   }
 })
 
