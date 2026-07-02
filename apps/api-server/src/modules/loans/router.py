@@ -330,7 +330,7 @@ def close_loan(
 
     return loan
 
-@router.post("/{loan_id}/foreclose", response_model=LoanRead)
+@router.post("/loans/{loan_id}/foreclose", response_model=LoanRead)
 def foreclose_loan(
     loan_id: int,
     db: Session = Depends(get_db),

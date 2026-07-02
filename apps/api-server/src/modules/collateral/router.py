@@ -188,8 +188,7 @@ def sell_collateral(
     loan = db.get(Loan, item.loan_id)
     
     # Register the payment
-    from src.infrastructure.persistence.models import Payment, PaymentEvent
-    from src.shared.utils.time import now_utc
+    from src.infrastructure.persistence.models import Payment, PaymentEvent, now_utc
     
     sale_date = now_utc()
     allocated_principal = min(payload.sale_price, loan.outstanding_principal)
