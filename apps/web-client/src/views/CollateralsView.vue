@@ -202,7 +202,7 @@ import { usePlatformStore } from '../stores/platformStore'
 import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
-import { Shield, Search, DollarSign, X, AlertTriangle } from 'lucide-vue-next'
+import { Shield, DollarSign, X, AlertTriangle } from 'lucide-vue-next'
 
 const { t, locale } = useI18n()
 const store = usePlatformStore()

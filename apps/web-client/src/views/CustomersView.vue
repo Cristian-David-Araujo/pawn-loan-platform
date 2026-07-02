@@ -936,7 +936,7 @@ const loanEditForm = reactive({
   latePenaltyRate: 0,
   disbursementDate: '',
   dueDay: 1,
-  status: 'active' as 'active' | 'overdue' | 'closed'
+  status: 'active' as Loan['status']
 })
 
 const collateralEditForm = reactive({
@@ -944,7 +944,7 @@ const collateralEditForm = reactive({
   description: '',
   appraisedValue: 0,
   storageLocation: '',
-  status: 'in-custody' as 'in-custody' | 'released' | 'liquidated'
+  status: 'in-custody' as CollateralItem['status']
 })
 
 const paymentEditForm = reactive({

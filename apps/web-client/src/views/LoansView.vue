@@ -257,12 +257,12 @@
             <td class="text-right">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
             <td class="text-center">{{ loan.monthlyInterestRate }}%</td>
             <td class="text-right">
-              <span v-if="(loan.interest_due !== undefined && loan.interest_due !== null) || (loan.interestDue !== undefined && loan.interestDue !== null)" class="text-warning-dark fw-bold">
-                {{ formatCurrency(loan.interest_due ?? loan.interestDue) }}
+              <span v-if="loan.interestDue !== undefined && loan.interestDue !== null" class="text-warning-dark fw-bold">
+                {{ formatCurrency(loan.interestDue) }}
               </span>
               <span v-else>-</span>
             </td>
-            <td class="text-center">{{ loan.collaterals_count ?? loan.collateralsCount ?? (loan.loanType === 'personal' ? '-' : 0) }}</td>
+            <td class="text-center">{{ loan.collateralsCount ?? (loan.loanType === 'personal' ? '-' : 0) }}</td>
             <td>
               <span :class="['pill', getLoanStatusClass(loan.status)]">
                 {{ t(`common.${loan.status}`) }}
@@ -670,30 +670,6 @@ const selectedLoanCollateral = computed(() => {
   return state.collateralItems.filter((item) => item.loanId === selectedLoan.value?.id)
 })
 
-const collateralCountByLoanId = computed(() => {
-  const counts = new Map<number, number>()
-  for (const item of state.collateralItems) {
-    if (item.status !== 'in-custody') {
-      continue
-    }
-    counts.set(item.loanId, (counts.get(item.loanId) ?? 0) + 1)
-  }
-  return counts
-})
-
-const getLoanCollateralLabel = (loanId: number, loanType: 'pawn' | 'personal') => {
-  if (loanType !== 'pawn') {
-    return '—'
-  }
-
-  const count = collateralCountByLoanId.value.get(loanId) ?? 0
-  if (!count) {
-    return t('loans.noCollateralLinked')
-  }
-
-  return t('loans.collateralLinkedCount', { count })
-}
-
 const filteredLoans = computed(() => {
   const query = search.value.trim().toLowerCase()
 
@@ -719,8 +695,8 @@ const filteredLoans = computed(() => {
       } else if (criterion.key === 'rate') {
         result = a.monthlyInterestRate - b.monthlyInterestRate
       } else if (criterion.key === 'interest') {
-        const valA = a.interest_due ?? a.interestDue ?? 0
-        const valB = b.interest_due ?? b.interestDue ?? 0
+        const valA = a.interestDue ?? 0
+        const valB = b.interestDue ?? 0
         result = valA - valB
       } else if (criterion.key === 'status') {
         result = a.status.localeCompare(b.status)

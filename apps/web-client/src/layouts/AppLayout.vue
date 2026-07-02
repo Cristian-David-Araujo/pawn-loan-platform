@@ -88,7 +88,6 @@ import {
   LayoutDashboard,
   LogOut,
   PanelLeft,
-  Package,
   ReceiptText,
   Settings,
   Shield,
