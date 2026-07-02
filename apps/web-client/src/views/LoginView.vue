@@ -21,7 +21,7 @@
 
         <label>
           {{ t('auth.password') }}
-          <input v-model="form.password" type="password" autocomplete="current-password" required />
+          <PasswordInput v-model="form.password" autocomplete="current-password" required />
         </label>
 
         <div style="text-align: right; margin-top: -0.2rem; margin-bottom: 0.5rem;">
@@ -44,6 +44,7 @@ import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { Shield, LogIn } from 'lucide-vue-next'
+import PasswordInput from '../components/PasswordInput.vue'
 import { useAuthState } from '../modules/authentication/authState'
 
 const { t } = useI18n()

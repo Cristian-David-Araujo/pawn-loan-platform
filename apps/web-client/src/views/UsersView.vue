@@ -101,11 +101,11 @@
           </label>
           <label v-if="!editingUser">
             {{ t('users.password', 'Password') }}
-            <input type="password" v-model="form.password" required />
+            <PasswordInput v-model="form.password" required />
           </label>
           <label v-if="editingUser">
             {{ t('users.newPassword', 'New Password (Optional)') }}
-            <input type="password" v-model="form.password" :placeholder="t('users.leaveBlankToKeep', 'Leave blank to keep current')" />
+            <PasswordInput v-model="form.password" :placeholder="t('users.leaveBlankToKeep', 'Leave blank to keep current')" />
           </label>
           <label>
             {{ t('users.role', 'Role') }}
@@ -132,6 +132,7 @@ import { useI18n } from 'vue-i18n'
 import { Shield, UserPlus, Pencil, Save, X } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
+import PasswordInput from '../components/PasswordInput.vue'
 import { apiClient } from '../services/api'
 import { type UserProfile, UserRole } from '../modules/authentication/authState'
 

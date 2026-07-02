@@ -17,12 +17,12 @@
       <form v-if="!successMessage" class="login-form" style="margin-top: 1.5rem;" @submit.prevent="handleSubmit">
         <label>
           {{ t('auth.newPassword') }}
-          <input v-model="form.newPassword" type="password" autocomplete="new-password" required minlength="8" />
+          <PasswordInput v-model="form.newPassword" autocomplete="new-password" required minlength="8" />
         </label>
 
         <label>
           {{ t('auth.confirmPassword') }}
-          <input v-model="form.confirmPassword" type="password" autocomplete="new-password" required minlength="8" />
+          <PasswordInput v-model="form.confirmPassword" autocomplete="new-password" required minlength="8" />
         </label>
 
         <button class="btn" type="submit" :disabled="isSubmitting" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
@@ -46,6 +46,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { KeyRound as LockReset, CheckCircle2, ArrowLeft } from 'lucide-vue-next'
+import PasswordInput from '../components/PasswordInput.vue'
 import { useAuthState } from '../modules/authentication/authState'
 
 const { t } = useI18n()
