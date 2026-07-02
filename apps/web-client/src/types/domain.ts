@@ -1,5 +1,5 @@
 export type LoanType = 'pawn' | 'personal'
-export type LoanStatus = 'active' | 'overdue' | 'closed'
+export type LoanStatus = 'active' | 'overdue' | 'defaulted' | 'closed'
 
 export interface UserSummary {
   id: number
@@ -46,7 +46,7 @@ export interface CollateralItem {
   appraisedValue: number
   custodyCode: string
   storageLocation: string
-  status: 'in-custody' | 'released' | 'liquidated'
+  status: 'in-custody' | 'released' | 'liquidated' | 'for_sale' | 'sold' | 'returned'
   loanStatus?: string
   loanPrincipal?: number
   loanOutstanding?: number

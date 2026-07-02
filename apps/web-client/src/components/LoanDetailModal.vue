@@ -237,7 +237,7 @@ const canForeclose = computed(() => {
 })
 
 const confirmForeclose = async () => {
-  if (await confirmDialog(t('common.inventory.foreclosureWarning'))) {
+  if (await confirmDialog(t('collaterals.foreclosureWarning'))) {
     if (!props.loan) return
     try {
       isForeclosing.value = true
