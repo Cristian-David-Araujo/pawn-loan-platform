@@ -45,6 +45,8 @@ interface BackendCollateral {
   custody_code: string
   storage_location: string
   status: 'in_custody' | 'released' | 'liquidated' | 'for_sale' | 'sold' | 'returned'
+  sale_price?: number | null
+  sold_at?: string | null
   loan_status?: string
   loan_principal?: number
   loan_outstanding?: number
@@ -236,6 +238,8 @@ const mapCollateral = (item: BackendCollateral): CollateralItem => ({
   custodyCode: item.custody_code,
   storageLocation: item.storage_location,
   status: item.status === 'in_custody' ? 'in-custody' : item.status,
+  salePrice: item.sale_price,
+  soldAt: item.sold_at,
   loanStatus: item.loan_status,
   loanPrincipal: item.loan_principal,
   loanOutstanding: item.loan_outstanding,
@@ -590,7 +594,17 @@ const dashboardStats = computed(() => {
   const activeLoans = state.loans.filter((item) => item.status === 'active').length
   const overdueLoans = state.loans.filter((item) => item.status === 'overdue').length
   const portfolioOutstanding = state.loans.reduce((sum, item) => sum + item.outstandingPrincipal, 0)
-  const cashCollected = state.payments.reduce((sum, item) => sum + item.totalAmount, 0)
+
+  const now = new Date()
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const isCurrentMonth = (dateString: string) => dateString?.slice(0, 7) === currentMonth
+
+  const monthPayments = state.payments.filter((item) => !item.isReversed && isCurrentMonth(item.paymentDate))
+  const cashCollectedMonth = monthPayments.reduce((sum, item) => sum + item.totalAmount, 0)
+  const interestCollectedMonth = monthPayments.reduce((sum, item) => sum + item.allocatedToInterest, 0)
+  const lentThisMonth = state.loans
+    .filter((item) => isCurrentMonth(item.disbursementDate))
+    .reduce((sum, item) => sum + item.principalAmount, 0)
 
   return {
     customers: state.customers.length,
@@ -598,7 +612,9 @@ const dashboardStats = computed(() => {
     overdueLoans,
     collateralInCustody: state.collateralItems.filter((item) => item.status === 'in-custody').length,
     portfolioOutstanding,
-    cashCollected
+    cashCollectedMonth,
+    interestCollectedMonth,
+    lentThisMonth
   }
 })
 
