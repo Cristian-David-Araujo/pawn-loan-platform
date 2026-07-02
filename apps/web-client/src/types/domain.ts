@@ -1,5 +1,5 @@
 export type LoanType = 'pawn' | 'personal'
-export type LoanStatus = 'active' | 'overdue' | 'closed'
+export type LoanStatus = 'active' | 'overdue' | 'defaulted' | 'closed'
 
 export interface UserSummary {
   id: number
@@ -33,6 +33,8 @@ export interface Loan {
   latePenaltyRate: number
   disbursementDate: string
   dueDay: number
+  interestDue?: number
+  collateralsCount?: number
   status: LoanStatus
   created_by?: UserSummary | null
 }
@@ -44,7 +46,12 @@ export interface CollateralItem {
   appraisedValue: number
   custodyCode: string
   storageLocation: string
-  status: 'in-custody' | 'released' | 'liquidated'
+  status: 'in-custody' | 'released' | 'liquidated' | 'for_sale' | 'sold' | 'returned'
+  loanStatus?: string
+  loanPrincipal?: number
+  loanOutstanding?: number
+  loanInterestDue?: number
+  loanRate?: number
 }
 
 export interface Payment {

@@ -329,3 +329,40 @@ def close_loan(
     )
 
     return loan
+
+@router.post("/loans/{loan_id}/foreclose", response_model=LoanRead)
+def foreclose_loan(
+    loan_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
+) -> Loan:
+    loan = db.get(Loan, loan_id)
+    if loan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    if loan.loan_type != "pawn":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only pawn loans can be foreclosed")
+    if loan.status in [LoanStatus.closed, LoanStatus.defaulted]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loan is already closed or defaulted")
+
+    loan.status = LoanStatus.defaulted
+
+    # Find associated collateral items and mark them for sale
+    from src.infrastructure.persistence.models import CollateralItem
+    collateral_items = db.query(CollateralItem).filter(CollateralItem.loan_id == loan.id).all()
+    for item in collateral_items:
+        if item.status == "in_custody":
+            item.status = "for_sale"
+
+    db.commit()
+    db.refresh(loan)
+
+    write_audit(
+        db,
+        action="foreclose_loan",
+        entity_type="Loan",
+        entity_id=str(loan.id),
+        user=current_user,
+        new_data="status=defaulted",
+    )
+
+    return loan

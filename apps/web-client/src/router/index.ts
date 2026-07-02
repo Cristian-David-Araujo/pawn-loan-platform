@@ -45,6 +45,13 @@ const router = createRouter({
       component: AppLayout,
       meta: { requiresAuth: true },
       children: [
+    {
+      path: '/collaterals',
+      name: 'collaterals',
+      component: () => import('../views/CollateralsView.vue'),
+      meta: { requiresAuth: true, labelKey: 'app.collateral' }
+    },
+
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: DashboardView, meta: { labelKey: 'app.dashboard' } },
         { path: 'customers', name: 'customers', component: CustomersView, meta: { labelKey: 'app.customers' } },

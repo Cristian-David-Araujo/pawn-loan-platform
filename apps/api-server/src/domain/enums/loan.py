@@ -9,4 +9,5 @@ class LoanType(str, Enum):
 class LoanStatus(str, Enum):
     active = "active"
     overdue = "overdue"
+    defaulted = "defaulted"
     closed = "closed"

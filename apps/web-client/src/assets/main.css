@@ -915,6 +915,12 @@ tbody tr:nth-child(even) {
   border-color: var(--info-border);
 }
 
+.pill-warning {
+  background: var(--warning-soft);
+  color: #92400e;
+  border-color: var(--warning-border);
+}
+
 /* ═══════════════════════════════════════════════
    TABS
    ═══════════════════════════════════════════════ */
@@ -1122,6 +1128,12 @@ tbody tr:nth-child(even) {
   color: #b91c1c;
   background: var(--danger-soft);
   border: 1px solid var(--danger-border);
+}
+
+.notice-warning {
+  color: #b45309;
+  background: var(--warning-soft);
+  border: 1px solid var(--warning-border);
 }
 
 @keyframes notice-in {
@@ -1535,6 +1547,14 @@ ul {
   background: linear-gradient(135deg, var(--accent), var(--info));
   box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.3);
 }
+
+/* ═══════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════ */
+.text-right { text-align: right !important; }
+.text-center { text-align: center !important; }
+
+
 
 /* ═══════════════════════════════════════════════
    RESPONSIVE: TABLET (1081 - 1200)

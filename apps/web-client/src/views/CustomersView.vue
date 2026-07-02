@@ -67,7 +67,11 @@
             <td>{{ customer.documentType }} / {{ customer.documentNumber }}</td>
             <td>{{ customer.phone }}</td>
             <td>{{ customer.city }}</td>
-            <td>{{ customer.status === 'active' ? t('common.active') : t('common.archived') }}</td>
+            <td>
+              <span :class="['pill', customer.status === 'active' ? 'pill-current' : '']">
+                {{ customer.status === 'active' ? t('common.active') : t('common.archived') }}
+              </span>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -781,6 +785,7 @@ import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useConfirmDialog } from '../composables/useConfirmDialog'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import { useRoute } from 'vue-router'
 import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
@@ -860,6 +865,7 @@ const {
 } =
   usePlatformStore()
 const { t, locale } = useI18n()
+const { confirm } = useConfirmDialog()
 const route = useRoute()
 const { hasRole } = useAuthState()
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
@@ -930,7 +936,7 @@ const loanEditForm = reactive({
   latePenaltyRate: 0,
   disbursementDate: '',
   dueDay: 1,
-  status: 'active' as 'active' | 'overdue' | 'closed'
+  status: 'active' as Loan['status']
 })
 
 const collateralEditForm = reactive({
@@ -938,7 +944,7 @@ const collateralEditForm = reactive({
   description: '',
   appraisedValue: 0,
   storageLocation: '',
-  status: 'in-custody' as 'in-custody' | 'released' | 'liquidated'
+  status: 'in-custody' as CollateralItem['status']
 })
 
 const paymentEditForm = reactive({
@@ -1372,7 +1378,7 @@ const handleArchiveCustomer = async () => {
     return
   }
 
-  const confirmed = window.confirm(t('customers.archiveCustomerConfirm'))
+  const confirmed = await confirm(t('customers.archiveCustomerConfirm'))
   if (!confirmed) {
     return
   }
@@ -1385,7 +1391,7 @@ const handleActivateCustomer = async () => {
     return
   }
 
-  const confirmed = window.confirm(t('customers.activateCustomerConfirm'))
+  const confirmed = await confirm(t('customers.activateCustomerConfirm'))
   if (!confirmed) {
     return
   }
@@ -1398,7 +1404,7 @@ const handleDeleteCustomer = async () => {
     return
   }
 
-  const confirmed = window.confirm(t('customers.deleteCustomerConfirm'))
+  const confirmed = await confirm(t('customers.deleteCustomerConfirm'))
   if (!confirmed) {
     return
   }
@@ -1465,7 +1471,7 @@ const handleDeleteLoan = async (loanId: number) => {
     return
   }
 
-  const confirmed = window.confirm(t('customers.deleteLoanConfirm'))
+  const confirmed = await confirm(t('customers.deleteLoanConfirm'))
   if (!confirmed) {
     return
   }

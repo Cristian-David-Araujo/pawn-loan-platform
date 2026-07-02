@@ -87,6 +87,40 @@ class Loan(Base):
     
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
 
+    @property
+    def interest_due(self) -> float:
+        from sqlalchemy.orm import object_session
+        from sqlalchemy import select, func
+        session = object_session(self)
+        if not session:
+            return 0.0
+            
+        total_interest = session.scalar(
+            select(func.sum(InterestCharge.amount))
+            .where(InterestCharge.loan_id == self.id)
+        ) or 0.0
+        
+        total_paid_interest = session.scalar(
+            select(func.sum(Payment.allocated_to_interest))
+            .where(Payment.loan_id == self.id)
+            .where(Payment.is_reversed == False)
+        ) or 0.0
+        
+        return round(max(0.0, total_interest - total_paid_interest), 2)
+
+    @property
+    def collaterals_count(self) -> int:
+        from sqlalchemy.orm import object_session
+        from sqlalchemy import select, func
+        session = object_session(self)
+        if not session:
+            return 0
+            
+        return session.scalar(
+            select(func.count(CollateralItem.id))
+            .where(CollateralItem.loan_id == self.id)
+        ) or 0
+
 
 class CollateralItem(Base):
     __tablename__ = "collateral_items"
@@ -101,7 +135,58 @@ class CollateralItem(Base):
     custody_code: Mapped[str] = mapped_column(String(40), unique=True)
     storage_location: Mapped[str] = mapped_column(String(120), default="")
     status: Mapped[str] = mapped_column(String(20), default="in_custody")
+    sale_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    sold_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
+    
+    loan: Mapped["Loan"] = relationship("Loan", lazy="selectin")
+
+    @property
+    def loan_status(self) -> str | None:
+        if self.loan and hasattr(self.loan, 'status'):
+            return self.loan.status.value
+        return None
+
+    @property
+    def loan_principal(self) -> float | None:
+        if self.loan and hasattr(self.loan, 'principal_amount'):
+            return self.loan.principal_amount
+        return None
+
+    @property
+    def loan_outstanding(self) -> float | None:
+        if self.loan and hasattr(self.loan, 'outstanding_principal'):
+            return self.loan.outstanding_principal
+        return None
+
+    @property
+    def loan_rate(self) -> float | None:
+        if self.loan and hasattr(self.loan, 'monthly_interest_rate'):
+            return self.loan.monthly_interest_rate
+        return None
+
+    @property
+    def loan_interest_due(self) -> float | None:
+        if not self.loan_id:
+            return None
+        from sqlalchemy.orm import object_session
+        from sqlalchemy import select, func
+        session = object_session(self)
+        if not session:
+            return None
+        
+        total_interest = session.scalar(
+            select(func.sum(InterestCharge.amount))
+            .where(InterestCharge.loan_id == self.loan_id)
+        ) or 0.0
+        
+        total_paid_interest = session.scalar(
+            select(func.sum(Payment.allocated_to_interest))
+            .where(Payment.loan_id == self.loan_id)
+            .where(Payment.is_reversed == False)
+        ) or 0.0
+        
+        return round(max(0.0, total_interest - total_paid_interest), 2)
 
 
 class InterestCharge(Base):

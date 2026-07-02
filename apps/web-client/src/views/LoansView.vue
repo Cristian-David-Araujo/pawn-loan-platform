@@ -164,6 +164,7 @@
       </table>
       </div>
 
+      <p v-if="formError" class="notice notice-warning mt-16">{{ formError }}</p>
       <div class="form-actions" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
         <label class="checkbox-row" style="margin-bottom: 0;">
           <input v-model="printInvoiceOnSave" type="checkbox" />
@@ -229,7 +230,13 @@
                 <span v-if="getLoanSortBadge('rate')" class="sort-indicator">{{ getLoanSortBadge('rate') }}</span>
               </button>
             </th>
-            <th>{{ t('common.collateral') }}</th>
+            <th class="text-right">
+              <button class="sort-header-btn" type="button" style="justify-content: flex-end" @click="toggleLoanSort('interest')">
+                {{ t('common.interest', 'Interés') }}
+                <span v-if="getLoanSortBadge('interest')" class="sort-indicator">{{ getLoanSortBadge('interest') }}</span>
+              </button>
+            </th>
+            <th class="text-center">{{ t('common.collaterals', 'Garantías') }}</th>
             <th>
               <button class="sort-header-btn" type="button" @click="toggleLoanSort('status')">
                 {{ t('common.status') }}
@@ -246,11 +253,21 @@
             <td>{{ getCustomerLabel(loan.customerId) }}</td>
             <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
             <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
-            <td>{{ formatCurrency(loan.principalAmount) }}</td>
-            <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
-            <td>{{ loan.monthlyInterestRate }}%</td>
-            <td>{{ getLoanCollateralLabel(loan.id, loan.loanType) }}</td>
-            <td>{{ t(`common.${loan.status}`) }}</td>
+            <td class="text-right">{{ formatCurrency(loan.principalAmount) }}</td>
+            <td class="text-right">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
+            <td class="text-center">{{ loan.monthlyInterestRate }}%</td>
+            <td class="text-right">
+              <span v-if="loan.interestDue !== undefined && loan.interestDue !== null" class="text-warning-dark fw-bold">
+                {{ formatCurrency(loan.interestDue) }}
+              </span>
+              <span v-else>-</span>
+            </td>
+            <td class="text-center">{{ loan.collateralsCount ?? (loan.loanType === 'personal' ? '-' : 0) }}</td>
+            <td>
+              <span :class="['pill', getLoanStatusClass(loan.status)]">
+                {{ t(`common.${loan.status}`) }}
+              </span>
+            </td>
             <td>{{ loan?.created_by?.full_name || loan?.created_by?.username || '-' }}</td>
             <td>
               <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
@@ -291,6 +308,7 @@ import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useConfirmDialog } from '../composables/useConfirmDialog'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import { FilePlus2, FilterX, HandCoins, Trash2, X, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
@@ -303,7 +321,7 @@ import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 import { apiClient } from '../services/api'
 
 type SortDirection = 'asc' | 'desc'
-type LoanSortKey = 'date' | 'id' | 'customer' | 'principal' | 'outstanding' | 'rate' | 'status'
+type LoanSortKey = 'date' | 'id' | 'customer' | 'principal' | 'outstanding' | 'rate' | 'interest' | 'status'
 
 interface SortCriterion<T extends string> {
   key: T
@@ -342,6 +360,7 @@ const { state, createLoan, createCollateral, getCustomerName, ensureInitialized 
 const { hasRole } = useAuthState()
 const router = useRouter()
 const { t, locale } = useI18n()
+  const { confirm } = useConfirmDialog()
 
 const loanTypeOptions = computed(() => [
   { value: 'pawn', label: t('common.pawn') },
@@ -356,6 +375,18 @@ const statusFilterOptions = computed(() => [
 ])
 const search = ref('')
 const message = ref('')
+const formError = ref('')
+
+const getLoanStatusClass = (status: string) => {
+  switch(status.toLowerCase()) {
+    case 'active': return 'pill-current'
+    case 'overdue': return 'pill-warning'
+    case 'defaulted': return 'pill-overdue'
+    case 'closed': return ''
+    default: return ''
+  }
+}
+
 const applyLatePenalty = ref(false)
 const applyCollateralAssociation = ref(false)
 const printInvoiceOnSave = ref(true)
@@ -364,7 +395,7 @@ const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direc
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
 const showCreateLoanModal = ref(false)
-const openCreateLoanModal = () => { showCreateLoanModal.value = true }
+const openCreateLoanModal = () => { formError.value = ''; showCreateLoanModal.value = true }
 const closeCreateLoanModal = () => { showCreateLoanModal.value = false }
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
@@ -422,18 +453,24 @@ const form = reactive({
 
 const handleCreateLoan = async () => {
   if (!form.customerId) {
-    message.value = 'Por favor selecciona un cliente.'
+    formError.value = 'Por favor selecciona un cliente.'
     return
   }
 
   const disbursementDate = toIsoDate(form.disbursementDate)
   if (!disbursementDate) {
-    message.value = t('messages.invalidDateFormat')
+    formError.value = t('messages.invalidDateFormat')
     return
   }
 
   // Extraer el dia de la fecha de desembolso para usarlo como dueDay
   const disbursementDay = parseInt(disbursementDate.split('-')[2], 10)
+
+    if (form.loanType === 'pawn' && (!applyCollateralAssociation.value || collateralQueue.value.length === 0)) {
+      formError.value = t('messages.pawnMustHaveCollateral')
+      return
+    }
+
 
   const payload = {
     ...form,
@@ -443,7 +480,7 @@ const handleCreateLoan = async () => {
     dueDay: disbursementDay
   }
 
-  const firstConfirmation = window.confirm(
+  const firstConfirmation = await confirm(
     t('loans.confirmRegisterLoanStepOne', {
       customer: getCustomerLabel(payload.customerId),
       amount: formatCurrency(payload.principalAmount)
@@ -453,7 +490,7 @@ const handleCreateLoan = async () => {
     return
   }
 
-  const secondConfirmation = window.confirm(t('loans.confirmRegisterLoanStepTwo'))
+  const secondConfirmation = await confirm(t('loans.confirmRegisterLoanStepTwo'))
   if (!secondConfirmation) {
     return
   }
@@ -633,30 +670,6 @@ const selectedLoanCollateral = computed(() => {
   return state.collateralItems.filter((item) => item.loanId === selectedLoan.value?.id)
 })
 
-const collateralCountByLoanId = computed(() => {
-  const counts = new Map<number, number>()
-  for (const item of state.collateralItems) {
-    if (item.status !== 'in-custody') {
-      continue
-    }
-    counts.set(item.loanId, (counts.get(item.loanId) ?? 0) + 1)
-  }
-  return counts
-})
-
-const getLoanCollateralLabel = (loanId: number, loanType: 'pawn' | 'personal') => {
-  if (loanType !== 'pawn') {
-    return '—'
-  }
-
-  const count = collateralCountByLoanId.value.get(loanId) ?? 0
-  if (!count) {
-    return t('loans.noCollateralLinked')
-  }
-
-  return t('loans.collateralLinkedCount', { count })
-}
-
 const filteredLoans = computed(() => {
   const query = search.value.trim().toLowerCase()
 
@@ -681,6 +694,10 @@ const filteredLoans = computed(() => {
         result = a.outstandingPrincipal - b.outstandingPrincipal
       } else if (criterion.key === 'rate') {
         result = a.monthlyInterestRate - b.monthlyInterestRate
+      } else if (criterion.key === 'interest') {
+        const valA = a.interestDue ?? 0
+        const valB = b.interestDue ?? 0
+        result = valA - valB
       } else if (criterion.key === 'status') {
         result = a.status.localeCompare(b.status)
       } else {
