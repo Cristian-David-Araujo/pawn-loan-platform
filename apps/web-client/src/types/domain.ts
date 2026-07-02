@@ -47,6 +47,8 @@ export interface CollateralItem {
   custodyCode: string
   storageLocation: string
   status: 'in-custody' | 'released' | 'liquidated' | 'for_sale' | 'sold' | 'returned'
+  salePrice?: number | null
+  soldAt?: string | null
   loanStatus?: string
   loanPrincipal?: number
   loanOutstanding?: number

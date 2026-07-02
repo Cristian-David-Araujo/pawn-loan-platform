@@ -45,6 +45,8 @@ interface BackendCollateral {
   custody_code: string
   storage_location: string
   status: 'in_custody' | 'released' | 'liquidated' | 'for_sale' | 'sold' | 'returned'
+  sale_price?: number | null
+  sold_at?: string | null
   loan_status?: string
   loan_principal?: number
   loan_outstanding?: number
@@ -236,6 +238,8 @@ const mapCollateral = (item: BackendCollateral): CollateralItem => ({
   custodyCode: item.custody_code,
   storageLocation: item.storage_location,
   status: item.status === 'in_custody' ? 'in-custody' : item.status,
+  salePrice: item.sale_price,
+  soldAt: item.sold_at,
   loanStatus: item.loan_status,
   loanPrincipal: item.loan_principal,
   loanOutstanding: item.loan_outstanding,

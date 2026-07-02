@@ -21,13 +21,20 @@
       </button>
     </div>
 
+    <div class="grid grid-4 mt-16">
+      <StatCard :label="t('reporting.parLabel')" :value="formatPercent(portfolioHealth.par)" :icon="AlertTriangle" :tone="portfolioHealth.par > 15 ? 'amber' : 'green'" />
+      <StatCard :label="t('reporting.pendingInterestLabel')" :value="formatCurrency(portfolioHealth.pendingInterest)" :icon="HandCoins" tone="indigo" />
+      <StatCard :label="t('reporting.topConcentrationLabel')" :value="formatPercent(portfolioHealth.topConcentration)" :icon="PieChart" :tone="portfolioHealth.topConcentration > 40 ? 'amber' : 'blue'" />
+      <StatCard :label="t('reporting.collateralCoverageLabel')" :value="formatPercent(portfolioHealth.collateralCoverage)" :icon="ShieldCheck" :tone="portfolioHealth.collateralCoverage < 100 ? 'amber' : 'green'" />
+    </div>
+
     <div class="grid grid-3 mt-16">
       <StatCard :label="t('reporting.totalCollectedLabel')" :value="formatCurrency(totalCollected)" :icon="Wallet" tone="green" />
       <StatCard :label="t('reporting.totalInterestCollectedLabel')" :value="formatCurrency(totalInterestCollected)" :icon="BadgeDollarSign" tone="blue" />
       <StatCard :label="t('reporting.totalPenaltyCollectedLabel')" :value="formatCurrency(totalPenaltyCollected)" :icon="ClockAlert" tone="amber" />
-      <StatCard :label="t('reporting.estimatedPendingInterest')" :value="formatCurrency(estimatedPendingInterest)" :icon="HandCoins" tone="indigo" />
-      <StatCard :label="t('reporting.estimatedPendingPenalty')" :value="formatCurrency(estimatedPendingPenalty)" :icon="ClockAlert" tone="amber" />
-      <StatCard :label="t('reporting.collectionCoverage')" :value="formatPercent(collectionCoverage)" :icon="CircleDollarSign" tone="blue" />
+      <StatCard :label="t('reporting.disbursedInRange')" :value="formatCurrency(cashFlow.disbursed)" :icon="HandCoins" tone="indigo" />
+      <StatCard :label="t('reporting.netCashFlow')" :value="formatCurrency(cashFlow.net)" :icon="CircleDollarSign" :tone="cashFlow.net >= 0 ? 'green' : 'amber'" />
+      <StatCard :label="t('reporting.realizedYield')" :value="formatPercent(realizedYield)" :icon="TrendingUp" tone="blue" />
     </div>
 
     <div class="grid grid-2 mt-16">
@@ -256,67 +263,140 @@
 
     <div class="grid grid-2 mt-16">
       <article class="card">
-        <h3>{{ t('reporting.activeLoans') }}</h3>
-        <ul>
-          <li v-for="loan in activeLoans" :key="loan.id">
-            {{
-              t('reporting.activeLoanLine', {
-                id: loan.id,
-                customer: getCustomerLabel(loan.customerId),
-                amount: formatCurrency(loan.outstandingPrincipal)
-              })
-            }}
-          </li>
-        </ul>
+        <h3>{{ t('reporting.topDebtors') }}</h3>
+        <p class="muted">{{ t('reporting.topDebtorsHint') }}</p>
+        <div class="table-wrap mt-16">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('common.customer') }}</th>
+                <th class="text-center">{{ t('reporting.loansCount') }}</th>
+                <th class="text-right">{{ t('reporting.outstandingBalance') }}</th>
+                <th class="text-right">{{ t('reporting.pendingInterestLabel') }}</th>
+                <th class="text-right">{{ t('reporting.portfolioShare') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="debtor in topDebtors" :key="debtor.customerId">
+                <td>{{ debtor.customerName }}</td>
+                <td class="text-center">{{ debtor.loansCount }}</td>
+                <td class="text-right">{{ formatCurrency(debtor.outstanding) }}</td>
+                <td class="text-right">{{ formatCurrency(debtor.pendingInterest) }}</td>
+                <td class="text-right">
+                  <span :class="['pill', debtor.share > 20 ? 'pill-warning' : 'pill-upcoming']">{{ formatPercent(debtor.share) }}</span>
+                </td>
+              </tr>
+              <tr v-if="!topDebtors.length">
+                <td colspan="5" class="muted">{{ t('reporting.noDataRange') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </article>
 
       <article class="card">
         <h3>{{ t('reporting.overdueLoans') }}</h3>
-        <ul>
-          <li v-for="loan in overdueLoans" :key="loan.id">
-            {{ t('reporting.overdueLoanLine', { id: loan.id, customer: getCustomerLabel(loan.customerId), day: loan.dueDay }) }}
-          </li>
-        </ul>
+        <p class="muted">{{ t('reporting.overdueLoansHint') }}</p>
+        <div class="table-wrap mt-16">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('common.id') }}</th>
+                <th>{{ t('common.customer') }}</th>
+                <th class="text-right">{{ t('reporting.outstandingBalance') }}</th>
+                <th class="text-right">{{ t('reporting.pendingInterestLabel') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="loan in topOverdueLoans" :key="loan.id">
+                <td>#{{ loan.id }}</td>
+                <td>{{ getCustomerLabel(loan.customerId) }}</td>
+                <td class="text-right">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
+                <td class="text-right text-warning-dark fw-bold">{{ formatCurrency(loan.interestDue ?? 0) }}</td>
+              </tr>
+              <tr v-if="!topOverdueLoans.length">
+                <td colspan="4" class="muted">{{ t('reporting.noDataRange') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </article>
 
       <article class="card">
-        <h3>{{ t('reporting.collateralInCustody') }}</h3>
-        <ul>
-          <li v-for="item in custodyItems" :key="item.id">
-            {{ t('reporting.custodyLine', { code: item.custodyCode, loanId: item.loanId, description: item.description }) }}
-          </li>
-        </ul>
-      </article>
-
-      <article class="card">
-        <h3>{{ t('reporting.cashSummary') }}</h3>
-        <p>{{ t('reporting.totalPaymentsRegistered', { count: filteredPayments.length }) }}</p>
-        <p>{{ t('reporting.totalCollected', { amount: formatCurrency(totalCollected) }) }}</p>
-        <p>{{ t('reporting.totalInterestCollected', { amount: formatCurrency(totalInterestCollected) }) }}</p>
-        <p>{{ t('reporting.totalPenaltyCollected', { amount: formatCurrency(totalPenaltyCollected) }) }}</p>
-        <p>{{ t('reporting.estimatedPendingInterestWithAmount', { amount: formatCurrency(estimatedPendingInterest) }) }}</p>
-        <p>{{ t('reporting.estimatedPendingPenaltyWithAmount', { amount: formatCurrency(estimatedPendingPenalty) }) }}</p>
-      </article>
-    </div>
-
-    <div class="grid grid-2 mt-16">
-      <article class="card">
-        <h3>{{ t('reporting.actionableInsights') }}</h3>
-        <ul>
-          <li v-for="insight in actionableInsights" :key="insight">{{ insight }}</li>
-        </ul>
+        <h3>{{ t('reporting.collateralAndForeclosure') }}</h3>
+        <p class="muted">{{ t('reporting.collateralAndForeclosureHint') }}</p>
+        <div class="table-wrap mt-16">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('common.status') }}</th>
+                <th class="text-center">{{ t('reporting.itemsCount') }}</th>
+                <th class="text-right">{{ t('reporting.appraisedValue') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="pill pill-upcoming">{{ t('collaterals.statusInCustody') }}</span></td>
+                <td class="text-center">{{ collateralSummary.custodyCount }}</td>
+                <td class="text-right">{{ formatCurrency(collateralSummary.custodyValue) }}</td>
+              </tr>
+              <tr>
+                <td><span class="pill pill-warning">{{ t('collaterals.statusForSale') }}</span></td>
+                <td class="text-center">{{ collateralSummary.forSaleCount }}</td>
+                <td class="text-right">{{ formatCurrency(collateralSummary.forSaleValue) }}</td>
+              </tr>
+              <tr>
+                <td><span class="pill pill-current">{{ t('collaterals.statusSold') }}</span></td>
+                <td class="text-center">{{ collateralSummary.soldCount }}</td>
+                <td class="text-right">{{ formatCurrency(collateralSummary.soldRecovered) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="muted mt-16">
+          {{ t('reporting.saleVsAppraisal', { value: formatPercent(collateralSummary.saleVsAppraisal) }) }}
+        </p>
       </article>
 
       <article class="card">
         <h3>{{ t('reporting.topCollectors') }}</h3>
-        <ul>
-          <li v-for="item in topCustomersByCollection" :key="item.customerId">
-            {{ t('reporting.topCollectorLine', { customer: item.customerName, amount: formatCurrency(item.totalCollected) }) }}
-          </li>
-          <li v-if="!topCustomersByCollection.length">{{ t('reporting.noDataRange') }}</li>
-        </ul>
+        <p class="muted">{{ t('reporting.topCollectorsHint') }}</p>
+        <div class="table-wrap mt-16">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('common.customer') }}</th>
+                <th class="text-right">{{ t('reporting.totalCollectedLabel') }}</th>
+                <th class="text-right">{{ t('reporting.collectedShare') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in topCustomersByCollection" :key="item.customerId">
+                <td>{{ item.customerName }}</td>
+                <td class="text-right">{{ formatCurrency(item.totalCollected) }}</td>
+                <td class="text-right">
+                  <span class="pill pill-current">{{ formatPercent(totalCollected ? (item.totalCollected / totalCollected) * 100 : 0) }}</span>
+                </td>
+              </tr>
+              <tr v-if="!topCustomersByCollection.length">
+                <td colspan="3" class="muted">{{ t('reporting.noDataRange') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </article>
     </div>
+
+    <article class="card mt-16">
+      <h3>{{ t('reporting.actionableInsights') }}</h3>
+      <p class="muted">{{ t('reporting.actionableInsightsHint') }}</p>
+      <ul class="insight-list mt-16">
+        <li v-for="insight in actionableInsights" :key="insight.text" class="insight-item">
+          <component :is="insight.icon" :size="16" :class="`insight-icon insight-${insight.level}`" />
+          <span>{{ insight.text }}</span>
+        </li>
+      </ul>
+    </article>
   </section>
 </template>
 
@@ -324,12 +404,18 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import {
+  AlertTriangle,
   BadgeDollarSign,
   ChartNoAxesCombined,
+  CheckCircle2,
   CircleDollarSign,
   ClockAlert,
   HandCoins,
+  Info,
+  PieChart,
   RotateCcw,
+  ShieldCheck,
+  TrendingUp,
   Wallet
 } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
@@ -385,11 +471,6 @@ onMounted(async () => {
   await ensureInitialized()
 })
 
-const activeLoans = computed(() =>
-  [...state.loans.filter((loan) => loan.status === 'active')].sort(
-    (a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime()
-  )
-)
 const overdueLoans = computed(() =>
   [...state.loans.filter((loan) => loan.status === 'overdue')].sort(
     (a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime()
@@ -434,70 +515,95 @@ const totalPenaltyCollected = computed(() =>
   filteredPayments.value.reduce((sum, payment) => sum + payment.allocatedToPenalty, 0)
 )
 
-const rangeEndIso = computed(() => (toDateIso.value > today ? today : toDateIso.value))
+const openLoans = computed(() => state.loans.filter((loan) => loan.status === 'active' || loan.status === 'overdue'))
 
-const getLaterIso = (a: string, b: string) => (a >= b ? a : b)
-const getEarlierIso = (a: string, b: string) => (a <= b ? a : b)
+const portfolioHealth = computed(() => {
+  const outstandingTotal = openLoans.value.reduce((sum, loan) => sum + loan.outstandingPrincipal, 0)
+  const overdueOutstanding = overdueLoans.value.reduce((sum, loan) => sum + loan.outstandingPrincipal, 0)
+  const pendingInterest = openLoans.value.reduce((sum, loan) => sum + (loan.interestDue ?? 0), 0)
 
-const countMonthsInRange = (startIso: string, endIso: string) => {
-  const start = new Date(`${startIso}T00:00:00`)
-  const end = new Date(`${endIso}T00:00:00`)
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
-    return 0
+  const byCustomer = new Map<number, number>()
+  for (const loan of openLoans.value) {
+    byCustomer.set(loan.customerId, (byCustomer.get(loan.customerId) ?? 0) + loan.outstandingPrincipal)
   }
+  const topFive = [...byCustomer.values()].sort((a, b) => b - a).slice(0, 5)
+  const topConcentration = outstandingTotal ? (topFive.reduce((sum, v) => sum + v, 0) / outstandingTotal) * 100 : 0
 
-  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1
-}
+  const custodyValue = custodyItems.value.reduce((sum, item) => sum + item.appraisedValue, 0)
+  const collateralCoverage = outstandingTotal ? (custodyValue / outstandingTotal) * 100 : 0
 
-const expectedChargesInRange = computed(() => {
-  let expectedInterest = 0
-  let expectedPenalty = 0
-
-  const fromIso = fromDateIso.value
-  const toIso = rangeEndIso.value
-
-  for (const loan of state.loans) {
-    if (loan.status === 'closed' || loan.outstandingPrincipal <= 0) {
-      continue
-    }
-
-    const loanStart = fromIso ? getLaterIso(loan.disbursementDate, fromIso) : loan.disbursementDate
-    const loanEnd = getEarlierIso(toIso, today)
-
-    if (loanEnd < loanStart) {
-      continue
-    }
-
-    const periods = countMonthsInRange(loanStart, loanEnd)
-    if (!periods) {
-      continue
-    }
-
-    expectedInterest += periods * loan.outstandingPrincipal * (loan.monthlyInterestRate / 100)
-
-    if (loan.status === 'overdue') {
-      expectedPenalty += periods * loan.outstandingPrincipal * (loan.latePenaltyRate / 100)
-    }
+  return {
+    par: outstandingTotal ? (overdueOutstanding / outstandingTotal) * 100 : 0,
+    pendingInterest,
+    topConcentration,
+    collateralCoverage,
+    outstandingTotal,
+    overdueOutstanding
   }
-
-  return { expectedInterest, expectedPenalty }
 })
 
-const estimatedPendingInterest = computed(() =>
-  Math.max(expectedChargesInRange.value.expectedInterest - totalInterestCollected.value, 0)
-)
-const estimatedPendingPenalty = computed(() =>
-  Math.max(expectedChargesInRange.value.expectedPenalty - totalPenaltyCollected.value, 0)
-)
+const cashFlow = computed(() => {
+  const disbursed = filteredLoansByDisbursement.value.reduce((sum, loan) => sum + loan.principalAmount, 0)
+  return {
+    disbursed,
+    collected: totalCollected.value,
+    net: totalCollected.value - disbursed
+  }
+})
 
-const collectionCoverage = computed(() => {
-  const pendingTotal = estimatedPendingInterest.value + estimatedPendingPenalty.value
-  const denominator = totalCollected.value + pendingTotal
-  if (!denominator) {
+const realizedYield = computed(() => {
+  const outstanding = portfolioHealth.value.outstandingTotal
+  if (!outstanding) {
     return 0
   }
+  return (totalInterestCollected.value / outstanding) * 100
+})
 
-  return (totalCollected.value / denominator) * 100
+const topDebtors = computed(() => {
+  const byCustomer = new Map<number, { outstanding: number; pendingInterest: number; loansCount: number }>()
+
+  for (const loan of openLoans.value) {
+    const entry = byCustomer.get(loan.customerId) ?? { outstanding: 0, pendingInterest: 0, loansCount: 0 }
+    entry.outstanding += loan.outstandingPrincipal
+    entry.pendingInterest += loan.interestDue ?? 0
+    entry.loansCount += 1
+    byCustomer.set(loan.customerId, entry)
+  }
+
+  const outstandingTotal = portfolioHealth.value.outstandingTotal
+
+  return [...byCustomer.entries()]
+    .map(([customerId, entry]) => ({
+      customerId,
+      customerName: getCustomerLabel(customerId),
+      ...entry,
+      share: outstandingTotal ? (entry.outstanding / outstandingTotal) * 100 : 0
+    }))
+    .sort((a, b) => b.outstanding - a.outstanding)
+    .slice(0, 5)
+})
+
+const topOverdueLoans = computed(() =>
+  [...overdueLoans.value].sort((a, b) => (b.interestDue ?? 0) - (a.interestDue ?? 0)).slice(0, 5)
+)
+
+const collateralSummary = computed(() => {
+  const custody = state.collateralItems.filter((item) => item.status === 'in-custody')
+  const forSale = state.collateralItems.filter((item) => item.status === 'for_sale')
+  const sold = state.collateralItems.filter((item) => item.status === 'sold')
+
+  const soldAppraised = sold.reduce((sum, item) => sum + item.appraisedValue, 0)
+  const soldRecovered = sold.reduce((sum, item) => sum + (item.salePrice ?? 0), 0)
+
+  return {
+    custodyCount: custody.length,
+    custodyValue: custody.reduce((sum, item) => sum + item.appraisedValue, 0),
+    forSaleCount: forSale.length,
+    forSaleValue: forSale.reduce((sum, item) => sum + item.appraisedValue, 0),
+    soldCount: sold.length,
+    soldRecovered,
+    saleVsAppraisal: soldAppraised ? (soldRecovered / soldAppraised) * 100 : 0
+  }
 })
 
 const incomeSeries = computed(() => {
@@ -604,19 +710,59 @@ const topCustomersByCollection = computed(() => {
 })
 
 const actionableInsights = computed(() => {
-  const overdueShare = state.loans.length ? (overdueLoans.value.length / state.loans.length) * 100 : 0
-  const avgTicket = filteredPayments.value.length ? totalCollected.value / filteredPayments.value.length : 0
-  const portfolioOutstanding = state.loans.reduce((sum, loan) => sum + loan.outstandingPrincipal, 0)
-  const collateralCoverage = portfolioOutstanding
-    ? (custodyItems.value.reduce((sum, item) => sum + item.appraisedValue, 0) / portfolioOutstanding) * 100
-    : 0
+  const insights: { text: string; icon: typeof Info; level: 'good' | 'warning' | 'info' }[] = []
+  const health = portfolioHealth.value
 
-  return [
-    t('reporting.insightCollectionCoverage', { value: formatPercent(collectionCoverage.value) }),
-    t('reporting.insightAverageTicket', { amount: formatCurrency(avgTicket) }),
-    t('reporting.insightOverdueShare', { value: formatPercent(overdueShare) }),
-    t('reporting.insightCollateralCoverage', { value: formatPercent(collateralCoverage) })
-  ]
+  insights.push({
+    icon: health.par > 15 ? AlertTriangle : CheckCircle2,
+    level: health.par > 15 ? 'warning' : 'good',
+    text: t('reporting.insightPar', { value: formatPercent(health.par), amount: formatCurrency(health.overdueOutstanding) })
+  })
+
+  if (health.pendingInterest > totalInterestCollected.value) {
+    insights.push({
+      icon: AlertTriangle,
+      level: 'warning',
+      text: t('reporting.insightPendingInterest', { amount: formatCurrency(health.pendingInterest) })
+    })
+  } else {
+    insights.push({
+      icon: CheckCircle2,
+      level: 'good',
+      text: t('reporting.insightInterestHealthy', { amount: formatCurrency(totalInterestCollected.value) })
+    })
+  }
+
+  insights.push({
+    icon: health.topConcentration > 40 ? AlertTriangle : Info,
+    level: health.topConcentration > 40 ? 'warning' : 'info',
+    text: t('reporting.insightConcentration', { value: formatPercent(health.topConcentration) })
+  })
+
+  insights.push({
+    icon: health.collateralCoverage < 100 ? AlertTriangle : CheckCircle2,
+    level: health.collateralCoverage < 100 ? 'warning' : 'good',
+    text: t('reporting.insightCollateralCoverage', { value: formatPercent(health.collateralCoverage) })
+  })
+
+  insights.push({
+    icon: cashFlow.value.net >= 0 ? CheckCircle2 : Info,
+    level: cashFlow.value.net >= 0 ? 'good' : 'info',
+    text: t('reporting.insightNetFlow', {
+      collected: formatCurrency(cashFlow.value.collected),
+      disbursed: formatCurrency(cashFlow.value.disbursed),
+      net: formatCurrency(cashFlow.value.net)
+    })
+  })
+
+  const avgTicket = filteredPayments.value.length ? totalCollected.value / filteredPayments.value.length : 0
+  insights.push({
+    icon: Info,
+    level: 'info',
+    text: t('reporting.insightAverageTicket', { amount: formatCurrency(avgTicket) })
+  })
+
+  return insights
 })
 
 const formatMonthLabel = (month: string) =>
