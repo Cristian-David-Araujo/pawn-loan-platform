@@ -460,7 +460,8 @@ interface ChartModel {
 
 const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const today = new Date().toISOString().slice(0, 10)
-const fromDate = ref('')
+const firstDayOfMonth = `${today.slice(0, 7)}-01`
+const fromDate = ref(formatDateDMY(firstDayOfMonth))
 const toDate = ref(formatDateDMY(today))
 const datePlaceholder = computed(() => getGlobalDateFormat())
 
@@ -897,7 +898,7 @@ const getCustomerLabel = (customerId: number) => {
 }
 
 const resetDates = () => {
-  fromDate.value = ''
+  fromDate.value = formatDateDMY(firstDayOfMonth)
   toDate.value = formatDateDMY(today)
 }
 </script>
