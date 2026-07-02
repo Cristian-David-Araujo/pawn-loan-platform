@@ -888,7 +888,7 @@ const principalContextOptions = computed(() => {
 })
 
 const historyLoanFilterOptions = computed(() => {
-  const options = [{ value: 'all', label: t('common.allLoans') }]
+  const options = [{ value: 'all', label: t('payments.allLoans') }]
   paymentHistoryLoanOptions.value.forEach(loanId => {
     options.push({ value: loanId, label: '#' + loanId })
   })
