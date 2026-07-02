@@ -52,7 +52,11 @@ def _run_bootstrap(
         else:
             should_update_admin = False
 
-            if not verify_password(settings.admin_password, existing_admin.hashed_password):
+            # Never overwrite the stored admin password on startup unless the
+            # operator explicitly opts in (recovery escape hatch).
+            if settings.admin_password_reset_on_startup and not verify_password(
+                settings.admin_password, existing_admin.hashed_password
+            ):
                 existing_admin.hashed_password = get_password_hash(settings.admin_password)
                 should_update_admin = True
 

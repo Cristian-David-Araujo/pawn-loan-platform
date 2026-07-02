@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     admin_username: str = "admin"
     admin_password: str = "admin123"
     admin_role: str = "administrator"
+    admin_password_reset_on_startup: bool = False
 
     db_init_on_startup: bool = True
     db_seed_on_startup: bool = True
