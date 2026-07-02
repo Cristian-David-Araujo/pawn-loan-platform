@@ -31,6 +31,8 @@ interface BackendLoan {
   late_penalty_rate: number
   disbursement_date: string
   due_day: number
+  interest_due?: number
+  collaterals_count?: number
   status: Loan['status']
   created_by?: any
 }
@@ -42,7 +44,12 @@ interface BackendCollateral {
   appraised_value: number
   custody_code: string
   storage_location: string
-  status: 'in_custody' | 'released' | 'liquidated'
+  status: 'in_custody' | 'released' | 'liquidated' | 'for_sale' | 'sold' | 'returned'
+  loan_status?: string
+  loan_principal?: number
+  loan_outstanding?: number
+  loan_interest_due?: number
+  loan_rate?: number
 }
 
 interface BackendPayment {
@@ -215,6 +222,8 @@ const mapLoan = (item: BackendLoan): Loan => ({
   latePenaltyRate: item.late_penalty_rate,
   disbursementDate: item.disbursement_date,
   dueDay: item.due_day,
+  interestDue: item.interest_due,
+  collateralsCount: item.collaterals_count,
   status: item.status,
   created_by: item.created_by
 })
@@ -226,7 +235,12 @@ const mapCollateral = (item: BackendCollateral): CollateralItem => ({
   appraisedValue: item.appraised_value,
   custodyCode: item.custody_code,
   storageLocation: item.storage_location,
-  status: item.status === 'in_custody' ? 'in-custody' : item.status
+  status: item.status === 'in_custody' ? 'in-custody' : item.status,
+  loanStatus: item.loan_status,
+  loanPrincipal: item.loan_principal,
+  loanOutstanding: item.loan_outstanding,
+  loanInterestDue: item.loan_interest_due,
+  loanRate: item.loan_rate
 })
 
 const mapPayment = (item: BackendPayment): Payment => ({
@@ -588,22 +602,45 @@ const dashboardStats = computed(() => {
   }
 })
 
-export const usePlatformStore = () => ({
-  state,
-  dashboardStats,
-  getCustomerName,
-  getCustomerById,
-  ensureInitialized,
-  refreshAll,
-  createCustomer,
-  updateCustomer,
-  deleteCustomer,
-  createLoan,
-  updateLoan,
-  deleteLoan,
-  createCollateral,
-  updateCollateral,
-  createPayment,
-  updatePayment,
-  updateGlobalSettings
-})
+
+  const forecloseLoan = async (loanId: number) => {
+    const response = await apiClient.request<any>(`/loans/${loanId}/foreclose`, { method: 'POST' })
+    return response
+  }
+
+  const sellCollateralItem = async (itemId: number, salePrice: number, notes: string = "") => {
+    const response = await apiClient.request<any>(`/collateral-items/${itemId}/sell`, { 
+      method: 'POST', 
+      body: JSON.stringify({ sale_price: salePrice, notes }) 
+    })
+    return response
+  }
+
+  const fetchCollateralItems = async (status?: string) => {
+    const url = status ? `/collateral-items?status=${status}` : '/collateral-items'
+    const response = await apiClient.request<any[]>(url, { method: 'GET' })
+    return response
+  }
+
+    export const usePlatformStore = () => ({
+    state,
+    dashboardStats,
+    getCustomerName,
+    getCustomerById,
+    ensureInitialized,
+    refreshAll,
+    createCustomer,
+    updateCustomer,
+    deleteCustomer,
+    createLoan,
+    updateLoan,
+    deleteLoan,
+    createCollateral,
+    updateCollateral,
+    createPayment,
+    updatePayment,
+    updateGlobalSettings,
+    forecloseLoan,
+    sellCollateralItem,
+    fetchCollateralItems
+  })

@@ -34,4 +34,15 @@ class CollateralRead(BaseModel):
     custody_code: str
     storage_location: str
     status: str
+    loan_status: str | None = None
+    loan_principal: float | None = None
+    loan_outstanding: float | None = None
+    loan_interest_due: float | None = None
+    loan_rate: float | None = None
+    sale_price: float | None = None
+    sold_at: datetime | None = None
     created_at: datetime
+
+class CollateralSell(BaseModel):
+    sale_price: float
+    notes: str | None = ""
