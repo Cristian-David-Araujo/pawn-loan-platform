@@ -5,6 +5,8 @@ import DashboardView from '../views/DashboardView.vue'
 import CustomersView from '../views/CustomersView.vue'
 import LoansView from '../views/LoansView.vue'
 import LoginView from '../views/LoginView.vue'
+import ForgotPasswordView from '../views/ForgotPasswordView.vue'
+import ResetPasswordView from '../views/ResetPasswordView.vue'
 import PaymentsView from '../views/PaymentsView.vue'
 import ReportingView from '../views/ReportingView.vue'
 import SettingsView from '../views/SettingsView.vue'
@@ -18,6 +20,18 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView,
+      meta: { guestOnly: true }
+    },
+    {
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: ForgotPasswordView,
+      meta: { guestOnly: true }
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
       meta: { guestOnly: true }
     },
     {

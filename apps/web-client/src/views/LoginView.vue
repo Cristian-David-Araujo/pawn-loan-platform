@@ -24,6 +24,12 @@
           <input v-model="form.password" type="password" autocomplete="current-password" required />
         </label>
 
+        <div style="text-align: right; margin-top: -0.2rem; margin-bottom: 0.5rem;">
+          <router-link to="/forgot-password" style="font-size: 0.85rem; color: var(--color-primary, #2563eb); text-decoration: none; font-weight: 500;">
+            {{ t('auth.forgotPassword') }}
+          </router-link>
+        </div>
+
         <button class="btn" type="submit" :disabled="isSubmitting" style="width: 100%; justify-content: center;">
           <LogIn v-if="!isSubmitting" :size="16" />
           {{ isSubmitting ? t('auth.signingIn') : t('auth.signIn') }}

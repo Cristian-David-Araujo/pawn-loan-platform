@@ -25,6 +25,8 @@ class User(Base):
     address: Mapped[str] = mapped_column(String(200), default="")
     role: Mapped[UserRole] = mapped_column(Enum(UserRole, native_enum=False, length=50), default=UserRole.loan_officer)
     is_active: Mapped[bool] = mapped_column(default=True)
+    reset_token: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    reset_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 
