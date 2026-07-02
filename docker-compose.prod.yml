@@ -44,6 +44,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_ROLE: ${ADMIN_ROLE}
+      ADMIN_PASSWORD_RESET_ON_STARTUP: ${ADMIN_PASSWORD_RESET_ON_STARTUP:-false}
     command: ["python", "-m", "src.infrastructure.tasks.bootstrap_db"]
     depends_on:
       postgres:
@@ -64,6 +65,7 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_ROLE: ${ADMIN_ROLE}
+      ADMIN_PASSWORD_RESET_ON_STARTUP: ${ADMIN_PASSWORD_RESET_ON_STARTUP:-false}
       DB_INIT_ON_STARTUP: ${DB_INIT_ON_STARTUP:-true}
       DB_SEED_ON_STARTUP: ${DB_SEED_ON_STARTUP:-false}
       DB_SEED_FORCE: ${DB_SEED_FORCE:-false}
