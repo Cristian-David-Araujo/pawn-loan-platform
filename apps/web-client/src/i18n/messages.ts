@@ -439,7 +439,22 @@ export const messages = {
       exportDataHint: 'Downloads a ZIP file with your complete information: configuration, customers, loans, collateral, interest, payments and audit trail. Includes JSON files for a full restore and CSV files ready for Excel.',
       exportDataWarning: 'The file contains all your business information. Store it in a safe place.',
       exportData: 'Download export',
-      exportDataInProgress: 'Preparing export...'
+      exportDataInProgress: 'Preparing export...',
+      importDataTitle: 'Import data',
+      importDataHint: 'Restores a previously downloaded export file. The archive is checked first and you will see exactly what would be replaced before confirming.',
+      importDataWarning: 'This replaces every record in the system with the contents of the file. Download an export first if you need a way back.',
+      importFile: 'Export file (.zip)',
+      importAnalyzing: 'Checking file...',
+      importNotPossible: 'This file cannot be imported.',
+      importArchiveDate: 'Archive date',
+      importSchemaRevision: 'Schema revision',
+      importTable: 'Table',
+      importCurrentRows: 'Current records',
+      importIncomingRows: 'Records in file',
+      importTotal: 'Total',
+      importConfirmationLabel: 'Type {phrase} to confirm',
+      importData: 'Replace all data',
+      importInProgress: 'Importing...'
     },
     reporting: {
       title: 'Reporting',
@@ -536,6 +551,7 @@ export const messages = {
       sessionExpired: 'Your session expired. Please sign in again.',
       operationFailed: 'Operation failed. Please try again.',
       dataExported: 'Export downloaded successfully.',
+      dataImported: 'Import completed: {rows} records restored.',
       unknownCustomer: 'Unknown customer'
     }
   },
@@ -978,7 +994,22 @@ export const messages = {
       exportDataHint: 'Descarga un archivo ZIP con toda tu informacion: configuracion, clientes, prestamos, garantias, intereses, pagos y auditoria. Incluye archivos JSON para restaurar todo y archivos CSV listos para Excel.',
       exportDataWarning: 'El archivo contiene toda la informacion de tu negocio. Guardalo en un lugar seguro.',
       exportData: 'Descargar exportacion',
-      exportDataInProgress: 'Preparando exportacion...'
+      exportDataInProgress: 'Preparando exportacion...',
+      importDataTitle: 'Importar datos',
+      importDataHint: 'Restaura un archivo de exportacion descargado previamente. El archivo se valida primero y veras exactamente que se reemplazaria antes de confirmar.',
+      importDataWarning: 'Esto reemplaza todos los registros del sistema con el contenido del archivo. Descarga una exportacion antes si necesitas poder volver atras.',
+      importFile: 'Archivo de exportacion (.zip)',
+      importAnalyzing: 'Validando archivo...',
+      importNotPossible: 'Este archivo no se puede importar.',
+      importArchiveDate: 'Fecha del archivo',
+      importSchemaRevision: 'Revision de esquema',
+      importTable: 'Tabla',
+      importCurrentRows: 'Registros actuales',
+      importIncomingRows: 'Registros en el archivo',
+      importTotal: 'Total',
+      importConfirmationLabel: 'Escribe {phrase} para confirmar',
+      importData: 'Reemplazar todos los datos',
+      importInProgress: 'Importando...'
     },
     reporting: {
       title: 'Reportes',
@@ -1075,6 +1106,7 @@ export const messages = {
       sessionExpired: 'Tu sesion expiro. Inicia sesion nuevamente.',
       operationFailed: 'La operacion fallo. Intentalo nuevamente.',
       dataExported: 'Exportacion descargada correctamente.',
+      dataImported: 'Importacion completada: {rows} registros restaurados.',
       unknownCustomer: 'Cliente desconocido'
     }
   }

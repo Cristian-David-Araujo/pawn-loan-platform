@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -32,12 +32,19 @@ def _create_test_engine():
     )
 
 
+def _drop_everything(engine) -> None:
+    Base.metadata.drop_all(bind=engine)
+    # Not part of the metadata, so tests that stamp a revision would leak it to the next one.
+    with engine.begin() as connection:
+        connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
+
+
 @pytest.fixture
 def db_session() -> Generator[Session, None, None]:
     engine = _create_test_engine()
     TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
     # Leftovers from an interrupted run would break the schema creation below.
-    Base.metadata.drop_all(bind=engine)
+    _drop_everything(engine)
     Base.metadata.create_all(bind=engine)
 
     session = TestingSessionLocal()
@@ -45,7 +52,7 @@ def db_session() -> Generator[Session, None, None]:
         yield session
     finally:
         session.close()
-        Base.metadata.drop_all(bind=engine)
+        _drop_everything(engine)
         engine.dispose()
 
 

@@ -79,7 +79,44 @@ const requestFile = async (path: string, fallbackFilename: string): Promise<{ bl
   }
 }
 
+const requestUpload = async <T>(path: string, formData: FormData): Promise<T> => {
+  const { logout } = useAuthState()
+  const accessToken = getStoredAccessToken()
+  if (!accessToken) {
+    logout()
+    throw new Error('Not authenticated')
+  }
+
+  // No Content-Type header: the browser sets the multipart boundary.
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: formData
+  })
+
+  if (response.status === 401) {
+    logout()
+    if (window.location.pathname !== '/login') {
+      window.location.assign('/login')
+    }
+    throw new Error('Session expired')
+  }
+
+  if (!response.ok) {
+    let detail = ''
+    try {
+      detail = ((await response.json()) as { detail?: string }).detail ?? ''
+    } catch {
+      detail = ''
+    }
+    throw new Error(detail || `Request failed with status ${response.status}`)
+  }
+
+  return response.json() as Promise<T>
+}
+
 export const apiClient = {
   request,
-  requestFile
+  requestFile,
+  requestUpload
 }

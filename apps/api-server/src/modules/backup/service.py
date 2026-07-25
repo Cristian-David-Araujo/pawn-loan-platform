@@ -128,7 +128,7 @@ def _write_table_csv(archive: zipfile.ZipFile, db: Session, table: Table) -> Non
                 writer.writerow(["" if serialized[name] is None else serialized[name] for name in column_names])
 
 
-def _read_schema_revision(db: Session) -> str | None:
+def read_schema_revision(db: Session) -> str | None:
     """Alembic revision the database is on, so a restore knows the target schema."""
     try:
         return db.scalar(text("SELECT version_num FROM alembic_version"))
@@ -141,7 +141,7 @@ def _read_schema_revision(db: Session) -> str | None:
 
 def build_export_archive(db: Session, generated_by: str | None) -> ExportArchive:
     # Read first: a failure here rolls the transaction back before any data is queried.
-    schema_revision = _read_schema_revision(db)
+    schema_revision = read_schema_revision(db)
 
     settings = db.get(GlobalSettings, 1)
     generated_at = get_local_datetime(db)

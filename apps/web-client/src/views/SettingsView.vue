@@ -27,6 +27,77 @@
       </button>
     </article>
 
+    <article class="card mt-16">
+      <h3>{{ t('settings.importDataTitle') }}</h3>
+      <p class="muted">{{ t('settings.importDataHint') }}</p>
+      <p class="muted mt-8"><strong>{{ t('settings.importDataWarning') }}</strong></p>
+
+      <label class="mt-16">
+        <span class="field-label-row">{{ t('settings.importFile') }}</span>
+        <input type="file" accept=".zip,application/zip" :disabled="importing" @change="handleFileSelected" />
+      </label>
+
+      <p v-if="analyzing" class="muted mt-8">{{ t('settings.importAnalyzing') }}</p>
+
+      <div v-if="analysis" class="mt-16">
+        <p v-if="!analysis.can_import" class="notice">{{ t('settings.importNotPossible') }}</p>
+
+        <ul v-if="analysis.errors.length" class="mt-8">
+          <li v-for="error in analysis.errors" :key="error">{{ error }}</li>
+        </ul>
+        <ul v-if="analysis.warnings.length" class="mt-8">
+          <li v-for="warning in analysis.warnings" :key="warning" class="muted">{{ warning }}</li>
+        </ul>
+
+        <p class="mt-8">
+          {{ t('settings.importArchiveDate') }}: {{ formatDateDMY(analysis.archive_generated_at) }} ·
+          {{ t('settings.importSchemaRevision') }}: {{ analysis.archive_schema_revision ?? '-' }}
+        </p>
+
+        <div class="table-wrap mt-8">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('settings.importTable') }}</th>
+                <th class="text-right">{{ t('settings.importCurrentRows') }}</th>
+                <th class="text-right">{{ t('settings.importIncomingRows') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="plan in analysis.tables" :key="plan.name">
+                <td>{{ plan.name }}</td>
+                <td class="text-right">{{ plan.current_rows }}</td>
+                <td class="text-right">{{ plan.incoming_rows }}</td>
+              </tr>
+              <tr>
+                <td><strong>{{ t('settings.importTotal') }}</strong></td>
+                <td class="text-right"><strong>{{ analysis.total_current_rows }}</strong></td>
+                <td class="text-right"><strong>{{ analysis.total_incoming_rows }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <label v-if="analysis.can_import" class="mt-16">
+          <span class="field-label-row">
+            {{ t('settings.importConfirmationLabel', { phrase: IMPORT_CONFIRMATION }) }}
+          </span>
+          <input v-model="confirmation" :placeholder="IMPORT_CONFIRMATION" :disabled="importing" />
+        </label>
+
+        <button
+          v-if="analysis.can_import"
+          class="btn btn-danger mt-16"
+          type="button"
+          :disabled="importing || confirmation !== IMPORT_CONFIRMATION"
+          @click="handleImportData"
+        >
+          <Upload :size="16" />
+          {{ importing ? t('settings.importInProgress') : t('settings.importData') }}
+        </button>
+      </div>
+    </article>
+
     <form class="form mt-16" @submit.prevent="handleSaveSettings">
       <div class="card mb-16">
         <h3>{{ t('settings.companyInfoTitle') }}</h3>
@@ -147,15 +218,44 @@
 import CustomSelect from '../components/CustomSelect.vue'
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Download, Save, Settings, Sparkles } from 'lucide-vue-next'
+import { Download, Save, Settings, Sparkles, Upload } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
+import { formatDateDMY } from '../utils/date'
 
-const { state, ensureInitialized, updateGlobalSettings } = usePlatformStore()
+const { state, ensureInitialized, updateGlobalSettings, refreshAll } = usePlatformStore()
 const { t } = useI18n()
 const message = ref('')
 const exporting = ref(false)
+
+const IMPORT_CONFIRMATION = 'REPLACE ALL DATA'
+
+interface ImportTablePlan {
+  name: string
+  current_rows: number
+  incoming_rows: number
+}
+
+interface ImportResult {
+  imported: boolean
+  can_import: boolean
+  format_version: string | null
+  archive_schema_revision: string | null
+  database_schema_revision: string | null
+  archive_generated_at: string | null
+  total_current_rows: number
+  total_incoming_rows: number
+  tables: ImportTablePlan[]
+  errors: string[]
+  warnings: string[]
+}
+
+const selectedFile = ref<File | null>(null)
+const analysis = ref<ImportResult | null>(null)
+const analyzing = ref(false)
+const importing = ref(false)
+const confirmation = ref('')
 
 const currencyOptions = [
   { value: 'COP', label: 'COP' },
@@ -237,6 +337,59 @@ const handleExportData = async () => {
     message.value = t('messages.operationFailed')
   } finally {
     exporting.value = false
+  }
+}
+
+const handleFileSelected = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0] ?? null
+
+  selectedFile.value = file
+  analysis.value = null
+  confirmation.value = ''
+  message.value = ''
+
+  if (!file) {
+    return
+  }
+
+  analyzing.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('validate_only', 'true')
+    analysis.value = await apiClient.requestUpload<ImportResult>('/backup/import', formData)
+  } catch (error) {
+    message.value = error instanceof Error && error.message ? error.message : t('messages.operationFailed')
+  } finally {
+    analyzing.value = false
+  }
+}
+
+const handleImportData = async () => {
+  if (!selectedFile.value || confirmation.value !== IMPORT_CONFIRMATION) {
+    return
+  }
+
+  importing.value = true
+  message.value = ''
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+    formData.append('confirmation', confirmation.value)
+    formData.append('validate_only', 'false')
+
+    const result = await apiClient.requestUpload<ImportResult>('/backup/import', formData)
+    analysis.value = result
+    confirmation.value = ''
+    message.value = t('messages.dataImported', { rows: result.total_incoming_rows })
+
+    // Everything in memory belongs to the replaced dataset.
+    await refreshAll()
+  } catch (error) {
+    message.value = error instanceof Error && error.message ? error.message : t('messages.operationFailed')
+  } finally {
+    importing.value = false
   }
 }
 

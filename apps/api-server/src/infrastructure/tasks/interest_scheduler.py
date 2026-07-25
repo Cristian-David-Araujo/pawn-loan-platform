@@ -21,14 +21,14 @@ logger = logging.getLogger(__name__)
 INTEREST_CYCLE_LOCK_ID = 9021002
 
 
-def _try_acquire_cycle_lock(db: Session) -> bool:
+def try_acquire_cycle_lock(db: Session) -> bool:
     if db.get_bind().dialect.name != "postgresql":
         return True
 
     return bool(db.scalar(text("SELECT pg_try_advisory_lock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID}))
 
 
-def _release_cycle_lock(db: Session) -> None:
+def release_cycle_lock(db: Session) -> None:
     if db.get_bind().dialect.name != "postgresql":
         return
 
@@ -45,7 +45,7 @@ def run_interest_generation_cycle(
     db = db_session or SessionLocal()
     should_close_session = db_session is None
 
-    if not _try_acquire_cycle_lock(db):
+    if not try_acquire_cycle_lock(db):
         logger.info("Interest generation cycle skipped: another worker is already running it")
         if should_close_session:
             db.close()
@@ -99,7 +99,7 @@ def run_interest_generation_cycle(
         logger.exception("Automatic interest generation cycle failed")
         return 0
     finally:
-        _release_cycle_lock(db)
+        release_cycle_lock(db)
         if should_close_session:
             db.close()
 
