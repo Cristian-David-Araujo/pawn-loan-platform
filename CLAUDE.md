@@ -46,7 +46,7 @@ Monorepo: `apps/api-server` (FastAPI + SQLAlchemy 2.0, Python 3.12), `apps/web-c
 
 The tree contains clean-architecture placeholder packages (`src/application/`, `src/domain/entities/`, `src/domain/rules/`, `src/domain/value_objects/`, `src/api/v1/routes/`) that are **empty**. Real code is in:
 
-- `src/modules/<domain>/` — one package per domain (`authentication`, `customers`, `loans`, `collateral`, `payments`, `finance`, `reporting`, `settings`), each with `router.py` (routes + business logic inline) and `schemas.py` (Pydantic). Business logic mostly lives in the routers; the extracted service modules are all under `finance/`: [interest_generation.py](apps/api-server/src/modules/finance/interest_generation.py), [interest_balance.py](apps/api-server/src/modules/finance/interest_balance.py) and [loan_status.py](apps/api-server/src/modules/finance/loan_status.py).
+- `src/modules/<domain>/` — one package per domain (`authentication`, `customers`, `loans`, `collateral`, `payments`, `finance`, `reporting`, `settings`, `backup`), each with `router.py` (routes + business logic inline) and `schemas.py` (Pydantic). Business logic mostly lives in the routers; the extracted service modules are all under `finance/`: [interest_generation.py](apps/api-server/src/modules/finance/interest_generation.py), [interest_balance.py](apps/api-server/src/modules/finance/interest_balance.py) and [loan_status.py](apps/api-server/src/modules/finance/loan_status.py).
 - `src/infrastructure/persistence/models.py` — **all** SQLAlchemy models in one file.
 - `src/domain/enums/` — `LoanType`, `LoanStatus`, `UserRole` only.
 - `src/shared/dependencies/` — `get_db`, `get_current_user`, `require_roles(*roles)`.
@@ -75,6 +75,8 @@ Two-table payment record: `Payment` is the money received; `PaymentEvent` is the
 - **Foreclosure** (pawn loans only) sets `LoanStatus.defaulted` and flips `in_custody` collateral to `for_sale`.
 - Customers and loans with credit history cannot be deleted — 409 `"...related credit records"`; the frontend matches on that substring to show an archive-instead message.
 - Use `get_local_date(db)` / `get_local_datetime(db)` (reads `GlobalSettings.timezone`, default `America/Bogota`) for "today" — not `date.today()`.
+
+The full data export (`GET /backup/export`, admin only) discovers tables and columns from `Base.metadata.sorted_tables` rather than a hand-written list, so **a new model column is exported automatically**. Keep it that way — never hardcode field lists in [backup/service.py](apps/api-server/src/modules/backup/service.py), or backups start silently losing data. Live password-reset tokens are the only redacted fields.
 
 `Loan.interest_due`, `Loan.collaterals_count`, and the `CollateralItem.loan_*` properties issue queries via `object_session`, so they only work on session-attached instances and are N+1 by nature in list endpoints. When you need balances for many loans at once, call `pending_interest_for_loans` (fixed query count) instead of the per-row property.
 
