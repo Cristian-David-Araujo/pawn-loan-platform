@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable, Generator
 from datetime import date
 from typing import Any
@@ -5,7 +6,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -17,15 +18,33 @@ from src.infrastructure.security.password import get_password_hash
 from src.shared.dependencies.db import get_db
 
 
-@pytest.fixture
-def db_session() -> Generator[Session, None, None]:
-    engine = create_engine(
+def _create_test_engine():
+    """Postgres when TEST_DATABASE_URL is set (CI), in memory SQLite otherwise."""
+    test_database_url = os.getenv("TEST_DATABASE_URL")
+    if test_database_url:
+        return create_engine(test_database_url, future=True)
+
+    return create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
         future=True,
     )
+
+
+def _drop_everything(engine) -> None:
+    Base.metadata.drop_all(bind=engine)
+    # Not part of the metadata, so tests that stamp a revision would leak it to the next one.
+    with engine.begin() as connection:
+        connection.execute(text("DROP TABLE IF EXISTS alembic_version"))
+
+
+@pytest.fixture
+def db_session() -> Generator[Session, None, None]:
+    engine = _create_test_engine()
     TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+    # Leftovers from an interrupted run would break the schema creation below.
+    _drop_everything(engine)
     Base.metadata.create_all(bind=engine)
 
     session = TestingSessionLocal()
@@ -33,7 +52,8 @@ def db_session() -> Generator[Session, None, None]:
         yield session
     finally:
         session.close()
-        Base.metadata.drop_all(bind=engine)
+        _drop_everything(engine)
+        engine.dispose()
 
 
 @pytest.fixture

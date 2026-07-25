@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, Payment, User
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
+from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.modules.finance.schemas import InterestChargeRead, InterestGenerationRequest, LoanBalanceRead
-from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
@@ -52,6 +52,18 @@ def generate_interest(
         user=current_user,
         new_data=f"as_of_date={payload.as_of_date}",
     )
+
+    transitions = refresh_overdue_loan_statuses(db, payload.as_of_date)
+    if transitions:
+        db.commit()
+        write_audit(
+            db,
+            action="refresh_loan_statuses",
+            entity_type="Loan",
+            entity_id=f"count={len(transitions)}",
+            user=current_user,
+            new_data=f"as_of_date={payload.as_of_date},{describe_transitions(transitions)}",
+        )
 
     return generated
 

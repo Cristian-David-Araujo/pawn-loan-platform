@@ -1,5 +1,5 @@
 from calendar import monthrange
-from datetime import date, timedelta
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -8,6 +8,12 @@ from sqlalchemy.orm import Session
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date
+from src.modules.finance.interest_balance import (
+    charge_due_date,
+    pending_interest_for_customer,
+    pending_interest_items_for_customer,
+    sync_interest_charge_statuses,
+)
 from src.modules.payments.schemas import (
     InterestPaymentAllocation,
     InterestPaymentRequest,
@@ -25,15 +31,11 @@ from src.modules.payments.schemas import (
     PrincipalPaymentResponse,
 )
 from src.domain.enums.user import UserRole
-from src.shared.dependencies.auth import get_current_user, require_roles
+from src.shared.dependencies.auth import require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
 
 router = APIRouter(prefix="/payments", tags=["payments"])
-
-
-def _charge_due_date(period_end: date, grace_days: int) -> date:
-    return period_end + timedelta(days=max(0, grace_days))
 
 
 def _month_anchor(year: int, month: int, anchor_day: int) -> date:
@@ -59,109 +61,24 @@ def _next_interest_generation_date(as_of_date: date, disbursement_date: date) ->
     return _add_months(current_anchor, 1, anchor_day)
 
 
-def _compute_charge_pending(
-    db: Session,
-    charge: InterestCharge,
-    today: date,
-    late_penalty_rate: float,
-    grace_days: int,
-) -> dict[str, float | bool]:
-    events = list(db.scalars(select(PaymentEvent).where(PaymentEvent.interest_charge_id == charge.id)).all())
-    paid_interest = round(sum(item.allocated_to_interest for item in events), 2)
-    paid_penalty = round(sum(item.allocated_to_penalty for item in events), 2)
-
-    base_pending = round(max(0.0, charge.amount - paid_interest), 2)
-    due_date = _charge_due_date(charge.period_end, grace_days)
-    overdue = due_date < today
-    penalty_amount = round(base_pending * (late_penalty_rate / 100), 2) if overdue and base_pending > 0 else 0.0
-    pending_penalty = round(max(0.0, penalty_amount - paid_penalty), 2)
-    outstanding = round(base_pending + pending_penalty, 2)
-    return {
-        "base_pending": base_pending,
-        "pending_penalty": pending_penalty,
-        "penalty_amount": penalty_amount,
-        "overdue": overdue,
-        "outstanding": outstanding,
-    }
-
-
 def _pending_interest_items_for_customer(db: Session, customer_id: int, today: date) -> list[InterestPendingItem]:
-    loans = list(
-        db.scalars(select(Loan).where(Loan.customer_id == customer_id, Loan.status != LoanStatus.closed)).all()
-    )
-    if not loans:
-        return []
-
-    items: list[InterestPendingItem] = []
-    for loan in loans:
-        charges = list(
-            db.scalars(
-                select(InterestCharge)
-                .where(
-                    InterestCharge.loan_id == loan.id,
-                    InterestCharge.status.in_(["generated", "partially_paid"]),
-                )
-                .order_by(InterestCharge.period_end.asc(), InterestCharge.id.asc())
-            ).all()
+    """Adapt the canonical pending interest items to the API schema."""
+    return [
+        InterestPendingItem(
+            interest_charge_id=item.interest_charge_id,
+            loan_id=item.loan_id,
+            loan_type=item.loan_type,
+            disbursement_date=item.disbursement_date,
+            billing_period=item.billing_period,
+            due_date=item.due_date,
+            original_interest_amount=item.original_interest_amount,
+            remaining_pending_amount=item.pending_interest,
+            overdue=item.overdue,
+            penalty_amount=item.pending_penalty,
+            current_outstanding_balance=item.outstanding,
         )
-
-        advance_pool = round(
-            sum(
-                event.allocated_to_interest
-                for event in db.scalars(
-                    select(PaymentEvent).where(
-                        PaymentEvent.loan_id == loan.id,
-                        PaymentEvent.interest_charge_id.is_(None),
-                        PaymentEvent.payment_type == "interest_advance_payment",
-                    )
-                ).all()
-            ),
-            2,
-        )
-
-        for charge in charges:
-            charge_events = list(
-                db.scalars(select(PaymentEvent).where(PaymentEvent.interest_charge_id == charge.id)).all()
-            )
-
-            paid_interest = round(sum(item.allocated_to_interest for item in charge_events), 2)
-            paid_penalty = round(sum(item.allocated_to_penalty for item in charge_events), 2)
-
-            base_pending = round(max(0.0, charge.amount - paid_interest), 2)
-            if advance_pool > 0 and base_pending > 0:
-                advance_applied = round(min(advance_pool, base_pending), 2)
-                base_pending = round(base_pending - advance_applied, 2)
-                advance_pool = round(advance_pool - advance_applied, 2)
-
-            due_date = _charge_due_date(charge.period_end, loan.due_day)
-            overdue = due_date < today
-            penalty_amount = (
-                round(base_pending * (loan.late_penalty_rate / 100), 2)
-                if overdue and base_pending > 0
-                else 0.0
-            )
-            pending_penalty = round(max(0.0, penalty_amount - paid_penalty), 2)
-            outstanding = round(base_pending + pending_penalty, 2)
-            if outstanding <= 0:
-                continue
-
-            items.append(
-                InterestPendingItem(
-                    interest_charge_id=charge.id,
-                    loan_id=charge.loan_id,
-                    loan_type=loan.loan_type.value,
-                    disbursement_date=loan.disbursement_date,
-                    billing_period=charge.period_start.strftime("%Y-%m"),
-                    due_date=due_date,
-                    original_interest_amount=round(charge.amount, 2),
-                    remaining_pending_amount=round(base_pending, 2),
-                    overdue=overdue,
-                    penalty_amount=round(pending_penalty, 2),
-                    current_outstanding_balance=round(outstanding, 2),
-                )
-            )
-
-    return sorted(items, key=lambda item: (item.due_date, item.loan_id, item.interest_charge_id))
+        for item in pending_interest_items_for_customer(db, customer_id, today)
+    ]
 
 
 @router.get("/customers/{customer_id}/interest-pending", response_model=InterestPendingResponse)
@@ -171,11 +88,8 @@ def get_pending_interest(
     _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> InterestPendingResponse:
     today = get_local_date(db)
-    loans = list(
-        db.scalars(select(Loan).where(Loan.customer_id == customer_id, Loan.status != LoanStatus.closed)).all()
-    )
-    loan_ids = [loan.id for loan in loans]
-    if not loan_ids:
+    balances = pending_interest_for_customer(db, customer_id, today)
+    if not balances:
         return InterestPendingResponse(
             customer_id=customer_id,
             groups=[],
@@ -199,47 +113,8 @@ def get_pending_interest(
     total_pending_interest = round(sum(item.remaining_pending_amount for item in items), 2)
     total_pending_penalty = round(sum(item.penalty_amount for item in items), 2)
     total_outstanding = round(sum(item.current_outstanding_balance for item in items), 2)
-    total_available_advance = round(
-        sum(
-            event.allocated_to_interest
-            for event in db.scalars(
-                select(PaymentEvent).where(
-                    PaymentEvent.loan_id.in_(loan_ids),
-                    PaymentEvent.interest_charge_id.is_(None),
-                    PaymentEvent.payment_type == "interest_advance_payment",
-                )
-            ).all()
-        ),
-        2,
-    )
-
-    total_generated_interest = round(
-        sum(
-            charge.amount
-            for charge in db.scalars(
-                select(InterestCharge).where(
-                    InterestCharge.loan_id.in_(loan_ids),
-                )
-            ).all()
-        ),
-        2,
-    )
-
-    total_linked_interest_paid = round(
-        sum(
-            event.allocated_to_interest
-            for event in db.scalars(
-                select(PaymentEvent).where(
-                    PaymentEvent.loan_id.in_(loan_ids),
-                    PaymentEvent.interest_charge_id.is_not(None),
-                )
-            ).all()
-        ),
-        2,
-    )
-
-    consumed_advance = max(0.0, total_generated_interest - total_linked_interest_paid - total_pending_interest)
-    available_advance_balance = round(max(0.0, total_available_advance - consumed_advance), 2)
+    # Advance balance left after the pending periods above already consumed their part.
+    available_advance_balance = round(sum(balance.available_advance_balance for balance in balances), 2)
 
     return InterestPendingResponse(
         customer_id=customer_id,
@@ -402,9 +277,6 @@ def pay_interest(
         db.add(event)
         db.flush()
 
-        current_outstanding = round(item.current_outstanding_balance - allocated_total, 2)
-        charge.status = "paid" if current_outstanding <= 0 else "partially_paid"
-
         allocations.append(
             InterestPaymentAllocation(
                 payment_event_id=event.id,
@@ -468,6 +340,9 @@ def pay_interest(
     payment.allocated_to_principal = 0
     payment.allocated_to_fees = 0
 
+    for loan_id in {item.loan_id for item in allocations}:
+        sync_interest_charge_statuses(db, loan_id)
+
     db.commit()
 
     write_audit(
@@ -516,7 +391,7 @@ def principal_context(
                 loan_id=loan.id,
                 loan_type=loan.loan_type.value,
                 disbursement_date=loan.disbursement_date,
-                next_due_date=_charge_due_date(
+                next_due_date=charge_due_date(
                     _next_interest_generation_date(today, loan.disbursement_date),
                     loan.due_day,
                 ),
@@ -770,6 +645,9 @@ def update_payment(
         event.payment_date = payment.payment_date
         event.payment_method = payment.payment_method
 
+    db.flush()
+    sync_interest_charge_statuses(db, payment.loan_id)
+
     db.commit()
     db.refresh(payment)
 
@@ -809,10 +687,21 @@ def reverse_payment(
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked loan not found")
 
+    # Reversing the payment must also reverse its ledger rows, otherwise their
+    # allocations would keep cancelling interest that was returned to the customer.
+    linked_events = list(db.scalars(select(PaymentEvent).where(PaymentEvent.payment_id == payment.id)).all())
+    affected_loan_ids = {event.loan_id for event in linked_events} | {loan.id}
+    for event in linked_events:
+        event.is_reversed = True
+
     payment.is_reversed = True
-    loan.outstanding_principal += payment.allocated_to_principal
+    loan.outstanding_principal = round(loan.outstanding_principal + payment.allocated_to_principal, 2)
     if loan.status == LoanStatus.closed:
         loan.status = LoanStatus.active
+
+    db.flush()
+    for loan_id in affected_loan_ids:
+        sync_interest_charge_statuses(db, loan_id)
 
     db.commit()
     db.refresh(payment)
@@ -823,7 +712,7 @@ def reverse_payment(
         entity_type="Payment",
         entity_id=str(payment.id),
         user=current_user,
-        new_data="is_reversed=true",
+        new_data=f"is_reversed=true,reversed_events={len(linked_events)}",
     )
 
     return payment

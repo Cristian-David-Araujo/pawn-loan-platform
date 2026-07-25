@@ -1,0 +1,88 @@
+name: Quality Checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  api-server:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/api-server
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: pawn_loan_test
+          POSTGRES_USER: pawn_user
+          POSTGRES_PASSWORD: pawn_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: apps/api-server/pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tests
+        env:
+          # Production runs on PostgreSQL, so the suite must too.
+          TEST_DATABASE_URL: postgresql+psycopg://pawn_user:pawn_password@localhost:5432/pawn_loan_test
+          DATABASE_URL: postgresql+psycopg://pawn_user:pawn_password@localhost:5432/pawn_loan_test
+          JWT_SECRET_KEY: ci_secret_key_for_tests_only_min_32_chars
+        run: pytest -q
+
+  web-client:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/web-client
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: apps/web-client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck

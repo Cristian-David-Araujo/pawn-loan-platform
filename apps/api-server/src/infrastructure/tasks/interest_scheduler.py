@@ -2,7 +2,7 @@ import logging
 from datetime import date, timedelta
 from threading import Event, Thread
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
@@ -10,9 +10,32 @@ from src.infrastructure.persistence.database import SessionLocal
 from src.infrastructure.persistence.models import GlobalSettings, Loan
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
+from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.shared.utils.audit import write_audit
 
 logger = logging.getLogger(__name__)
+
+# The API runs with several uvicorn workers and each one starts its own scheduler.
+# Without this lock two workers can generate the same billing period concurrently and
+# charge the customer twice, since nothing at the database level rejects duplicates.
+INTEREST_CYCLE_LOCK_ID = 9021002
+
+
+def try_acquire_cycle_lock(db: Session) -> bool:
+    if db.get_bind().dialect.name != "postgresql":
+        return True
+
+    return bool(db.scalar(text("SELECT pg_try_advisory_lock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID}))
+
+
+def release_cycle_lock(db: Session) -> None:
+    if db.get_bind().dialect.name != "postgresql":
+        return
+
+    try:
+        db.execute(text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID})
+    except Exception:
+        logger.exception("Could not release the interest generation lock")
 
 
 def run_interest_generation_cycle(
@@ -21,6 +44,13 @@ def run_interest_generation_cycle(
 ) -> int:
     db = db_session or SessionLocal()
     should_close_session = db_session is None
+
+    if not try_acquire_cycle_lock(db):
+        logger.info("Interest generation cycle skipped: another worker is already running it")
+        if should_close_session:
+            db.close()
+        return 0
+
     try:
         settings = db.get(GlobalSettings, 1)
         lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
@@ -50,12 +80,26 @@ def run_interest_generation_cycle(
             new_data=f"as_of_date={reference_date}",
         )
 
+        # Newly generated charges can push loans past their grace period, so statuses
+        # are refreshed in the same cycle.
+        transitions = refresh_overdue_loan_statuses(db, reference_date)
+        if transitions:
+            db.commit()
+            write_audit(
+                db,
+                action="auto_refresh_loan_statuses",
+                entity_type="Loan",
+                entity_id=f"count={len(transitions)}",
+                new_data=f"as_of_date={reference_date},{describe_transitions(transitions)}",
+            )
+
         return len(generated)
     except Exception:
         db.rollback()
         logger.exception("Automatic interest generation cycle failed")
         return 0
     finally:
+        release_cycle_lock(db)
         if should_close_session:
             db.close()
 

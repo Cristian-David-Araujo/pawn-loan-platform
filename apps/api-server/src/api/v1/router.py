@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from src.modules.authentication.router import router as auth_router
+from src.modules.backup.router import router as backup_router
 from src.modules.collateral.router import router as collateral_router
 from src.modules.customers.router import router as customers_router
 from src.modules.finance.router import router as finance_router
@@ -18,3 +19,4 @@ api_router.include_router(payments_router)
 api_router.include_router(finance_router)
 api_router.include_router(reporting_router)
 api_router.include_router(settings_router)
+api_router.include_router(backup_router)

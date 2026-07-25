@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, select
@@ -18,7 +18,7 @@ from src.modules.loans.schemas import (
     RenewalRequest,
 )
 from src.domain.enums.user import UserRole
-from src.shared.dependencies.auth import get_current_user, require_roles
+from src.shared.dependencies.auth import require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
 
@@ -256,7 +256,7 @@ def delete_loan(
         entity_type="Loan",
         entity_id=str(loan_id),
         user=current_user,
-        old_data=f"loan_deleted_with_no_traceability=true",
+        old_data="loan_deleted_with_no_traceability=true",
     )
 
 
