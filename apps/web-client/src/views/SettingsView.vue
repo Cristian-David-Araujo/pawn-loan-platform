@@ -17,6 +17,16 @@
       </button>
     </article>
 
+    <article class="card mt-16">
+      <h3>{{ t('settings.exportDataTitle') }}</h3>
+      <p class="muted">{{ t('settings.exportDataHint') }}</p>
+      <p class="muted mt-8">{{ t('settings.exportDataWarning') }}</p>
+      <button class="btn btn-secondary mt-16" type="button" :disabled="exporting" @click="handleExportData">
+        <Download :size="16" />
+        {{ exporting ? t('settings.exportDataInProgress') : t('settings.exportData') }}
+      </button>
+    </article>
+
     <form class="form mt-16" @submit.prevent="handleSaveSettings">
       <div class="card mb-16">
         <h3>{{ t('settings.companyInfoTitle') }}</h3>
@@ -137,13 +147,15 @@
 import CustomSelect from '../components/CustomSelect.vue'
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Save, Settings, Sparkles } from 'lucide-vue-next'
+import { Download, Save, Settings, Sparkles } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
+import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 
 const { state, ensureInitialized, updateGlobalSettings } = usePlatformStore()
 const { t } = useI18n()
 const message = ref('')
+const exporting = ref(false)
 
 const currencyOptions = [
   { value: 'COP', label: 'COP' },
@@ -201,6 +213,30 @@ const handleSaveSettings = async () => {
     message.value = t(result.messageKey)
   } catch {
     message.value = t('messages.operationFailed')
+  }
+}
+
+const handleExportData = async () => {
+  exporting.value = true
+  message.value = ''
+  try {
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')
+    const { blob, filename } = await apiClient.requestFile('/backup/export', `export-${timestamp}.zip`)
+
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+
+    message.value = t('messages.dataExported')
+  } catch {
+    message.value = t('messages.operationFailed')
+  } finally {
+    exporting.value = false
   }
 }
 

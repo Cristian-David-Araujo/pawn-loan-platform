@@ -27,6 +27,8 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Needed so the browser can read the download filename of an export.
+    expose_headers=["Content-Disposition", "X-Export-Rows"],
 )
 
 

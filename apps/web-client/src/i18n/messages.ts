@@ -434,7 +434,12 @@ export const messages = {
       saveSettings: 'Save settings',
       colombiaPresetTitle: 'Recommended preset for Colombia',
       colombiaPresetHint: 'Applies COP, America/Bogota and DD/MM/YYYY as baseline configuration.',
-      applyColombiaPreset: 'Apply Colombia preset'
+      applyColombiaPreset: 'Apply Colombia preset',
+      exportDataTitle: 'Export all data',
+      exportDataHint: 'Downloads a ZIP file with your complete information: configuration, customers, loans, collateral, interest, payments and audit trail. Includes JSON files for a full restore and CSV files ready for Excel.',
+      exportDataWarning: 'The file contains all your business information. Store it in a safe place.',
+      exportData: 'Download export',
+      exportDataInProgress: 'Preparing export...'
     },
     reporting: {
       title: 'Reporting',
@@ -530,6 +535,7 @@ export const messages = {
       invalidDateFormat: 'Invalid date format. Use the configured global format.',
       sessionExpired: 'Your session expired. Please sign in again.',
       operationFailed: 'Operation failed. Please try again.',
+      dataExported: 'Export downloaded successfully.',
       unknownCustomer: 'Unknown customer'
     }
   },
@@ -967,7 +973,12 @@ export const messages = {
       saveSettings: 'Guardar configuraciones',
       colombiaPresetTitle: 'Preset recomendado para Colombia',
       colombiaPresetHint: 'Aplica COP, America/Bogota y DD/MM/YYYY como configuracion base.',
-      applyColombiaPreset: 'Aplicar preset Colombia'
+      applyColombiaPreset: 'Aplicar preset Colombia',
+      exportDataTitle: 'Exportar todos los datos',
+      exportDataHint: 'Descarga un archivo ZIP con toda tu informacion: configuracion, clientes, prestamos, garantias, intereses, pagos y auditoria. Incluye archivos JSON para restaurar todo y archivos CSV listos para Excel.',
+      exportDataWarning: 'El archivo contiene toda la informacion de tu negocio. Guardalo en un lugar seguro.',
+      exportData: 'Descargar exportacion',
+      exportDataInProgress: 'Preparando exportacion...'
     },
     reporting: {
       title: 'Reportes',
@@ -1063,6 +1074,7 @@ export const messages = {
       invalidDateFormat: 'Formato de fecha invalido. Usa el formato global configurado.',
       sessionExpired: 'Tu sesion expiro. Inicia sesion nuevamente.',
       operationFailed: 'La operacion fallo. Intentalo nuevamente.',
+      dataExported: 'Exportacion descargada correctamente.',
       unknownCustomer: 'Cliente desconocido'
     }
   }
