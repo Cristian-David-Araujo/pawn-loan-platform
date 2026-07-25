@@ -1,6 +1,5 @@
 import random
-from datetime import date, timedelta
-from typing import List
+from datetime import timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session

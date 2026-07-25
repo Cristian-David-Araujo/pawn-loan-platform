@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import CollateralItem, Loan, Payment, User
 from src.domain.enums.user import UserRole
-from src.shared.dependencies.auth import get_current_user, require_roles
+from src.shared.dependencies.auth import require_roles
 from src.shared.dependencies.db import get_db
 
 router = APIRouter(prefix="/reports", tags=["reporting"])

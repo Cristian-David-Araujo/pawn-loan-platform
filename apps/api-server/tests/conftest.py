@@ -1,3 +1,4 @@
+import os
 from collections.abc import Callable, Generator
 from datetime import date
 from typing import Any
@@ -17,15 +18,26 @@ from src.infrastructure.security.password import get_password_hash
 from src.shared.dependencies.db import get_db
 
 
-@pytest.fixture
-def db_session() -> Generator[Session, None, None]:
-    engine = create_engine(
+def _create_test_engine():
+    """Postgres when TEST_DATABASE_URL is set (CI), in memory SQLite otherwise."""
+    test_database_url = os.getenv("TEST_DATABASE_URL")
+    if test_database_url:
+        return create_engine(test_database_url, future=True)
+
+    return create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
         future=True,
     )
+
+
+@pytest.fixture
+def db_session() -> Generator[Session, None, None]:
+    engine = _create_test_engine()
     TestingSessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+    # Leftovers from an interrupted run would break the schema creation below.
+    Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
 
     session = TestingSessionLocal()
@@ -34,6 +46,7 @@ def db_session() -> Generator[Session, None, None]:
     finally:
         session.close()
         Base.metadata.drop_all(bind=engine)
+        engine.dispose()
 
 
 @pytest.fixture

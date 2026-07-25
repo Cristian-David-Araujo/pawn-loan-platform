@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from src.infrastructure.persistence.models import GlobalSettings, User
 from src.modules.settings.schemas import GlobalSettingsRead, GlobalSettingsUpdate
 from src.domain.enums.user import UserRole
-from src.shared.dependencies.auth import get_current_user, require_roles
+from src.shared.dependencies.auth import require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
 
