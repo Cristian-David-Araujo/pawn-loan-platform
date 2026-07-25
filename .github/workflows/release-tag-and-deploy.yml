@@ -111,8 +111,11 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/web-client:${{ steps.version.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/web-client:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Separate scope per image: a shared scope makes each build overwrite the other's
+          # cache. ignore-error keeps a full or unavailable cache from failing the release,
+          # since the image itself is already pushed by the time the cache is exported.
+          cache-from: type=gha,scope=web-client
+          cache-to: type=gha,mode=max,scope=web-client,ignore-error=true
 
       - name: Build and push api-server image
         uses: docker/build-push-action@v6
@@ -123,8 +126,8 @@ jobs:
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/api-server:${{ steps.version.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/api-server:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=api-server
+          cache-to: type=gha,mode=max,scope=api-server,ignore-error=true
 
       # ─── SSH deploy: pull pre-built images on the droplet ────────────────────
 
