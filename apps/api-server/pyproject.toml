@@ -36,3 +36,5 @@ include = ["src*"]
 
 [tool.ruff]
 line-length = 100
+# Generated migration scripts are not hand maintained.
+extend-exclude = ["alembic/versions"]

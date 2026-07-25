@@ -156,3 +156,4 @@ class PaymentEventRead(BaseModel):
     operator_user_id: int | None
     payment_method: str
     notes: str
+    is_reversed: bool
