@@ -2,7 +2,7 @@ import logging
 from datetime import date, timedelta
 from threading import Event, Thread
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
@@ -15,6 +15,28 @@ from src.shared.utils.audit import write_audit
 
 logger = logging.getLogger(__name__)
 
+# The API runs with several uvicorn workers and each one starts its own scheduler.
+# Without this lock two workers can generate the same billing period concurrently and
+# charge the customer twice, since nothing at the database level rejects duplicates.
+INTEREST_CYCLE_LOCK_ID = 9021002
+
+
+def _try_acquire_cycle_lock(db: Session) -> bool:
+    if db.get_bind().dialect.name != "postgresql":
+        return True
+
+    return bool(db.scalar(text("SELECT pg_try_advisory_lock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID}))
+
+
+def _release_cycle_lock(db: Session) -> None:
+    if db.get_bind().dialect.name != "postgresql":
+        return
+
+    try:
+        db.execute(text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID})
+    except Exception:
+        logger.exception("Could not release the interest generation lock")
+
 
 def run_interest_generation_cycle(
     as_of_date: date | None = None,
@@ -22,6 +44,13 @@ def run_interest_generation_cycle(
 ) -> int:
     db = db_session or SessionLocal()
     should_close_session = db_session is None
+
+    if not _try_acquire_cycle_lock(db):
+        logger.info("Interest generation cycle skipped: another worker is already running it")
+        if should_close_session:
+            db.close()
+        return 0
+
     try:
         settings = db.get(GlobalSettings, 1)
         lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
@@ -70,6 +99,7 @@ def run_interest_generation_cycle(
         logger.exception("Automatic interest generation cycle failed")
         return 0
     finally:
+        _release_cycle_lock(db)
         if should_close_session:
             db.close()
 
