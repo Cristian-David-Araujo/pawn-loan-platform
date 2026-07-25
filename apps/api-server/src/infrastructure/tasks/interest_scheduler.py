@@ -10,6 +10,7 @@ from src.infrastructure.persistence.database import SessionLocal
 from src.infrastructure.persistence.models import GlobalSettings, Loan
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
+from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.shared.utils.audit import write_audit
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,19 @@ def run_interest_generation_cycle(
             entity_id=f"count={len(generated)}",
             new_data=f"as_of_date={reference_date}",
         )
+
+        # Newly generated charges can push loans past their grace period, so statuses
+        # are refreshed in the same cycle.
+        transitions = refresh_overdue_loan_statuses(db, reference_date)
+        if transitions:
+            db.commit()
+            write_audit(
+                db,
+                action="auto_refresh_loan_statuses",
+                entity_type="Loan",
+                entity_id=f"count={len(transitions)}",
+                new_data=f"as_of_date={reference_date},{describe_transitions(transitions)}",
+            )
 
         return len(generated)
     except Exception:
