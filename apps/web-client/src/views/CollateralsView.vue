@@ -47,6 +47,7 @@
               <th width="110" class="text-right">{{ t('loans.outstanding') }}</th>
               <th width="110" class="text-right">{{ t('common.interest', 'Interés') }}</th>
               <th width="120">{{ t('common.status') }}</th>
+              <th width="90" class="text-center">{{ t('common.actions') }}</th>
             </tr>
             <tr v-else>
               <th width="60">{{ t('common.id') }}</th>
@@ -98,6 +99,18 @@
                     {{ getStatusLabel(item.status) }}
                   </span>
                 </td>
+                <td class="text-center">
+                  <button
+                    v-if="canHandBack(item)"
+                    class="btn btn-secondary btn-icon"
+                    type="button"
+                    :title="t('collaterals.handBackItem')"
+                    :aria-label="t('collaterals.handBackItem')"
+                    @click="handBackItem(item)"
+                  >
+                    <PackageCheck :size="16" />
+                  </button>
+                </td>
               </template>
 
               <!-- Tab Inventory Columns -->
@@ -144,11 +157,13 @@
               </template>
 
             </tr>
-            <tr v-if="!filteredItems.length">
-              <td :colspan="activeTab === 'custody' ? 6 : 9" class="text-center muted">{{ t('collaterals.noItems') }}</td>
-            </tr>
+
           </tbody>
         </table>
+        <div class="empty-state" v-if="!filteredItems.length">
+          <div class="empty-state-icon"><Shield :size="22" /></div>
+          <p>{{ t('collaterals.noItems') }}</p>
+        </div>
         <Pagination v-model="currentPage" :totalItems="filteredItems.length" :itemsPerPage="itemsPerPage" />
       </div>
     </div>
@@ -202,10 +217,12 @@ import { usePlatformStore } from '../stores/platformStore'
 import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
-import { Shield, DollarSign, X, AlertTriangle } from 'lucide-vue-next'
+import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { Shield, DollarSign, X, AlertTriangle, PackageCheck } from 'lucide-vue-next'
 
 const { t, locale } = useI18n()
 const store = usePlatformStore()
+const { confirm } = useConfirmDialog()
 
 const items = ref<any[]>([])
 const loading = ref(true)
@@ -336,6 +353,43 @@ const paginatedItems = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage
   return filteredItems.value.slice(start, start + itemsPerPage)
 })
+
+/**
+ * A pledge can only go back once its loan owes nothing — the same rule the API enforces.
+ * Checked here too so the button simply does not appear rather than failing on click.
+ */
+const canHandBack = (item: any) => {
+  if (item.status !== 'in_custody') return false
+  const outstanding = item.loan_outstanding ?? item.loanOutstanding ?? 0
+  const interestDue = item.loan_interest_due ?? item.loanInterestDue ?? 0
+  return outstanding <= 0 && interestDue <= 0
+}
+
+/**
+ * Releases exactly the pledge on this row. It used to release every pledge of the loan
+ * while naming only the clicked one, so an operator handing back one item could empty the
+ * whole custody record for that loan without being told.
+ */
+const handBackItem = async (item: any) => {
+  const confirmed = await confirm(
+    t('collaterals.confirmHandbackItem', {
+      code: item.custody_code ?? item.custodyCode,
+      description: item.description,
+      value: formatCurrency(item.appraised_value ?? item.appraisedValue ?? 0)
+    })
+  )
+  if (!confirmed) return
+
+  try {
+    isSubmitting.value = true
+    await store.releaseCollateralItem(item.id)
+    await loadItems()
+  } catch (err: any) {
+    alert(err.message || t('collaterals.handbackFailed'))
+  } finally {
+    isSubmitting.value = false
+  }
+}
 
 const openSellModal = (item: any) => {
   selectedItem.value = item

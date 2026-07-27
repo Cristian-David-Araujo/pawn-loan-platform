@@ -5,7 +5,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import CollateralItem, GlobalSettings, InterestCharge, Loan, LoanApplication, Payment, PaymentEvent, User
+from src.infrastructure.persistence.models import AuditLog, CollateralItem, GlobalSettings, InterestCharge, Loan, LoanApplication, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan, recalculate_interest_charges_for_loan
 from src.modules.loans.schemas import (
@@ -238,26 +238,83 @@ def delete_loan(
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
 
-    has_payment = db.scalar(select(Payment.id).where(Payment.loan_id == loan_id).limit(1)) is not None
-    has_payment_events = db.scalar(select(PaymentEvent.id).where(PaymentEvent.loan_id == loan_id).limit(1)) is not None
-    has_renewals = db.scalar(select(Loan.id).where(Loan.renewal_of == loan_id).limit(1)) is not None
+    # Reversed money is undone money. A loan whose every payment was reversed never really
+    # collected anything, so a mistake — wrong customer, wrong loan, paid off by accident —
+    # can be undone completely. Live rows are what make a loan permanent.
+    live_payment = db.scalar(
+        select(Payment.id).where(Payment.loan_id == loan_id, Payment.is_reversed.is_(False)).limit(1)
+    )
+    live_event = db.scalar(
+        select(PaymentEvent.id)
+        .where(PaymentEvent.loan_id == loan_id, PaymentEvent.is_reversed.is_(False))
+        .limit(1)
+    )
+    if live_payment is not None or live_event is not None:
+        # 409 to match the customer endpoint: the request is well formed, the resource state
+        # is what forbids it.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Loan has live payment records. Reverse them first to delete the loan.",
+        )
 
-    if has_payment or has_payment_events or has_renewals:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot delete loan with related credit records")
+    if db.scalar(select(Loan.id).where(Loan.renewal_of == loan_id).limit(1)) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Loan was renewed into another loan and cannot be deleted.",
+        )
 
+    payments = list(db.scalars(select(Payment).where(Payment.loan_id == loan_id)).all())
+    events = list(db.scalars(select(PaymentEvent).where(PaymentEvent.loan_id == loan_id)).all())
+    payment_ids = {item.id for item in payments}
+
+    # One payment can spread across several loans, so a ledger row on this loan may belong to
+    # a payment recorded against a different one. Deleting it would leave that payment
+    # describing money it no longer accounts for.
+    if any(event.payment_id is not None and event.payment_id not in payment_ids for event in events):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A payment on this loan also covers other loans and cannot be unwound here.",
+        )
+
+    # Deleting takes the collateral, the accruals and the reversed payments with it, so the
+    # audit row has to carry a full snapshot — it is the only surviving record of what
+    # existed. This used to write the literal string
+    # "loan_deleted_with_no_traceability=true" and nothing else.
+    collaterals = list(db.scalars(select(CollateralItem).where(CollateralItem.loan_id == loan_id)).all())
+    charges = list(db.scalars(select(InterestCharge).where(InterestCharge.loan_id == loan_id)).all())
+    snapshot = (
+        f"customer={loan.customer_id},type={loan.loan_type.value},status={loan.status.value},"
+        f"principal={loan.principal_amount},outstanding={loan.outstanding_principal},"
+        f"rate={loan.monthly_interest_rate},penalty_rate={loan.late_penalty_rate},"
+        f"disbursed={loan.disbursement_date},due_day={loan.due_day},"
+        f"collaterals=[{'; '.join(f'{item.custody_code}:{item.description}:{item.appraised_value}:{item.status}' for item in collaterals)}],"
+        f"interest_charges=[{'; '.join(f'{item.period_start}..{item.period_end}:{item.amount}' for item in charges)}],"
+        f"reversed_payments=[{'; '.join(f'{item.id}:{item.payment_date}:{item.total_amount}:{item.payment_method}:{item.reversal_reason}' for item in payments)}]"
+    )
+
+    # Children before parents: events reference both payments and interest charges.
+    db.execute(delete(PaymentEvent).where(PaymentEvent.loan_id == loan_id))
+    db.execute(delete(Payment).where(Payment.loan_id == loan_id))
     db.execute(delete(CollateralItem).where(CollateralItem.loan_id == loan_id))
     db.execute(delete(InterestCharge).where(InterestCharge.loan_id == loan_id))
     db.delete(loan)
-    db.commit()
 
-    write_audit(
-        db,
-        action="delete_loan",
-        entity_type="Loan",
-        entity_id=str(loan_id),
-        user=current_user,
-        old_data="loan_deleted_with_no_traceability=true",
+    # Same transaction as the delete: an audit row that can be lost while the delete
+    # survives is worse than no audit at all, because it reads as "this never existed".
+    db.add(
+        AuditLog(
+            user_id=current_user.id,
+            action="delete_loan",
+            entity_type="Loan",
+            entity_id=str(loan_id),
+            old_data=snapshot,
+            new_data=(
+                f"deleted_collaterals={len(collaterals)},deleted_interest_charges={len(charges)},"
+                f"deleted_reversed_payments={len(payments)},deleted_ledger_rows={len(events)}"
+            ),
+        )
     )
+    db.commit()
 
 
 @router.post("/loans/{loan_id}/renew", response_model=LoanRead, status_code=status.HTTP_201_CREATED)

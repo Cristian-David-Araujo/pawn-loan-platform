@@ -2,12 +2,12 @@ from calendar import monthrange
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent, User
-from src.infrastructure.utils.datetime_utils import get_local_date
+from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.finance.interest_balance import (
     charge_due_date,
     pending_interest_for_customer,
@@ -26,6 +26,7 @@ from src.modules.payments.schemas import (
     PaymentCreate,
     PaymentEventRead,
     PaymentRead,
+    PaymentReversalRequest,
     PaymentUpdate,
     PrincipalContextResponse,
     PrincipalLoanContext,
@@ -372,9 +373,6 @@ def principal_context(
     db: Session = Depends(get_db),
     _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> PrincipalContextResponse:
-    loans = list(
-        db.scalars(select(Loan).where(Loan.customer_id == customer_id, Loan.status != LoanStatus.closed)).all()
-    )
     items: list[PrincipalLoanContext] = []
     today = get_local_date(db)
 
@@ -382,6 +380,19 @@ def principal_context(
     pending_by_loan: dict[int, list[InterestPendingItem]] = {}
     for pending in pending_items:
         pending_by_loan.setdefault(pending.loan_id, []).append(pending)
+
+    # Open loans, plus any closed loan that still owes interest — a loan closed with
+    # `allow_with_unpaid_interest` sits at zero principal with live charges, and leaving it
+    # out made printed balances report zero interest on a debt that still exists. Such a
+    # loan carries no outstanding principal, so it can never become a payment target.
+    loans = list(
+        db.scalars(
+            select(Loan).where(
+                Loan.customer_id == customer_id,
+                or_(Loan.status != LoanStatus.closed, Loan.id.in_(pending_by_loan.keys() or [-1])),
+            )
+        ).all()
+    )
 
     for loan in loans:
         pending_loan = pending_by_loan.get(loan.id, [])
@@ -778,9 +789,17 @@ def update_payment(
 @router.post("/{payment_id}/reverse", response_model=PaymentRead)
 def reverse_payment(
     payment_id: int,
+    payload: PaymentReversalRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Payment:
+    """Remove a payment's effect while keeping the record.
+
+    This is the only way a payment is ever taken out of the books — the rows are never
+    deleted, because the ledger is what proves what was collected and returned. The reason,
+    the operator and the timestamp are stored on the payment so the removal is answerable
+    without digging through audit rows the application never displays.
+    """
     payment = db.get(Payment, payment_id)
     if payment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
@@ -794,14 +813,40 @@ def reverse_payment(
     # Reversing the payment must also reverse its ledger rows, otherwise their
     # allocations would keep cancelling interest that was returned to the customer.
     linked_events = list(db.scalars(select(PaymentEvent).where(PaymentEvent.payment_id == payment.id)).all())
-    affected_loan_ids = {event.loan_id for event in linked_events} | {loan.id}
+
+    # Principal goes back per ledger row. One payment can pay down several loans, so adding
+    # `payment.allocated_to_principal` to `payment.loan_id` alone would over-credit that loan
+    # and leave every other one short by what it had received.
+    restored_by_loan: dict[int, float] = {}
     for event in linked_events:
         event.is_reversed = True
+        if event.allocated_to_principal:
+            restored_by_loan[event.loan_id] = round(
+                restored_by_loan.get(event.loan_id, 0.0) + event.allocated_to_principal, 2
+            )
+
+    # Payments written through the plain POST /payments path have no ledger rows, so fall
+    # back to the flat allocation against the payment's own loan.
+    if not linked_events and payment.allocated_to_principal:
+        restored_by_loan[payment.loan_id] = round(payment.allocated_to_principal, 2)
+
+    affected_loan_ids = {event.loan_id for event in linked_events} | {loan.id} | set(restored_by_loan)
+    loans = {item.id: item for item in db.scalars(select(Loan).where(Loan.id.in_(affected_loan_ids))).all()}
+
+    for loan_id, amount in restored_by_loan.items():
+        target = loans.get(loan_id)
+        if target is None:
+            continue
+        target.outstanding_principal = round(target.outstanding_principal + amount, 2)
+        # Reopen only what this reversal put back into debt; a loan closed by some other
+        # payment has no business being reopened here.
+        if target.status == LoanStatus.closed and target.outstanding_principal > 0:
+            target.status = LoanStatus.active
 
     payment.is_reversed = True
-    loan.outstanding_principal = round(loan.outstanding_principal + payment.allocated_to_principal, 2)
-    if loan.status == LoanStatus.closed:
-        loan.status = LoanStatus.active
+    payment.reversed_at = get_local_datetime(db)
+    payment.reversed_by = current_user.id
+    payment.reversal_reason = payload.reason.strip()
 
     db.flush()
     for loan_id in affected_loan_ids:
@@ -816,7 +861,15 @@ def reverse_payment(
         entity_type="Payment",
         entity_id=str(payment.id),
         user=current_user,
-        new_data=f"is_reversed=true,reversed_events={len(linked_events)}",
+        old_data=(
+            f"total={payment.total_amount},principal={payment.allocated_to_principal},"
+            f"interest={payment.allocated_to_interest},penalty={payment.allocated_to_penalty},"
+            f"date={payment.payment_date},method={payment.payment_method}"
+        ),
+        new_data=(
+            f"is_reversed=true,reversed_events={len(linked_events)},"
+            f"principal_restored={restored_by_loan},reason={payment.reversal_reason}"
+        ),
     )
 
     return payment

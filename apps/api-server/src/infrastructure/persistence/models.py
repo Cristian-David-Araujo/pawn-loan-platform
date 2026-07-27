@@ -200,8 +200,14 @@ class Payment(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
     received_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     is_reversed: Mapped[bool] = mapped_column(default=False)
+    # Reversal is how a payment gets "deleted", so who/when/why lives on the row itself
+    # rather than only in the audit log, which has no read path in the application.
+    reversed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reversed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    reversal_reason: Mapped[str] = mapped_column(Text, default="")
 
     receiver: Mapped["User"] = relationship("User", foreign_keys=[received_by], lazy="selectin")
+    reverser: Mapped["User"] = relationship("User", foreign_keys=[reversed_by], lazy="selectin")
 
 
 class PaymentEvent(Base):

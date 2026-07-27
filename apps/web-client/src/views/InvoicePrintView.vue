@@ -28,9 +28,22 @@
         </div>
       </div>
 
-      <!-- A reversed payment must never read as a valid receipt. -->
+      <!-- A reversed payment must never read as a valid receipt, and a reprint has to
+           carry the grounds on which it was removed. -->
       <div class="reversed-notice" v-if="isPayment && payment?.isReversed">
         {{ t('common.reversedFlag') }} — {{ t('common.paymentReversedNotice') }}
+        <span v-if="payment.reversalReason">
+          <br />{{ t('common.reversalReasonLabel') }}: {{ payment.reversalReason }}
+        </span>
+        <span v-if="payment.reversedAt || payment.reverser">
+          <br />
+          <template v-if="payment.reversedAt">
+            {{ formatDateDMY(payment.reversedAt.split('T')[0]) }}
+          </template>
+          <template v-if="payment.reverser">
+            · {{ payment.reverser.full_name || payment.reverser.username }}
+          </template>
+        </span>
       </div>
 
       <!-- Customer info -->
@@ -507,6 +520,40 @@
         </div>
       </div>
 
+      <!-- What became of the collateral, so a settled pawn loan leaves a delivery record. -->
+      <div class="doc-section" v-if="isPayment && receiptCollateral.length">
+        <h3 class="section-title">
+          {{ receiptCustodyHandedBack ? t('common.custodyHandedBackTitle') : t('common.collateralSectionTitle') }}
+        </h3>
+        <table class="print-table compact-table">
+          <thead>
+            <tr>
+              <th>{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.description') }}</th>
+              <th class="text-right">{{ t('collateral.appraisedValue') }}</th>
+              <th>{{ t('common.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in receiptCollateral" :key="item.id">
+              <td>{{ item.custodyCode }}</td>
+              <td>{{ item.description }}</td>
+              <td class="text-right">{{ formatCurrency(item.appraisedValue) }}</td>
+              <td>
+                <span class="status-badge" :class="collateralStatusClass(item.status)">
+                  {{ collateralStatusLabel(item.status) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <template v-if="receiptCustodyHandedBack">
+          <p class="muted">{{ t('common.custodyHandedBackNote') }}</p>
+          <div class="signature-line">{{ t('common.customerSignature') }}</div>
+        </template>
+      </div>
+
       <div class="invoice-footer">
         <p>{{ t('common.thanksNote') }}</p>
         <p class="muted">{{ t('common.generatedBy', { app: appDisplayName }) }}</p>
@@ -761,9 +808,11 @@ const coveredLoanLabels = computed(() => coveredLoanIds.value.map(loanLabel).joi
  * only the ones this payment touched. Listing just the touched loans read as if those
  * were the customer's whole debt; a receipt for one loan hid the other four.
  *
- * Loans already closed before this payment are left out (they owe nothing and would grow
- * the receipt forever), but a loan this payment settled stays visible at zero so the
- * customer can see the one they just paid off.
+ * Closed loans are left out only when they are genuinely settled — they owe nothing and
+ * would grow the receipt forever. A closed loan that still appears in the statement is one
+ * that owes interest (paying principal with `allow_with_unpaid_interest` closes it at zero
+ * principal while charges are live), and it has to stay on the list. So does a loan this
+ * payment settled, at zero, so the customer sees the one they just paid off.
  *
  * Per-loan on purpose: the figures used to pair one loan's principal with the customer's
  * *whole* pending interest, which overstated the debt on anyone holding several loans.
@@ -775,12 +824,15 @@ const receiptLoanBalances = computed(() => {
   const touched = new Set(coveredLoanIds.value)
   return state.loans
     .filter((item) => item.customerId === current.id)
-    .filter((item) => item.status !== 'closed' || touched.has(item.id))
+    .filter(
+      (item) =>
+        item.status !== 'closed' || touched.has(item.id) || statementFor(item.id) !== null
+    )
     .slice()
     .sort((a, b) => a.id - b.id)
     .map((item) => {
-      // A settled loan drops out of the statement endpoint, so fall back to the stored
-      // principal — it owes no interest either way.
+      // Only a fully settled loan is absent from the statement, and that one owes nothing —
+      // so falling back to the stored principal with zero interest is correct there.
       const statement = statementFor(item.id)
       const principal = statement?.outstanding_principal ?? item.outstandingPrincipal
       return {
@@ -794,6 +846,27 @@ const receiptLoanBalances = computed(() => {
       }
     })
 })
+
+/**
+ * Pledges of the loans this payment touched, so the receipt records what happened to the
+ * collateral — a customer settling a pawn loan is handed goods, not just a balance.
+ *
+ * These are current custody states, which is exactly right for a receipt printed at the
+ * counter. A reprint months later shows today's state, so the section is titled as a
+ * hand-back record only while something is actually released.
+ */
+const receiptCollateral = computed(() => {
+  if (!isPayment.value) return []
+  const covered = new Set(coveredLoanIds.value)
+  return state.collateralItems
+    .filter((item) => covered.has(item.loanId))
+    .slice()
+    .sort((a, b) => a.custodyCode.localeCompare(b.custodyCode))
+})
+
+const receiptCustodyHandedBack = computed(() =>
+  receiptCollateral.value.some((item) => item.status === 'released')
+)
 
 // Drives the "settled in full" notice, so it must weigh every loan still on the list.
 const allReceiptLoansSettled = computed(
@@ -1192,6 +1265,16 @@ onMounted(async () => {
   color: var(--muted);
 }
 
+/* Signing line for a collateral hand-back; the receipt doubles as the delivery record. */
+.signature-line {
+  margin-top: 52px;
+  padding-top: 6px;
+  max-width: 280px;
+  border-top: 1px solid var(--text);
+  font-size: 0.86em;
+  color: var(--muted);
+}
+
 /* Marks the loans this payment touched inside the customer's full list. */
 .paid-now {
   display: inline-block;
@@ -1396,6 +1479,7 @@ onMounted(async () => {
 
   .balances-table,
   .info-grid,
+  .signature-line,
   .closed-notice,
   .reversed-notice,
   .note,

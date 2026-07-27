@@ -599,3 +599,168 @@ def test_principal_payment_needs_a_target(
         json={"customer_id": customer["id"], "total_amount": 100, "allow_with_unpaid_interest": True},
     )
     assert response.status_code == 400
+
+
+def test_interest_survives_a_loan_closed_with_unpaid_interest(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+    db_session: Session,
+) -> None:
+    """Paying off principal with `allow_with_unpaid_interest` must not erase the interest.
+
+    `pay_principal` closes the loan the moment principal hits zero. When the interest reads
+    dropped every closed loan, the leftover charges disappeared from the collection screens
+    and from the printed balances: the receipt said "settled in full, nothing pending" on a
+    loan that still owed, and no screen could ever collect it.
+    """
+    loan = create_loan(principal=500)
+    _create_interest_charge(db_session, loan["id"], amount=120)
+
+    loan_db = db_session.get(Loan, loan["id"])
+    assert loan_db is not None
+    customer_id = loan_db.customer_id
+
+    settled = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "loan_id": loan["id"],
+            "total_amount": 500,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
+        },
+    )
+    assert settled.status_code == 200
+    assert settled.json()["loan_status"] == LoanStatus.closed.value
+
+    # Still collectable: the periods remain on the interest screen.
+    pending = client.get(f"/api/v1/payments/customers/{customer_id}/interest-pending", headers=auth_headers)
+    assert pending.status_code == 200
+    assert pending.json()["total_pending_interest"] == 120
+
+    # Still printable: the receipt reads these figures, and zero principal must not imply
+    # zero debt.
+    context = client.get(f"/api/v1/payments/customers/{customer_id}/principal-context", headers=auth_headers)
+    assert context.status_code == 200
+    entry = next(item for item in context.json()["items"] if item["loan_id"] == loan["id"])
+    assert entry["outstanding_principal"] == 0
+    assert entry["accrued_unpaid_interest"] == 120
+    assert entry["total_payoff_amount"] == 120
+
+    # And payable: the money can actually be taken afterwards.
+    paid = client.post(
+        "/api/v1/payments/interest",
+        headers=auth_headers,
+        json={"customer_id": customer_id, "pay_all_pending": True, "total_amount": 120},
+    )
+    assert paid.status_code == 200
+
+    after = client.get(f"/api/v1/payments/customers/{customer_id}/interest-pending", headers=auth_headers)
+    assert after.json()["total_pending_interest"] == 0
+
+    # Once it owes nothing the closed loan drops out again, so history stays out of the way.
+    settled_context = client.get(
+        f"/api/v1/payments/customers/{customer_id}/principal-context", headers=auth_headers
+    )
+    assert all(item["loan_id"] != loan["id"] for item in settled_context.json()["items"])
+
+
+def test_reversal_records_who_when_and_why(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+) -> None:
+    """Reversal is how a payment is deleted, so it has to be answerable."""
+    loan = create_loan(principal=600)
+
+    payment = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "loan_id": loan["id"],
+            "total_amount": 200,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
+        },
+    )
+    assert payment.status_code == 200
+    payment_id = payment.json()["payment_id"]
+
+    # A blank reason is refused: an unexplained deletion is not traceable.
+    assert (
+        client.post(
+            f"/api/v1/payments/{payment_id}/reverse",
+            headers=auth_headers,
+            json={"reason": "  "},
+        ).status_code
+        == 422
+    )
+
+    reversal = client.post(
+        f"/api/v1/payments/{payment_id}/reverse",
+        headers=auth_headers,
+        json={"reason": "Cobrado dos veces por error de caja"},
+    )
+    assert reversal.status_code == 200
+    body = reversal.json()
+
+    assert body["is_reversed"] is True
+    assert body["reversal_reason"] == "Cobrado dos veces por error de caja"
+    assert body["reversed_at"] is not None
+    assert body["reverser"]["username"] == "admin"
+
+    # The listing carries it too, so the UI can explain a struck-through row.
+    listed = next(
+        item for item in client.get("/api/v1/payments", headers=auth_headers).json()
+        if item["id"] == payment_id
+    )
+    assert listed["reversal_reason"] == "Cobrado dos veces por error de caja"
+
+
+def test_reversing_a_multi_loan_principal_payment_restores_each_loan(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Principal goes back to the loan that received it, not all to the first one.
+
+    `Payment.loan_id` only points at the first target, so crediting the whole
+    `allocated_to_principal` there over-restored that loan and left the others short.
+    """
+    customer = create_customer(document_number="DOC-REVERSE-MULTI")
+    older = _create_loan_for(client, auth_headers, customer["id"], principal=300, days_ago=90)
+    newer = _create_loan_for(client, auth_headers, customer["id"], principal=500, days_ago=10)
+
+    payment = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "pay_all_outstanding": True,
+            "total_amount": 400,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
+        },
+    )
+    assert payment.status_code == 200
+    payment_id = payment.json()["payment_id"]
+
+    db_session.expire_all()
+    assert db_session.get(Loan, older["id"]).outstanding_principal == 0
+    assert db_session.get(Loan, older["id"]).status == LoanStatus.closed
+    assert db_session.get(Loan, newer["id"]).outstanding_principal == 400
+
+    reversal = client.post(
+        f"/api/v1/payments/{payment_id}/reverse",
+        headers=auth_headers,
+        json={"reason": "Pago anulado por el cliente"},
+    )
+    assert reversal.status_code == 200
+
+    db_session.expire_all()
+    # Each loan gets back exactly what it received, and the one this payment closed reopens.
+    assert db_session.get(Loan, older["id"]).outstanding_principal == 300
+    assert db_session.get(Loan, older["id"]).status != LoanStatus.closed
+    assert db_session.get(Loan, newer["id"]).outstanding_principal == 500

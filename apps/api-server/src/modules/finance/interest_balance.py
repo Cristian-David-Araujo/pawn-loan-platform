@@ -204,16 +204,26 @@ def pending_interest_for_customer(
     customer_id: int,
     as_of_date: date,
 ) -> list[LoanInterestBalance]:
-    """Pending interest for every non closed loan of a customer, oldest due first."""
+    """Pending interest per loan of a customer, oldest due first.
+
+    A closed loan is included when it *still owes interest*. `pay_principal` closes a loan
+    the moment its principal hits zero, so paying principal with `allow_with_unpaid_interest`
+    leaves a closed loan with live interest charges. Filtering every closed loan out here
+    made that debt vanish from the collection screens, from the printed balances and from
+    the interest allocation itself — the money was neither collectable nor visible.
+
+    Loans that are closed *and* settled stay out, which is what keeps history from piling
+    up in the collection views.
+    """
     loans = list(
-        db.scalars(
-            select(Loan)
-            .where(Loan.customer_id == customer_id, Loan.status != LoanStatus.closed)
-            .order_by(Loan.id.asc())
-        ).all()
+        db.scalars(select(Loan).where(Loan.customer_id == customer_id).order_by(Loan.id.asc())).all()
     )
     balances = pending_interest_for_loans(db, loans, as_of_date)
-    return [balances[loan.id] for loan in loans]
+    return [
+        balances[loan.id]
+        for loan in loans
+        if loan.status != LoanStatus.closed or balances[loan.id].outstanding > 0
+    ]
 
 
 def pending_interest_items_for_customer(

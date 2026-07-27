@@ -1,6 +1,6 @@
 import { computed, reactive } from 'vue'
 
-import { apiClient } from '../services/api'
+import { apiClient, apiErrorMessage } from '../services/api'
 import type { CollateralItem, Customer, GlobalSettings, Loan, LoanType, Payment } from '../types/domain'
 import { setGlobalDateFormat } from '../utils/date'
 
@@ -68,7 +68,10 @@ interface BackendPayment {
   payment_method: Payment['paymentMethod']
   notes: string
   is_reversed: boolean
+  reversed_at?: string | null
+  reversal_reason?: string
   receiver?: any
+  reverser?: any
 }
 
 interface BackendGlobalSettings {
@@ -264,8 +267,12 @@ const mapPayment = (item: BackendPayment): Payment => ({
   paymentMethod: item.payment_method,
   notes: item.notes,
   isReversed: item.is_reversed,
+  // Reversal is how a payment is deleted, so the accountability travels with the row.
+  reversedAt: item.reversed_at ?? null,
+  reversalReason: item.reversal_reason ?? '',
   // Printed receipts credit whoever took the money, so this has to survive the mapping.
-  receiver: item.receiver ?? null
+  receiver: item.receiver ?? null,
+  reverser: item.reverser ?? null
 })
 
 const mapGlobalSettings = (data: BackendGlobalSettings): GlobalSettings => ({
@@ -570,7 +577,18 @@ const deleteLoan = async (loanId: number) => {
       method: 'DELETE'
     })
   } catch (error) {
-    const detail = String(error)
+    // Each refusal has a different remedy, and collapsing them into one message left the
+    // operator with "cannot be deleted" and no idea that reversing the payments would work.
+    const detail = apiErrorMessage(error)
+    if (detail.includes('live payment records')) {
+      return { ok: false, messageKey: 'messages.loanDeleteReversePaymentsFirst' }
+    }
+    if (detail.includes('was renewed')) {
+      return { ok: false, messageKey: 'messages.loanDeleteWasRenewed' }
+    }
+    if (detail.includes('covers other loans')) {
+      return { ok: false, messageKey: 'messages.loanDeleteSpansLoans' }
+    }
     if (detail.includes('related credit records')) {
       return { ok: false, messageKey: 'messages.loanDeleteHasTraceability' }
     }
@@ -639,6 +657,24 @@ const dashboardStats = computed(() => {
     return response
   }
 
+  /** Hands one pledge back; used where the operator acts on a single row. */
+  const releaseCollateralItem = async (itemId: number) => {
+    const response = await apiClient.request<any>(`/collateral-items/${itemId}/release`, {
+      method: 'POST'
+    })
+    await refreshAll()
+    return response
+  }
+
+  /** Hands every pledge still in custody for a settled loan back to the customer. */
+  const releaseCollateralForLoan = async (loanId: number) => {
+    const response = await apiClient.request<any[]>(`/collateral-items/loans/${loanId}/release`, {
+      method: 'POST'
+    })
+    await refreshAll()
+    return response
+  }
+
   const fetchCollateralItems = async (status?: string) => {
     const url = status ? `/collateral-items?status=${status}` : '/collateral-items'
     const response = await apiClient.request<any[]>(url, { method: 'GET' })
@@ -665,5 +701,7 @@ const dashboardStats = computed(() => {
     updateGlobalSettings,
     forecloseLoan,
     sellCollateralItem,
+    releaseCollateralItem,
+    releaseCollateralForLoan,
     fetchCollateralItems
   })

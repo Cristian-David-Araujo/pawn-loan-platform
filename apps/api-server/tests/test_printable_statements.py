@@ -154,7 +154,7 @@ def test_payment_history_exposes_operator_and_reversal_state(
     assert event["is_reversed"] is False
 
     # After a reversal the printed row must be flagged so totals can exclude it.
-    assert client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers).status_code == 200
+    assert client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"}).status_code == 200
 
     history_after = client.get(
         f"/api/v1/payments/customers/{loan_db.customer_id}/history",
@@ -265,7 +265,7 @@ def test_receipt_breakdown_flags_a_partially_covered_charge(
     assert line["allocated_total"] == 40
 
     # Reversing keeps the line on the receipt but drops it out of the total.
-    assert client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers).status_code == 200
+    assert client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"}).status_code == 200
 
     after = client.get(f"/api/v1/payments/{payment_id}/allocations", headers=auth_headers).json()
     assert after["is_reversed"] is True

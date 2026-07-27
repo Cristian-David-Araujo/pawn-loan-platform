@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import CollateralItem, Loan, User
+from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.collateral.schemas import CollateralCreate, CollateralRead, CollateralUpdate, CollateralSell
+from src.modules.finance.interest_balance import pending_interest_total_for_loan
 from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
@@ -115,6 +118,36 @@ def update_collateral_item(
     return item
 
 
+def _assert_loan_fully_settled(db: Session, loan: Loan) -> None:
+    """Custody only goes back once the loan owes nothing at all.
+
+    Principal alone is not enough: a loan closed with `force` can sit at zero principal
+    while interest and penalties are still pending, and handing the pledge back then gives
+    away the only leverage to collect the rest.
+    """
+    if loan.outstanding_principal > 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loan has outstanding balance")
+
+    pending = pending_interest_total_for_loan(db, loan, get_local_date(db))
+    if pending > 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Loan has unpaid accrued interest",
+        )
+
+
+def _release_item(db: Session, item: CollateralItem, current_user: User) -> None:
+    item.status = "released"
+    write_audit(
+        db,
+        action="release_collateral",
+        entity_type="CollateralItem",
+        entity_id=str(item.id),
+        user=current_user,
+        new_data="status=released",
+    )
+
+
 @router.post("/{item_id}/release", response_model=CollateralRead)
 def release_collateral(
     item_id: int,
@@ -128,23 +161,50 @@ def release_collateral(
     loan = db.get(Loan, item.loan_id)
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked loan not found")
-    if loan.outstanding_principal > 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loan has outstanding balance")
 
-    item.status = "released"
+    _assert_loan_fully_settled(db, loan)
+
+    _release_item(db, item, current_user)
     db.commit()
     db.refresh(item)
-
-    write_audit(
-        db,
-        action="release_collateral",
-        entity_type="CollateralItem",
-        entity_id=str(item.id),
-        user=current_user,
-        new_data="status=released",
-    )
-
     return item
+
+
+@router.post("/loans/{loan_id}/release", response_model=list[CollateralRead])
+def release_collateral_for_loan(
+    loan_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> list[CollateralItem]:
+    """Hand back every item still in custody for a settled loan, in one transaction.
+
+    A pawn loan usually holds several pledges and they are returned together, so releasing
+    them one request at a time could leave the custody record half-updated if one failed.
+    Already-released items are skipped rather than treated as an error, which keeps the
+    call safe to retry.
+    """
+    loan = db.get(Loan, loan_id)
+    if loan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+
+    _assert_loan_fully_settled(db, loan)
+
+    items = list(
+        db.scalars(
+            select(CollateralItem).where(
+                CollateralItem.loan_id == loan_id,
+                CollateralItem.status == "in_custody",
+            )
+        ).all()
+    )
+    for item in items:
+        _release_item(db, item, current_user)
+
+    db.commit()
+    for item in items:
+        db.refresh(item)
+
+    return items
 
 
 @router.post("/{item_id}/liquidate", response_model=CollateralRead)

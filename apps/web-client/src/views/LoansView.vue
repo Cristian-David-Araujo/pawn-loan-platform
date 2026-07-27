@@ -304,6 +304,7 @@
       :totalPendingInterest="totalPendingInterest"
       :totalPendingPenalty="totalPendingPenalty"
       @close="closeLoanDetail"
+      @payments-changed="reloadLoanDetailFinancials"
     />
   </section>
 </template>
@@ -648,6 +649,17 @@ const openLoanDetail = async (loanId: number) => {
 
 const closeLoanDetail = () => {
   showLoanDetailModal.value = false
+}
+
+/**
+ * The detail modal can delete a payment, which changes the pending interest behind it.
+ * `selectedLoanPayments` reads the store and the modal already refreshed it, so only the
+ * pending-interest fetch has to be repeated here.
+ */
+const reloadLoanDetailFinancials = async () => {
+  if (selectedLoanId.value !== null) {
+    await openLoanDetail(selectedLoanId.value)
+  }
 }
 
 

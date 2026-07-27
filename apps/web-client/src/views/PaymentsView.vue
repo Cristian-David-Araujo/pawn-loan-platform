@@ -22,6 +22,10 @@
       </button>
     </div>
 
+    <!-- Above the working area: at the foot of the page this sat below the history table,
+         so a rejected payment looked like nothing had happened at all. -->
+    <p v-if="message" class="notice mt-16">{{ message }}</p>
+
     <div v-if="activeTab === 'interest'" class="card mt-16">
       <h3>{{ t('payments.pendingInterestTitle') }}</h3>
       <p class="muted">{{ t('common.breakdownNote') }}</p>
@@ -201,7 +205,7 @@
         v-model:notes="principalNotes"
         v-model:print-receipt="printReceiptOnSave"
         :submit-label="t('payments.registerPrincipalPayment')"
-        :submit-disabled="!selectedChargeCountPrincipal || principalAmountToPay <= 0 || principalExceedsSelected || processing"
+        :submit-disabled="!selectedChargeCountPrincipal || principalAmountToPay <= 0 || principalExceedsSelected || principalBlockedByInterest || processing"
         @use-suggested="usePrincipalSuggestedAmount"
         @amount-edited="principalAmountTouched = true"
         @submit="submitPrincipalPayment"
@@ -223,6 +227,24 @@
           <input v-model="allowPrincipalWithUnpaidInterest" type="checkbox" />
           {{ t('payments.allowWithUnpaidInterest') }}
         </label>
+        <!-- Only when this amount would actually free pledges, so it never sits there as
+             an option that does nothing. The items are spelled out because nobody should
+             agree to hand over goods they cannot see. -->
+        <template v-if="custodyReadyToHandBack.length">
+          <label class="checkbox-row">
+            <input v-model="handBackCustodyOnSettle" type="checkbox" />
+            {{ t('collaterals.handBackOnSettle', { count: custodyReadyToHandBack.length }) }}
+          </label>
+          <ul class="handback-list">
+            <li v-for="item in custodyReadyToHandBack" :key="item.id">
+              <strong>{{ item.custodyCode }}</strong> — {{ item.description }}
+              <span class="muted">({{ formatCurrency(item.appraisedValue) }})</span>
+            </li>
+          </ul>
+          <p class="handback-total">
+            {{ t('collaterals.handBackAppraisedTotal', { amount: formatCurrency(custodyHandBackAppraised) }) }}
+          </p>
+        </template>
       </PaymentCollectionForm>
     </div>
 
@@ -312,12 +334,34 @@
                   <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">
                     <Pencil :size="14" />
                   </button>
+                  <button
+                    v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
+                    class="btn btn-danger btn-icon"
+                    type="button"
+                    :title="t('payments.deletePayment')"
+                    :aria-label="t('payments.deletePayment')"
+                    :disabled="payment.isReversed || processing"
+                    @click="openReversalModal(payment)"
+                  >
+                    <Trash2 :size="14" />
+                  </button>
                 </div>
               </td>
             </tr>
             <tr v-if="expandedPaymentIds.has(payment.id)" class="payment-detail-row">
               <td colspan="12">
                 <div class="payment-breakdown">
+                  <!-- A deleted payment has to say who removed it, when and why. -->
+                  <p v-if="payment.isReversed" class="pill pill-overdue">
+                    <strong>{{ t('payments.reversed') }}:</strong>
+                    {{ payment.reversalReason || '—' }}
+                    <span v-if="payment.reversedAt">
+                      · {{ formatDateDMY(payment.reversedAt.split('T')[0]) }}
+                    </span>
+                    <span v-if="payment.reverser">
+                      · {{ payment.reverser.full_name || payment.reverser.username }}
+                    </span>
+                  </p>
                   <p v-if="payment.notes" class="muted"><strong>{{ t('payments.notes') }}:</strong> {{ payment.notes }}</p>
                   <table v-if="getPaymentEvents(payment.id).length" class="breakdown-table">
                     <thead>
@@ -354,6 +398,12 @@
       </div>
       <Pagination v-model="customerPaymentsCurrentPage" :totalItems="filteredCustomerPayments.length" :itemsPerPage="10" />
     </div>
+
+    <PaymentReversalModal
+      :payment="paymentPendingReversal"
+      @close="paymentPendingReversal = null"
+      @deleted="onPaymentDeleted"
+    />
 
     <div v-if="showPaymentEditModal" class="modal-backdrop" @click.self="closePaymentEditModal">
       <div class="modal-panel card">
@@ -410,7 +460,6 @@
       </div>
     </div>
 
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
   </section>
 </template>
 
@@ -418,19 +467,20 @@
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import PaymentCollectionForm from '../components/PaymentCollectionForm.vue'
+import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import { usePagination } from '../composables/usePagination'
 import { useRowSelection } from '../composables/useRowSelection'
-import type { PaymentMethod } from '../types/domain'
+import type { Payment, PaymentMethod } from '../types/domain'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
-import { CircleDollarSign, ChevronDown, ChevronRight, FilterX, Pencil, ReceiptText, Save, WalletCards, Printer } from 'lucide-vue-next'
+import { CircleDollarSign, ChevronDown, ChevronRight, FilterX, Pencil, ReceiptText, Save, Trash2, WalletCards, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
-import { apiClient } from '../services/api'
+import { apiClient, apiErrorMessage } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatDateDMY, toIsoDate } from '../utils/date'
@@ -498,7 +548,8 @@ interface PaymentEvent {
   operator?: any
 }
 
-const { state, ensureInitialized, refreshAll, updatePayment } = usePlatformStore()
+const { state, ensureInitialized, refreshAll, updatePayment, releaseCollateralForLoan } =
+  usePlatformStore()
 const { hasRole } = useAuthState()
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -525,6 +576,9 @@ watch(selectedCustomerId, (newId) => {
 const principalAmount = ref(0)
 const principalPaymentMethod = ref<PaymentMethod>('cash')
 const allowPrincipalWithUnpaidInterest = ref(false)
+// Off by default on purpose: the vault record must only change when somebody states that
+// the goods actually left the counter.
+const handBackCustodyOnSettle = ref(false)
 const principalNotes = ref('')
 
 const interestPaymentMethod = ref<PaymentMethod>('cash')
@@ -542,6 +596,7 @@ const historyLoanFilter = ref('all')
 const historyTypeFilter = ref('all')
 const processing = ref(false)
 const message = ref('')
+const paymentPendingReversal = ref<Payment | null>(null)
 const showPaymentEditModal = ref(false)
 const selectedPaymentEditId = ref<number | null>(null)
 
@@ -586,12 +641,18 @@ const flatPendingItems = computed(() =>
 
 // Oldest loan first: that is the order the API allocates in, so the table shows the path
 // the money will actually take when several loans are ticked.
+//
+// The context also carries loans that are closed but still owe interest, so the printed
+// balances can report them. They have no principal left to pay, so they are dropped here —
+// their interest is collected on the other tab.
 const principalContextItems = computed(() =>
-  [...(principalContext.value?.items ?? [])].sort((a, b) => {
-    const delta =
-      new Date(a.disbursement_date).getTime() - new Date(b.disbursement_date).getTime()
-    return delta !== 0 ? delta : a.loan_id - b.loan_id
-  })
+  (principalContext.value?.items ?? [])
+    .filter((item) => item.outstanding_principal > 0)
+    .sort((a, b) => {
+      const delta =
+        new Date(a.disbursement_date).getTime() - new Date(b.disbursement_date).getTime()
+      return delta !== 0 ? delta : a.loan_id - b.loan_id
+    })
 )
 
 const {
@@ -625,6 +686,12 @@ const principalExceedsSelected = computed(
 // The API blocks per loan on the pending interest *and* penalty of that loan.
 const blockedPrincipalLoans = computed(() =>
   selectedPrincipalLoans.value.filter((item) => item.accrued_unpaid_interest + item.penalties > 0)
+)
+
+// The API rejects this combination outright, so the button stays disabled while it holds
+// instead of letting the operator click into a guaranteed failure.
+const principalBlockedByInterest = computed(
+  () => blockedPrincipalLoans.value.length > 0 && !allowPrincipalWithUnpaidInterest.value
 )
 
 const blockedPrincipalInterest = computed(() =>
@@ -804,6 +871,16 @@ const printHistory = () => {
   window.open(`/print/invoice/history/${selectedCustomerId.value}`, '_blank')
 }
 
+const openReversalModal = (payment: Payment) => {
+  paymentPendingReversal.value = payment
+}
+
+const onPaymentDeleted = async (paymentId: number) => {
+  await refreshAll()
+  await loadCustomerPaymentData()
+  message.value = t('payments.paymentDeleted', { id: paymentId })
+}
+
 const openPaymentEditModal = (payment: {
   id: number
   paymentDate: string
@@ -865,8 +942,8 @@ const handleUpdatePayment = async () => {
       closePaymentEditModal()
       await loadCustomerPaymentData()
     }
-  } catch {
-    message.value = t('messages.operationFailed')
+  } catch (error) {
+    message.value = apiErrorMessage(error) || t('messages.operationFailed')
   } finally {
     processing.value = false
   }
@@ -934,13 +1011,13 @@ const submitInterestPayment = async () => {
     return
   }
 
-  const firstConfirmation = await confirm(t('payments.confirmRegisterInterestStepOne', { amount: formatCurrency(interestAmountToPay.value) }))
-  if (!firstConfirmation) {
-    return
-  }
-
-  const secondConfirmation = await confirm(t('payments.confirmRegisterInterestStepTwo'))
-  if (!secondConfirmation) {
+  const confirmed = await confirm(
+    t('payments.confirmRegisterInterest', {
+      amount: formatCurrency(interestAmountToPay.value),
+      count: selectedChargeIds.value.size
+    })
+  )
+  if (!confirmed) {
     return
   }
 
@@ -966,10 +1043,91 @@ const submitInterestPayment = async () => {
     if (printReceiptOnSave.value && selectedCustomerPayments.value.length > 0) {
       router.push(`/print/invoice/payment/${selectedCustomerPayments.value[0].id}`)
     }
-  } catch {
-    message.value = t('messages.operationFailed')
+  } catch (error) {
+    message.value = apiErrorMessage(error) || t('messages.operationFailed')
   } finally {
     processing.value = false
+  }
+}
+
+interface PrincipalPaymentResult {
+  allocations?: { loan_id: number; loan_status: string }[]
+}
+
+const custodyInCustodyFor = (loanId: number) =>
+  state.collateralItems.filter((item) => item.loanId === loanId && item.status === 'in-custody')
+
+/**
+ * Which of the ticked loans this amount would settle, mirroring the API's oldest-first
+ * walk. Used only to decide whether the custody question is worth asking at all.
+ */
+const loansSettledByPayment = computed(() => {
+  let remaining = principalAmountToPay.value
+  const settled: number[] = []
+  for (const item of selectedPrincipalLoans.value) {
+    if (remaining <= 0) break
+    if (remaining >= item.outstanding_principal && item.outstanding_principal > 0) {
+      settled.push(item.loan_id)
+    }
+    remaining -= Math.min(item.outstanding_principal, remaining)
+  }
+  return settled
+})
+
+/**
+ * Pledges that would be free to hand over once this payment lands. The API refuses to
+ * release while interest is pending, so loans that still owe interest are left out.
+ */
+const custodyHandBackAppraised = computed(() =>
+  custodyReadyToHandBack.value.reduce((sum, item) => sum + item.appraisedValue, 0)
+)
+
+const custodyReadyToHandBack = computed(() =>
+  loansSettledByPayment.value
+    .filter((loanId) => {
+      const loan = state.loans.find((item) => item.id === loanId)
+      return Boolean(loan) && (loan?.interestDue ?? 0) <= 0
+    })
+    .flatMap((loanId) => custodyInCustodyFor(loanId))
+)
+
+/**
+ * Closes custody for the loans this payment actually settled, per the server's answer
+ * rather than the prediction above.
+ *
+ * Driven by an explicit checkbox instead of running on its own: handing over the goods is
+ * a physical act at the counter, and a customer may pay today and collect next week.
+ * Releasing on their behalf would make the custody report claim an empty vault.
+ */
+const handBackSettledCustody = async (
+  allocations: { loan_id: number; loan_status: string }[],
+  shownToOperator: Set<number>
+) => {
+  const settledLoanIds = allocations
+    .filter((item) => item.loan_status === 'closed')
+    .map((item) => item.loan_id)
+    // Never release a pledge the operator was not shown: the server decides what got
+    // settled, but consent is limited to the list that was on screen.
+    .filter((loanId) => shownToOperator.has(loanId))
+    .filter((loanId) => custodyInCustodyFor(loanId).length > 0)
+
+  if (!settledLoanIds.length) {
+    return
+  }
+
+  const itemCount = settledLoanIds.reduce(
+    (sum, loanId) => sum + custodyInCustodyFor(loanId).length,
+    0
+  )
+
+  try {
+    for (const loanId of settledLoanIds) {
+      await releaseCollateralForLoan(loanId)
+    }
+    message.value = t('collaterals.handbackDone', { count: itemCount })
+  } catch (error) {
+    // The payment itself already succeeded, so say exactly why the pledges stayed put.
+    message.value = apiErrorMessage(error) || t('collaterals.handbackFailed')
   }
 }
 
@@ -979,24 +1137,38 @@ const submitPrincipalPayment = async () => {
     !selectedPrincipalLoanIds.value.size ||
     principalAmountToPay.value <= 0 ||
     principalExceedsSelected.value ||
+    principalBlockedByInterest.value ||
     processing.value
   ) {
     return
   }
 
-  const firstConfirmation = await confirm(t('payments.confirmRegisterPrincipalStepOne', { amount: formatCurrency(principalAmount.value) }))
-  if (!firstConfirmation) {
+  // The one dialog has to state the goods leaving too, not just the money coming in.
+  const custodyNote =
+    handBackCustodyOnSettle.value && custodyReadyToHandBack.value.length
+      ? '\n\n' +
+        t('collaterals.confirmHandbackAppend', {
+          count: custodyReadyToHandBack.value.length,
+          codes: custodyReadyToHandBack.value.map((item) => item.custodyCode).join(', ')
+        })
+      : ''
+
+  const confirmed = await confirm(
+    t('payments.confirmRegisterPrincipal', {
+      amount: formatCurrency(principalAmountToPay.value),
+      loans: selectedPrincipalLoans.value.map((item) => '#' + item.loan_id).join(', ')
+    }) + custodyNote
+  )
+  if (!confirmed) {
     return
   }
 
-  const secondConfirmation = await confirm(t('payments.confirmRegisterPrincipalStepTwo'))
-  if (!secondConfirmation) {
-    return
-  }
+  // Snapshot before the request: both lists recompute once the payment refreshes data.
+  const shownForHandback = new Set(loansSettledByPayment.value)
 
   processing.value = true
   try {
-    await apiClient.request('/payments/principal', {
+    const result = await apiClient.request<PrincipalPaymentResult>('/payments/principal', {
       method: 'POST',
       body: JSON.stringify({
         customer_id: selectedCustomerId.value,
@@ -1013,11 +1185,16 @@ const submitPrincipalPayment = async () => {
     await loadCustomerPaymentData()
     message.value = t('messages.paymentRegistered')
 
+    // Before any navigation: the print redirect below would unmount this view.
+    if (handBackCustodyOnSettle.value) {
+      await handBackSettledCustody(result.allocations ?? [], shownForHandback)
+    }
+
     if (printReceiptOnSave.value && selectedCustomerPayments.value.length > 0) {
       router.push(`/print/invoice/payment/${selectedCustomerPayments.value[0].id}`)
     }
-  } catch {
-    message.value = t('messages.operationFailed')
+  } catch (error) {
+    message.value = apiErrorMessage(error) || t('messages.operationFailed')
   } finally {
     processing.value = false
   }
@@ -1053,3 +1230,24 @@ const historyTypeFilterOptions = computed(() => [
   { value: 'principal', label: t('common.principal') }
 ])
 </script>
+
+<style scoped>
+/* Spells out the pledges a hand-back would release, right where the choice is made. */
+.handback-list {
+  margin: 0.4rem 0 0 0;
+  padding-left: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.handback-list li {
+  margin-bottom: 0.15rem;
+}
+
+.handback-total {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+</style>

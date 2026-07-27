@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from src.modules.authentication.schemas import UserSummary
 
 
@@ -27,6 +27,12 @@ class PaymentUpdate(BaseModel):
     notes: str = ""
 
 
+class PaymentReversalRequest(BaseModel):
+    """Reversing is how a payment is removed, so the grounds are mandatory."""
+
+    reason: str = Field(min_length=3, max_length=500)
+
+
 class PaymentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -42,7 +48,10 @@ class PaymentRead(BaseModel):
     notes: str
     received_by: int | None
     is_reversed: bool
+    reversed_at: datetime | None = None
+    reversal_reason: str = ""
     receiver: UserSummary | None = None
+    reverser: UserSummary | None = None
 
 
 class InterestPendingItem(BaseModel):

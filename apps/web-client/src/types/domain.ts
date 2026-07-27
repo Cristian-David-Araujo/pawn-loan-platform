@@ -73,7 +73,10 @@ export interface Payment {
   paymentMethod: PaymentMethod
   notes: string
   isReversed: boolean
+  reversedAt?: string | null
+  reversalReason?: string
   receiver?: UserSummary | null
+  reverser?: UserSummary | null
 }
 
 export interface GlobalSettings {

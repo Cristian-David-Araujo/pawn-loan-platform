@@ -529,7 +529,14 @@
                   {{ paymentMethodLabel(payment.paymentMethod) }}
                 </td>
                 <td class="muted">{{ payment.notes || '-' }}</td>
-                <td>{{ payment.isReversed ? t('payments.reversed') : t('common.active') }}</td>
+                <td>
+                  <span :class="['pill', payment.isReversed ? 'pill-overdue' : 'pill-current']">
+                    {{ payment.isReversed ? t('payments.reversed') : t('common.active') }}
+                  </span>
+                  <div class="muted mt-1" v-if="payment.isReversed && payment.reversalReason">
+                    {{ payment.reversalReason }}
+                  </div>
+                </td>
                 <td>
                   <div class="form-inline">
                     <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
@@ -544,6 +551,17 @@
                       @click="openPaymentEditModal(payment)"
                     >
                       <Pencil :size="16" />
+                    </button>
+                    <button
+                      v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
+                      class="btn btn-danger btn-icon"
+                      type="button"
+                      :title="t('payments.deletePayment')"
+                      :aria-label="t('payments.deletePayment')"
+                      :disabled="payment.isReversed || isSaving"
+                      @click="paymentPendingReversal = payment"
+                    >
+                      <Trash2 :size="16" />
                     </button>
                   </div>
                 </td>
@@ -601,6 +619,12 @@
       </div>
     </div>
 
+    <PaymentReversalModal
+      :payment="paymentPendingReversal"
+      @close="paymentPendingReversal = null"
+      @deleted="onPaymentDeleted"
+    />
+
     <LoanDetailModal
       :show="showCustomerLoanDetailModal"
       :loan="selectedCustomerLoanDetail"
@@ -611,6 +635,7 @@
       :totalPendingInterest="totalPendingInterestForLoan"
       :totalPendingPenalty="totalPendingPenaltyForLoan"
       @close="closeCustomerLoanDetail"
+      @payments-changed="reloadSelectedCustomerFinancials"
     />
 
     <div v-if="showLoanEditModal" class="modal-backdrop" @click.self="closeLoanEditModal">
@@ -791,6 +816,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
+import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import { useRoute } from 'vue-router'
 import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
@@ -1464,6 +1490,10 @@ const handleUpdateLoan = async () => {
 
     message.value = t(result.messageKey)
     closeLoanEditModal()
+    if (result.ok) {
+      // Editing the rate or the dates recalculates the interest charges server-side.
+      await reloadSelectedCustomerFinancials()
+    }
   } catch {
     message.value = t('messages.operationFailed')
   } finally {
@@ -1486,8 +1516,11 @@ const handleDeleteLoan = async (loanId: number) => {
     const result = await deleteLoan(loanId)
     message.value = t(result.messageKey)
 
-    if (result.ok && selectedLoanDetailId.value === loanId) {
-      closeCustomerLoanDetail()
+    if (result.ok) {
+      if (selectedLoanDetailId.value === loanId) {
+        closeCustomerLoanDetail()
+      }
+      await reloadSelectedCustomerFinancials()
     }
   } catch {
     message.value = t('messages.operationFailed')
@@ -1518,6 +1551,27 @@ const handleUpdateCollateral = async () => {
     message.value = t('messages.operationFailed')
   } finally {
     isSaving.value = false
+  }
+}
+
+const paymentPendingReversal = ref<Payment | null>(null)
+
+/**
+ * Pending interest, principal context and the traceability events all come from their own
+ * fetches, not from the store, so  does not touch them. Every mutation that
+ * changes a customer credit picture has to call this or the tables keep showing figures for
+ * data that no longer exists — deleting a loan left its payment events on screen.
+ */
+const reloadSelectedCustomerFinancials = async () => {
+  if (selectedCustomer.value) {
+    await loadCustomerFinancialData(selectedCustomer.value.id)
+  }
+}
+
+const onPaymentDeleted = async (paymentId: number) => {
+  message.value = t('payments.paymentDeleted', { id: paymentId })
+  if (selectedCustomer.value) {
+    await loadCustomerFinancialData(selectedCustomer.value.id)
   }
 }
 
