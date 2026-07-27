@@ -52,7 +52,7 @@ def test_payment_can_close_loan_and_reverse_reopens_it(
     assert loan_response.status_code == 200
     assert loan_response.json()["status"] == "closed"
 
-    reverse_response = client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers)
+    reverse_response = client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"})
     assert reverse_response.status_code == 200
     assert reverse_response.json()["is_reversed"] is True
 
@@ -60,5 +60,5 @@ def test_payment_can_close_loan_and_reverse_reopens_it(
     assert loan_after_reverse.status_code == 200
     assert loan_after_reverse.json()["status"] == "active"
 
-    second_reverse = client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers)
+    second_reverse = client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"})
     assert second_reverse.status_code == 400

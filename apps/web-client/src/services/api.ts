@@ -115,6 +115,25 @@ const requestUpload = async <T>(path: string, formData: FormData): Promise<T> =>
   return response.json() as Promise<T>
 }
 
+/**
+ * The readable part of an error thrown by `request`, which carries the raw response body.
+ * FastAPI answers `{"detail": "..."}`, so callers that show the message to an operator
+ * would otherwise print the JSON envelope — or, worse, replace it with a generic string
+ * and hide the one sentence that explains what to fix.
+ */
+export const apiErrorMessage = (error: unknown): string => {
+  const raw = error instanceof Error ? error.message : String(error)
+  try {
+    const parsed = JSON.parse(raw) as { detail?: unknown }
+    if (typeof parsed.detail === 'string' && parsed.detail) {
+      return parsed.detail
+    }
+  } catch {
+    // Not JSON: the message is already plain text.
+  }
+  return raw
+}
+
 export const apiClient = {
   request,
   requestFile,

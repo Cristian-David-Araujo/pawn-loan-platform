@@ -104,6 +104,7 @@
                   <th>{{ t('common.principal') }}</th>
                   <th>{{ t('common.method') }}</th>
                   <th>{{ t('payments.notes') }}</th>
+                  <th>{{ t('common.actions') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -115,7 +116,25 @@
                   <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
                   <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
                   <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
-                  <td class="muted">{{ payment.notes || '-' }}</td>
+                  <td class="muted">
+                    {{ payment.notes || '-' }}
+                    <div v-if="payment.isReversed" class="pill pill-overdue mt-1">
+                      {{ t('payments.reversed') }}<template v-if="payment.reversalReason">: {{ payment.reversalReason }}</template>
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
+                      class="btn btn-danger btn-icon"
+                      type="button"
+                      :title="t('payments.deletePayment')"
+                      :aria-label="t('payments.deletePayment')"
+                      :disabled="payment.isReversed"
+                      @click="paymentPendingReversal = payment"
+                    >
+                      <Trash2 :size="14" />
+                    </button>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -155,16 +174,24 @@
       </div>
     </div>
   </div>
+
+  <PaymentReversalModal
+    :payment="paymentPendingReversal"
+    @close="paymentPendingReversal = null"
+    @deleted="onPaymentDeleted"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
-import { Printer, X, Pencil, Save, AlertTriangle } from 'lucide-vue-next'
+import { Printer, X, Pencil, Save, AlertTriangle, Trash2 } from 'lucide-vue-next'
 import { usePlatformStore } from '../stores/platformStore'
 
 import Pagination from './Pagination.vue'
+import PaymentReversalModal from './PaymentReversalModal.vue'
+import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { Loan, Payment, CollateralItem } from '../types/domain'
 
 const props = defineProps<{
@@ -180,11 +207,22 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
+  (e: 'payments-changed'): void
 }>()
 
 const { t } = useI18n()
   const { confirm: confirmDialog } = useConfirmDialog()
 const store = usePlatformStore()
+
+const { hasRole } = useAuthState()
+
+const paymentPendingReversal = ref<Payment | null>(null)
+
+// The parent owns the payments list, so a deletion has to bubble up for it to reload.
+const onPaymentDeleted = async () => {
+  await store.refreshAll()
+  emit('payments-changed')
+}
 
 const loanPaymentsCurrentPage = ref(1)
 const loanCollateralsCurrentPage = ref(1)

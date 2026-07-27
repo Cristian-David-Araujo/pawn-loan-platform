@@ -1,6 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from src.domain.enums.loan import LoanStatus
+from src.infrastructure.persistence.models import CollateralItem, InterestCharge, Loan
 
 
 def test_create_collateral_requires_existing_loan(client: TestClient, auth_headers: dict[str, str]) -> None:
@@ -318,3 +322,134 @@ def test_update_collateral_rejects_personal_loan_reassociation(
         },
     )
     assert update_response.status_code == 400
+
+
+def _create_pawn_loan_with_item(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    customer_id: int,
+    principal: float,
+    items: int = 1,
+) -> tuple[dict, list[int]]:
+    loan_response = client.post(
+        "/api/v1/loans",
+        headers=auth_headers,
+        json={
+            "customer_id": customer_id,
+            "loan_type": "pawn",
+            "principal_amount": principal,
+            "monthly_interest_rate": 10.0,
+            "disbursement_date": str(date.today()),
+            "due_day": 5,
+        },
+    )
+    assert loan_response.status_code == 201
+    loan = loan_response.json()
+
+    item_ids = []
+    for index in range(items):
+        created = client.post(
+            "/api/v1/collateral-items",
+            headers=auth_headers,
+            json={
+                "loan_id": loan["id"],
+                "description": f"Pledge {index}",
+                "appraised_value": principal,
+                "storage_location": "Vault C",
+            },
+        )
+        assert created.status_code == 201
+        item_ids.append(created.json()["id"])
+
+    return loan, item_ids
+
+
+def test_release_collateral_rejected_while_interest_is_pending(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Zero principal is not enough: the pledge is the leverage to collect the interest."""
+    customer = create_customer(document_number="COLL-RELEASE-INTEREST")
+    loan, item_ids = _create_pawn_loan_with_item(client, auth_headers, customer["id"], principal=500)
+
+    charge = InterestCharge(
+        loan_id=loan["id"],
+        period_start=date.today() - timedelta(days=60),
+        period_end=date.today() - timedelta(days=30),
+        charge_date=date.today() - timedelta(days=30),
+        amount=50,
+        status="generated",
+    )
+    db_session.add(charge)
+    db_session.commit()
+
+    # Close the loan the only way that leaves interest behind.
+    closed = client.post(
+        f"/api/v1/loans/{loan['id']}/close",
+        headers=auth_headers,
+        json={"force": True},
+    )
+    assert closed.status_code == 200
+    db_session.expire_all()
+    db_session.get(Loan, loan["id"]).outstanding_principal = 0
+    db_session.commit()
+
+    blocked = client.post(f"/api/v1/collateral-items/{item_ids[0]}/release", headers=auth_headers)
+    assert blocked.status_code == 400
+    assert "interest" in blocked.json()["detail"].lower()
+
+    db_session.expire_all()
+    assert db_session.get(CollateralItem, item_ids[0]).status == "in_custody"
+
+
+def test_release_collateral_for_loan_releases_every_item(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    customer = create_customer(document_number="COLL-RELEASE-BULK")
+    loan, item_ids = _create_pawn_loan_with_item(
+        client, auth_headers, customer["id"], principal=400, items=3
+    )
+
+    settled = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "loan_id": loan["id"],
+            "total_amount": 400,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
+        },
+    )
+    assert settled.status_code == 200
+    assert settled.json()["loan_status"] == LoanStatus.closed.value
+
+    response = client.post(f"/api/v1/collateral-items/loans/{loan['id']}/release", headers=auth_headers)
+    assert response.status_code == 200
+    assert {item["id"] for item in response.json()} == set(item_ids)
+    assert all(item["status"] == "released" for item in response.json())
+
+    # Safe to retry: nothing is left in custody, so the second call is simply empty.
+    again = client.post(f"/api/v1/collateral-items/loans/{loan['id']}/release", headers=auth_headers)
+    assert again.status_code == 200
+    assert again.json() == []
+
+
+def test_release_collateral_for_loan_rejected_with_outstanding_principal(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    customer = create_customer(document_number="COLL-RELEASE-OPEN")
+    loan, item_ids = _create_pawn_loan_with_item(client, auth_headers, customer["id"], principal=600)
+
+    response = client.post(f"/api/v1/collateral-items/loans/{loan['id']}/release", headers=auth_headers)
+    assert response.status_code == 400
+
+    db_session.expire_all()
+    assert db_session.get(CollateralItem, item_ids[0]).status == "in_custody"

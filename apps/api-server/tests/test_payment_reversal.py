@@ -59,7 +59,7 @@ def test_reversing_interest_payment_restores_pending_interest(
     db_session.refresh(charge)
     assert charge.status == "paid"
 
-    reversal = client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers)
+    reversal = client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"})
     assert reversal.status_code == 200
     assert reversal.json()["is_reversed"] is True
 
@@ -101,7 +101,7 @@ def test_loan_interest_due_matches_pending_interest_after_reversal(
     assert payment.status_code == 200
     payment_id = payment.json()["allocations"][0]["payment_id"]
 
-    reversal = client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers)
+    reversal = client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"})
     assert reversal.status_code == 200
 
     loan_read = client.get(f"/api/v1/loans/{loan['id']}", headers=auth_headers)
@@ -136,7 +136,7 @@ def test_reversing_principal_payment_restores_outstanding_and_reopens_loan(
     assert event is not None
     assert event.payment_id is not None
 
-    reversal = client.post(f"/api/v1/payments/{event.payment_id}/reverse", headers=auth_headers)
+    reversal = client.post(f"/api/v1/payments/{event.payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"})
     assert reversal.status_code == 200
 
     db_session.expire_all()
@@ -173,5 +173,5 @@ def test_payment_cannot_be_reversed_twice(
     assert payment.status_code == 200
     payment_id = payment.json()["allocations"][0]["payment_id"]
 
-    assert client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers).status_code == 200
-    assert client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers).status_code == 400
+    assert client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"}).status_code == 200
+    assert client.post(f"/api/v1/payments/{payment_id}/reverse", headers=auth_headers, json={"reason": "operator correction"}).status_code == 400

@@ -1,6 +1,6 @@
-from datetime import date
+from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 from src.modules.authentication.schemas import UserSummary
 
 
@@ -27,6 +27,12 @@ class PaymentUpdate(BaseModel):
     notes: str = ""
 
 
+class PaymentReversalRequest(BaseModel):
+    """Reversing is how a payment is removed, so the grounds are mandatory."""
+
+    reason: str = Field(min_length=3, max_length=500)
+
+
 class PaymentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -42,7 +48,10 @@ class PaymentRead(BaseModel):
     notes: str
     received_by: int | None
     is_reversed: bool
+    reversed_at: datetime | None = None
+    reversal_reason: str = ""
     receiver: UserSummary | None = None
+    reverser: UserSummary | None = None
 
 
 class InterestPendingItem(BaseModel):
@@ -121,7 +130,18 @@ class PrincipalContextResponse(BaseModel):
 
 
 class PrincipalPaymentRequest(BaseModel):
-    loan_id: int
+    """One principal payment, against a single loan or spread over several.
+
+    Either form is accepted: `loan_id` targets one loan, or `selected_loan_ids` /
+    `pay_all_outstanding` (with `customer_id`) spread the money over the customer's open
+    loans oldest-disbursement-first. Unlike interest, the client's selection is honoured —
+    an operator settling a specific loan must not have the money silently sent elsewhere.
+    """
+
+    loan_id: int | None = None
+    customer_id: int | None = None
+    selected_loan_ids: list[int] = []
+    pay_all_outstanding: bool = False
     total_amount: float
     payment_date: date | None = None
     payment_method: str = "cash"
@@ -129,14 +149,58 @@ class PrincipalPaymentRequest(BaseModel):
     notes: str = ""
 
 
-class PrincipalPaymentResponse(BaseModel):
+class PrincipalAllocation(BaseModel):
     payment_event_id: int
     loan_id: int
     payment_type: str
-    total_entered_amount: float
     allocated_to_principal: float
     new_outstanding_principal: float
     loan_status: str
+
+
+class PrincipalPaymentResponse(BaseModel):
+    payment_id: int
+    total_entered_amount: float
+    total_allocated_amount: float
+    allocations: list[PrincipalAllocation]
+
+    # Flat mirror of the first allocation. The single-loan form produces exactly one, so
+    # these describe it exactly; callers handling several loans should read `allocations`.
+    payment_event_id: int
+    loan_id: int
+    payment_type: str
+    allocated_to_principal: float
+    new_outstanding_principal: float
+    loan_status: str
+
+
+class PaymentAllocationRead(BaseModel):
+    """One line of the printed "how was this payment distributed" breakdown."""
+
+    payment_event_id: int
+    payment_type: str
+    loan_id: int
+    interest_charge_id: int | None
+    billing_period: str
+    charge_amount: float | None
+    charge_due_date: date | None
+    allocated_to_interest: float
+    allocated_to_penalty: float
+    allocated_to_principal: float
+    allocated_total: float
+    fully_covered: bool
+    is_reversed: bool
+
+
+class PaymentAllocationsResponse(BaseModel):
+    payment_id: int
+    payment_date: date
+    loan_ids: list[int]
+    total_amount: float
+    total_allocated: float
+    unallocated_amount: float
+    is_reversed: bool
+    allocations: list[PaymentAllocationRead]
 
 
 class PaymentEventRead(BaseModel):
@@ -157,3 +221,4 @@ class PaymentEventRead(BaseModel):
     payment_method: str
     notes: str
     is_reversed: bool
+    operator: UserSummary | None = None

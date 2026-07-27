@@ -9,7 +9,8 @@
       </div>
 
       <div class="modal-body mt-16">
-        <p>{{ message }}</p>
+        <!-- pre-line so a message can itemise what it is about to act on. -->
+        <p class="confirm-message">{{ message }}</p>
       </div>
 
       <div class="modal-actions form-actions mt-24" style="display: flex; gap: 1rem; align-items: center; justify-content: flex-end;">
@@ -35,6 +36,10 @@ const { isOpen, message, accept, cancel } = useConfirmDialog()
 </script>
 
 <style scoped>
+.confirm-message {
+  white-space: pre-line;
+}
+
 .modal-panel-sm {
   max-width: 400px;
   width: 100%;

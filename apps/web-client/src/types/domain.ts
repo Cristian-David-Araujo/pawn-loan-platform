@@ -42,7 +42,9 @@ export interface Loan {
 export interface CollateralItem {
   id: number
   loanId: number
+  itemType: string
   description: string
+  serialNumber: string
   appraisedValue: number
   custodyCode: string
   storageLocation: string
@@ -56,6 +58,9 @@ export interface CollateralItem {
   loanRate?: number
 }
 
+/** Shared so the collection form and its callers cannot disagree on the allowed values. */
+export type PaymentMethod = 'cash' | 'bank-transfer' | 'other'
+
 export interface Payment {
   id: number
   loanId: number
@@ -65,10 +70,13 @@ export interface Payment {
   allocatedToInterest: number
   allocatedToFees: number
   allocatedToPrincipal: number
-  paymentMethod: 'cash' | 'bank-transfer' | 'other'
+  paymentMethod: PaymentMethod
   notes: string
   isReversed: boolean
+  reversedAt?: string | null
+  reversalReason?: string
   receiver?: UserSummary | null
+  reverser?: UserSummary | null
 }
 
 export interface GlobalSettings {
