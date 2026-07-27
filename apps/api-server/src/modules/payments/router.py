@@ -29,6 +29,7 @@ from src.modules.payments.schemas import (
     PaymentUpdate,
     PrincipalContextResponse,
     PrincipalLoanContext,
+    PrincipalAllocation,
     PrincipalPaymentRequest,
     PrincipalPaymentResponse,
 )
@@ -408,98 +409,199 @@ def principal_context(
     return PrincipalContextResponse(customer_id=customer_id, items=items)
 
 
+def _resolve_principal_targets(db: Session, payload: PrincipalPaymentRequest) -> list[Loan]:
+    """The loans a principal payment applies to, oldest disbursement first.
+
+    Raises rather than quietly narrowing the list: a request naming a closed or foreign
+    loan is an operator mistake worth surfacing, not something to drop from the allocation
+    and let the money land somewhere else.
+    """
+    if payload.loan_id is not None:
+        loan = db.get(Loan, payload.loan_id)
+        if loan is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+        if loan.status == LoanStatus.closed:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loan is already closed")
+        return [loan]
+
+    if payload.customer_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either loan_id or customer_id is required",
+        )
+
+    open_loans = list(
+        db.scalars(
+            select(Loan).where(
+                Loan.customer_id == payload.customer_id,
+                Loan.status != LoanStatus.closed,
+            )
+        ).all()
+    )
+    by_id = {loan.id: loan for loan in open_loans}
+
+    if payload.selected_loan_ids:
+        targets = []
+        for loan_id in payload.selected_loan_ids:
+            loan = by_id.get(loan_id)
+            if loan is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Loan {loan_id} is not an open loan of this customer",
+                )
+            targets.append(loan)
+    elif payload.pay_all_outstanding:
+        targets = open_loans
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Select at least one loan or set pay_all_outstanding",
+        )
+
+    targets = [loan for loan in targets if loan.outstanding_principal > 0]
+    if not targets:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Selected loans have no outstanding principal",
+        )
+
+    # Oldest first, matching the rule interest allocation already follows.
+    targets.sort(key=lambda loan: (loan.disbursement_date, loan.id))
+    return targets
+
+
 @router.post("/principal", response_model=PrincipalPaymentResponse)
 def pay_principal(
     payload: PrincipalPaymentRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
 ) -> PrincipalPaymentResponse:
+    """Apply money to principal on one loan or across several.
+
+    Targets are settled oldest-disbursement-first, each capped at its own outstanding
+    principal, and every target is validated before a single row is written: a payment
+    that cannot be fully applied is rejected instead of landing halfway. Principal has no
+    equivalent of the interest advance pool, so leftover money is an error, not a credit.
+    """
     if payload.total_amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Total amount must be greater than zero")
 
-    loan = db.get(Loan, payload.loan_id)
-    if loan is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
-    if loan.status == LoanStatus.closed:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loan is already closed")
-
     payment_date = payload.payment_date or get_local_date(db)
+    targets = _resolve_principal_targets(db, payload)
 
-    pending_items = _pending_interest_items_for_customer(db, loan.customer_id, payment_date)
-    unpaid_interest = round(
-        sum(item.current_outstanding_balance for item in pending_items if item.loan_id == loan.id),
-        2,
-    )
-    if unpaid_interest > 0 and not payload.allow_with_unpaid_interest:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Principal payment blocked: unpaid accrued interest exists",
-        )
-
-    if round(payload.total_amount, 2) > round(loan.outstanding_principal, 2):
+    total_capacity = round(sum(loan.outstanding_principal for loan in targets), 2)
+    if round(payload.total_amount, 2) > total_capacity:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Principal payment cannot exceed outstanding principal",
         )
 
-    applied_principal = round(payload.total_amount, 2)
-    loan.outstanding_principal = round(max(0.0, loan.outstanding_principal - applied_principal), 2)
-    if loan.outstanding_principal == 0:
-        loan.status = LoanStatus.closed
+    if not payload.allow_with_unpaid_interest:
+        pending_items = _pending_interest_items_for_customer(db, targets[0].customer_id, payment_date)
+        for loan in targets:
+            unpaid_interest = round(
+                sum(item.current_outstanding_balance for item in pending_items if item.loan_id == loan.id),
+                2,
+            )
+            if unpaid_interest > 0:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Principal payment blocked: unpaid accrued interest exists on loan {loan.id}",
+                )
 
     payment = Payment(
-        loan_id=loan.id,
+        loan_id=targets[0].id,
         payment_date=payment_date,
-        total_amount=applied_principal,
+        total_amount=round(payload.total_amount, 2),
         allocated_to_penalty=0,
         allocated_to_interest=0,
         allocated_to_fees=0,
-        allocated_to_principal=applied_principal,
+        allocated_to_principal=round(payload.total_amount, 2),
         payment_method=payload.payment_method,
         received_by=current_user.id,
     )
     db.add(payment)
     db.flush()
 
-    payment_type = "full_settlement" if loan.outstanding_principal == 0 else "partial_principal_payment"
-    event = PaymentEvent(
-        payment_type=payment_type,
-        payment_id=payment.id,
-        loan_id=loan.id,
-        interest_charge_id=None,
-        billing_period="",
-        total_entered_amount=applied_principal,
-        allocated_to_interest=0,
-        allocated_to_penalty=0,
-        allocated_to_principal=applied_principal,
-        payment_date=payment_date,
-        operator_user_id=current_user.id,
-        payment_method=payload.payment_method,
-        notes=payload.notes,
-    )
-    db.add(event)
-    db.commit()
-    db.refresh(event)
-    db.refresh(loan)
+    remaining = round(payload.total_amount, 2)
+    allocations: list[PrincipalAllocation] = []
 
+    for loan in targets:
+        if remaining <= 0:
+            break
+
+        applied = round(min(loan.outstanding_principal, remaining), 2)
+        if applied <= 0:
+            continue
+
+        loan.outstanding_principal = round(max(0.0, loan.outstanding_principal - applied), 2)
+        if loan.outstanding_principal == 0:
+            loan.status = LoanStatus.closed
+
+        payment_type = "full_settlement" if loan.outstanding_principal == 0 else "partial_principal_payment"
+        event = PaymentEvent(
+            payment_type=payment_type,
+            payment_id=payment.id,
+            loan_id=loan.id,
+            interest_charge_id=None,
+            billing_period="",
+            total_entered_amount=applied,
+            allocated_to_interest=0,
+            allocated_to_penalty=0,
+            allocated_to_principal=applied,
+            payment_date=payment_date,
+            operator_user_id=current_user.id,
+            payment_method=payload.payment_method,
+            notes=payload.notes,
+        )
+        db.add(event)
+        db.flush()
+
+        allocations.append(
+            PrincipalAllocation(
+                payment_event_id=event.id,
+                loan_id=loan.id,
+                payment_type=payment_type,
+                allocated_to_principal=applied,
+                new_outstanding_principal=loan.outstanding_principal,
+                loan_status=loan.status.value,
+            )
+        )
+
+        remaining = round(remaining - applied, 2)
+
+    if not allocations:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to allocate payment")
+
+    db.commit()
+
+    total_allocated = round(sum(item.allocated_to_principal for item in allocations), 2)
     write_audit(
         db,
         action="principal_payment",
         entity_type="PaymentEvent",
-        entity_id=str(event.id),
+        entity_id=str(allocations[0].payment_event_id),
         user=current_user,
-        new_data=f"loan_id={loan.id},amount={applied_principal}",
+        new_data=(
+            f"payment={payment.id},loans={[item.loan_id for item in allocations]},"
+            f"amount={total_allocated}"
+        ),
     )
 
+    first = allocations[0]
     return PrincipalPaymentResponse(
-        payment_event_id=event.id,
-        loan_id=loan.id,
-        payment_type=payment_type,
-        total_entered_amount=applied_principal,
-        allocated_to_principal=applied_principal,
-        new_outstanding_principal=loan.outstanding_principal,
-        loan_status=loan.status.value,
+        payment_id=payment.id,
+        total_entered_amount=round(payload.total_amount, 2),
+        total_allocated_amount=total_allocated,
+        allocations=allocations,
+        payment_event_id=first.payment_event_id,
+        loan_id=first.loan_id,
+        payment_type=first.payment_type,
+        allocated_to_principal=first.allocated_to_principal,
+        new_outstanding_principal=first.new_outstanding_principal,
+        loan_status=first.loan_status,
     )
+
 
 
 @router.get("/customers/{customer_id}/history", response_model=list[PaymentEventRead])

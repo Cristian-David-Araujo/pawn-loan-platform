@@ -51,7 +51,9 @@
             <strong>{{ t('common.loansCovered') }}:</strong> {{ coveredLoanLabels }}
           </p>
           <p v-else-if="loan"><strong>{{ t('common.loanNumber') }}:</strong> {{ loanLabel(loan.id) }}</p>
-          <p v-if="loan">
+          <!-- Only meaningful for one loan: printing one loan's type over a payment that
+               covered several would mislabel the others. -->
+          <p v-if="loan && !spansMultipleLoans">
             <strong>{{ t('common.type') }}:</strong>
             {{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}
           </p>
@@ -115,18 +117,19 @@
           <!-- One payment can settle several invoices, so show where each part landed. -->
           <div class="doc-section" v-if="breakdownLines.length">
             <h3 class="section-title">{{ t('common.paymentBreakdownTitle') }}</h3>
-            <table class="print-table">
+            <table class="print-table" :class="{ 'compact-table': breakdownHasCharges }">
               <thead>
                 <tr>
-                  <th v-if="spansMultipleLoans">{{ t('common.loan') }}</th>
-                  <th>{{ t('payments.period') }}</th>
-                  <th>{{ t('common.dueOn') }}</th>
-                  <th class="text-right">{{ t('common.chargeAmount') }}</th>
-                  <th class="text-right">{{ t('common.interest') }}</th>
+                  <th>{{ t('common.loan') }}</th>
+                  <th>{{ t('common.concept') }}</th>
+                  <th v-if="breakdownHasCharges">{{ t('payments.period') }}</th>
+                  <th v-if="breakdownHasCharges">{{ t('common.dueOn') }}</th>
+                  <th class="text-right" v-if="breakdownHasCharges">{{ t('common.chargeAmount') }}</th>
+                  <th class="text-right" v-if="breakdownHasInterest">{{ t('common.interest') }}</th>
                   <th class="text-right" v-if="breakdownHasPenalty">{{ t('common.penalty') }}</th>
                   <th class="text-right" v-if="breakdownHasPrincipal">{{ t('common.principal') }}</th>
                   <th class="text-right">{{ t('common.applied') }}</th>
-                  <th>{{ t('common.coverage') }}</th>
+                  <th v-if="breakdownHasCharges">{{ t('common.coverage') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -135,13 +138,18 @@
                   :key="line.payment_event_id"
                   :class="{ 'row-reversed': line.is_reversed }"
                 >
-                  <td v-if="spansMultipleLoans">{{ loanLabel(line.loan_id) }}</td>
-                  <td>{{ line.billing_period || eventTypeLabel(line.payment_type) }}</td>
-                  <td>{{ line.charge_due_date ? formatDateDMY(line.charge_due_date) : '—' }}</td>
-                  <td class="text-right">
+                  <td>{{ loanLabel(line.loan_id) }}</td>
+                  <td>{{ eventTypeLabel(line.payment_type) }}</td>
+                  <td v-if="breakdownHasCharges">{{ line.billing_period || '—' }}</td>
+                  <td v-if="breakdownHasCharges">
+                    {{ line.charge_due_date ? formatDateDMY(line.charge_due_date) : '—' }}
+                  </td>
+                  <td class="text-right" v-if="breakdownHasCharges">
                     {{ line.charge_amount !== null ? formatCurrency(line.charge_amount) : '—' }}
                   </td>
-                  <td class="text-right">{{ formatCurrency(line.allocated_to_interest) }}</td>
+                  <td class="text-right" v-if="breakdownHasInterest">
+                    {{ formatCurrency(line.allocated_to_interest) }}
+                  </td>
                   <td class="text-right" v-if="breakdownHasPenalty">
                     {{ formatCurrency(line.allocated_to_penalty) }}
                   </td>
@@ -149,13 +157,15 @@
                     {{ formatCurrency(line.allocated_to_principal) }}
                   </td>
                   <td class="text-right balance-value">{{ formatCurrency(line.allocated_total) }}</td>
-                  <td class="coverage-cell">{{ coverageLabel(line) }}</td>
+                  <td class="coverage-cell" v-if="breakdownHasCharges">{{ coverageLabel(line) }}</td>
                 </tr>
               </tbody>
               <tfoot>
                 <tr>
                   <th :colspan="breakdownLabelSpan">{{ t('common.totalApplied') }}</th>
-                  <th class="text-right">{{ formatCurrency(breakdownTotals.interest) }}</th>
+                  <th class="text-right" v-if="breakdownHasInterest">
+                    {{ formatCurrency(breakdownTotals.interest) }}
+                  </th>
                   <th class="text-right" v-if="breakdownHasPenalty">
                     {{ formatCurrency(breakdownTotals.penalty) }}
                   </th>
@@ -163,14 +173,17 @@
                     {{ formatCurrency(breakdownTotals.principal) }}
                   </th>
                   <th class="text-right">{{ formatCurrency(breakdownTotals.total) }}</th>
-                  <th></th>
+                  <th v-if="breakdownHasCharges"></th>
                 </tr>
               </tfoot>
             </table>
             <p class="note" v-if="unallocatedAmount > 0">
               {{ t('common.unallocatedAmount') }}: <strong>{{ formatCurrency(unallocatedAmount) }}</strong>
             </p>
-            <p class="muted">{{ t('common.breakdownNote') }}</p>
+            <!-- The invoice/penalty ordering rule only describes interest allocation. -->
+            <p class="muted">
+              {{ breakdownHasCharges ? t('common.breakdownNote') : t('common.breakdownNotePrincipal') }}
+            </p>
           </div>
         </template>
 
@@ -434,41 +447,63 @@
         </table>
       </div>
 
-      <!-- ── POST-PAYMENT BALANCES (the main new section) ── -->
-      <div class="doc-section" v-if="isPayment && loan">
+      <!-- Every live loan of the customer, so the receipt never implies the loans this
+           payment touched are all they owe. -->
+      <div class="doc-section" v-if="isPayment && receiptLoanBalances.length">
         <h3 class="section-title">{{ t('common.remainingBalancesTitle') }}</h3>
-        <table class="print-table balances-table">
-          <tbody>
+        <table class="print-table" :class="{ 'compact-table': receiptLoanBalances.length > 1 }">
+          <thead>
             <tr>
-              <td>{{ t('common.remainingPrincipal') }}</td>
-              <td class="text-right balance-value" :class="{ 'balance-zero': loan.outstandingPrincipal === 0 }">
-                {{ formatCurrency(loan.outstandingPrincipal) }}
-              </td>
+              <th>{{ t('common.loan') }}</th>
+              <th class="text-right">{{ t('common.principalBalance') }}</th>
+              <th class="text-right">{{ t('common.interest') }}</th>
+              <th class="text-right">{{ t('common.penalty') }}</th>
+              <th class="text-right">{{ t('common.totalOwed') }}</th>
+              <th>{{ t('common.status') }}</th>
             </tr>
-            <tr v-if="pendingInterestAfterPayment !== null">
-              <td>{{ t('common.remainingInterest') }}</td>
-              <td class="text-right balance-value" :class="{ 'balance-zero': pendingInterestAfterPayment === 0 }">
-                {{ formatCurrency(pendingInterestAfterPayment) }}
+          </thead>
+          <tbody>
+            <tr v-for="row in receiptLoanBalances" :key="row.loanId">
+              <td>
+                {{ loanLabel(row.loanId) }}
+                <span class="paid-now" v-if="row.paidNow && receiptLoanBalances.length > 1">
+                  {{ t('common.paidNow') }}
+                </span>
               </td>
-            </tr>
-            <tr v-if="pendingPenaltyAfterPayment !== null && pendingPenaltyAfterPayment > 0">
-              <td>{{ t('common.remainingPenalty') }}</td>
-              <td class="text-right balance-value">
-                {{ formatCurrency(pendingPenaltyAfterPayment) }}
+              <td class="text-right balance-value" :class="{ 'balance-zero': row.principal === 0 }">
+                {{ formatCurrency(row.principal) }}
+              </td>
+              <td class="text-right" :class="{ 'balance-zero': row.interest === 0 }">
+                {{ formatCurrency(row.interest) }}
+              </td>
+              <td class="text-right">{{ formatCurrency(row.penalty) }}</td>
+              <td class="text-right balance-value" :class="{ 'balance-zero': row.total === 0 }">
+                {{ formatCurrency(row.total) }}
+              </td>
+              <td>
+                <span class="status-badge" :class="getLoanStatusClass({ status: row.status })">
+                  {{ getLoanStatusLabel({ status: row.status }) }}
+                </span>
               </td>
             </tr>
           </tbody>
+          <tfoot v-if="receiptLoanBalances.length > 1">
+            <tr>
+              <th>{{ t('common.totals') }}</th>
+              <th class="text-right">{{ formatCurrency(receiptLoanTotals.principal) }}</th>
+              <th class="text-right">{{ formatCurrency(receiptLoanTotals.interest) }}</th>
+              <th class="text-right">{{ formatCurrency(receiptLoanTotals.penalty) }}</th>
+              <th class="text-right">{{ formatCurrency(receiptLoanTotals.total) }}</th>
+              <th></th>
+            </tr>
+          </tfoot>
         </table>
-        <div class="info-grid">
-          <p>
-            <strong>{{ t('common.loanStatus') }}:</strong>
-            <span class="status-badge" :class="loanStatusClass">{{ loanStatusLabel }}</span>
-          </p>
-        </div>
+        <p class="muted">{{ t('common.remainingBalancesNote') }}</p>
 
-        <!-- Loan closed notice -->
-        <div class="closed-notice" v-if="loan.status === 'closed'">
-          {{ t('common.loanClosedNotice') }}
+        <!-- Only when nothing is left owing anywhere. Keying this off a single loan's
+             status announced "settled in full" while another loan still owed money. -->
+        <div class="closed-notice" v-if="allReceiptLoansSettled">
+          {{ receiptLoanBalances.length > 1 ? t('common.loansClosedNotice') : t('common.loanClosedNotice') }}
         </div>
       </div>
 
@@ -492,6 +527,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY } from '../utils/date'
+import { paymentTypeKey } from '../utils/paymentTypes'
 import { apiClient } from '../services/api'
 
 const route = useRoute()
@@ -507,10 +543,6 @@ const isCustomer = computed(() => type.value === 'customer')
 const isHistory = computed(() => type.value === 'history')
 const isLoan = computed(() => !isPayment.value && !isCustomer.value && !isHistory.value)
 const ready = ref(false)
-
-// Post-payment pending interest/penalty fetched from the API
-const pendingInterestAfterPayment = ref<number | null>(null)
-const pendingPenaltyAfterPayment = ref<number | null>(null)
 
 interface LoanStatement {
   loan_id: number
@@ -724,19 +756,108 @@ const spansMultipleLoans = computed(() => coveredLoanIds.value.length > 1)
 
 const coveredLoanLabels = computed(() => coveredLoanIds.value.map(loanLabel).join(', '))
 
-const coverageLabel = (line: PaymentAllocation) =>
-  line.fully_covered ? t('common.coverageFull') : t('common.coveragePartial')
+/**
+ * What the customer still owes after this payment, across **all** their live loans — not
+ * only the ones this payment touched. Listing just the touched loans read as if those
+ * were the customer's whole debt; a receipt for one loan hid the other four.
+ *
+ * Loans already closed before this payment are left out (they owe nothing and would grow
+ * the receipt forever), but a loan this payment settled stays visible at zero so the
+ * customer can see the one they just paid off.
+ *
+ * Per-loan on purpose: the figures used to pair one loan's principal with the customer's
+ * *whole* pending interest, which overstated the debt on anyone holding several loans.
+ */
+const receiptLoanBalances = computed(() => {
+  const current = customer.value
+  if (!current) return []
 
-// Columns that would be all zeros are dropped, so the table stays readable on paper.
-const breakdownHasPenalty = computed(() =>
+  const touched = new Set(coveredLoanIds.value)
+  return state.loans
+    .filter((item) => item.customerId === current.id)
+    .filter((item) => item.status !== 'closed' || touched.has(item.id))
+    .slice()
+    .sort((a, b) => a.id - b.id)
+    .map((item) => {
+      // A settled loan drops out of the statement endpoint, so fall back to the stored
+      // principal — it owes no interest either way.
+      const statement = statementFor(item.id)
+      const principal = statement?.outstanding_principal ?? item.outstandingPrincipal
+      return {
+        loanId: item.id,
+        principal,
+        interest: statement?.accrued_unpaid_interest ?? 0,
+        penalty: statement?.penalties ?? 0,
+        total: statement?.total_payoff_amount ?? principal,
+        status: item.status,
+        paidNow: touched.has(item.id)
+      }
+    })
+})
+
+// Drives the "settled in full" notice, so it must weigh every loan still on the list.
+const allReceiptLoansSettled = computed(
+  () =>
+    receiptLoanBalances.value.length > 0 &&
+    receiptLoanBalances.value.every((row) => row.total === 0)
+)
+
+const receiptLoanTotals = computed(() => ({
+  principal: receiptLoanBalances.value.reduce((sum, row) => sum + row.principal, 0),
+  interest: receiptLoanBalances.value.reduce((sum, row) => sum + row.interest, 0),
+  penalty: receiptLoanBalances.value.reduce((sum, row) => sum + row.penalty, 0),
+  total: receiptLoanBalances.value.reduce((sum, row) => sum + row.total, 0)
+}))
+
+// Coverage only means something against an invoice; a principal payment has none.
+const coverageLabel = (line: PaymentAllocation) => {
+  if (line.interest_charge_id === null) return '—'
+  return line.fully_covered ? t('common.coverageFull') : t('common.coveragePartial')
+}
+
+// Columns that would be all dashes or all zeros are dropped, so a pure principal payment
+// prints as loan / concept / applied instead of a row of empty invoice fields.
+const breakdownHasCharges = computed(() =>
+  breakdownLines.value.some((line) => line.interest_charge_id !== null)
+)
+
+const hasInterestAllocation = computed(() =>
+  breakdownLines.value.some((line) => line.allocated_to_interest > 0)
+)
+
+const hasPenaltyAllocation = computed(() =>
   breakdownLines.value.some((line) => line.allocated_to_penalty > 0)
 )
 
-const breakdownHasPrincipal = computed(() =>
+const hasPrincipalAllocation = computed(() =>
   breakdownLines.value.some((line) => line.allocated_to_principal > 0)
 )
 
-const breakdownLabelSpan = computed(() => (spansMultipleLoans.value ? 4 : 3))
+/**
+ * With a single bucket in play, its column just repeats "applied" figure for figure — the
+ * split is only worth printing when the payment actually touched more than one.
+ */
+const breakdownSplitsBuckets = computed(
+  () =>
+    [hasInterestAllocation.value, hasPenaltyAllocation.value, hasPrincipalAllocation.value].filter(
+      Boolean
+    ).length > 1
+)
+
+const breakdownHasInterest = computed(
+  () => breakdownSplitsBuckets.value && hasInterestAllocation.value
+)
+
+const breakdownHasPenalty = computed(
+  () => breakdownSplitsBuckets.value && hasPenaltyAllocation.value
+)
+
+const breakdownHasPrincipal = computed(
+  () => breakdownSplitsBuckets.value && hasPrincipalAllocation.value
+)
+
+// Loan + concept, plus the three invoice columns when there are invoices.
+const breakdownLabelSpan = computed(() => (breakdownHasCharges.value ? 5 : 2))
 
 const activeHistoryEvents = computed(() => historyEvents.value.filter((event) => !event.is_reversed))
 
@@ -779,19 +900,7 @@ const dateString = computed(() => {
   return ''
 })
 
-const eventTypeKeys: Record<string, string> = {
-  interest_payment: 'common.eventInterestPayment',
-  partial_interest_payment: 'common.eventPartialInterestPayment',
-  interest_advance_payment: 'common.eventInterestAdvance',
-  partial_principal_payment: 'common.eventPartialPrincipalPayment',
-  full_settlement: 'common.eventFullSettlement',
-  mixed_payment: 'common.eventMixedPayment'
-}
-
-const eventTypeLabel = (value: string) => {
-  const key = eventTypeKeys[value]
-  return key ? t(key) : value.replace(/_/g, ' ')
-}
+const eventTypeLabel = (value: string) => t(paymentTypeKey(value))
 
 const formatCurrency = (val: number) => {
   const code = globalSettings.value?.currencyCode || 'COP'
@@ -869,13 +978,11 @@ onMounted(async () => {
 
   try {
     if (isPayment.value && payment.value && loan.value) {
-      // Balances remaining AFTER this payment, plus the ledger rows the payment produced.
-      const [pending, allocations] = await Promise.all([
+      // Per-loan balances remaining AFTER this payment, plus the ledger rows it produced.
+      const [, allocations] = await Promise.all([
         loadStatement(loan.value.customerId),
         apiClient.request<PaymentAllocations>(`/payments/${id.value}/allocations`)
       ])
-      pendingInterestAfterPayment.value = pending.total_pending_interest
-      pendingPenaltyAfterPayment.value = pending.total_pending_penalty
       breakdown.value = allocations
     } else if (isLoan.value && loan.value) {
       await loadStatement(loan.value.customerId)
@@ -888,7 +995,6 @@ onMounted(async () => {
     }
   } catch {
     // Non-critical: the document still prints with the data already in the store.
-    pendingInterestAfterPayment.value = null
   }
 
   ready.value = true
@@ -1084,6 +1190,20 @@ onMounted(async () => {
 
 .coverage-cell {
   color: var(--muted);
+}
+
+/* Marks the loans this payment touched inside the customer's full list. */
+.paid-now {
+  display: inline-block;
+  margin-left: 6px;
+  border-radius: var(--radius-full);
+  padding: 0.1rem 0.45rem;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 /* ── Balances ──

@@ -1,9 +1,11 @@
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.infrastructure.persistence.models import InterestCharge, Loan, Payment
+from src.domain.enums.loan import LoanStatus
+from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent
 
 
 def _create_interest_charge(db_session: Session, loan_id: int, amount: float = 100.0) -> InterestCharge:
@@ -428,3 +430,172 @@ def test_principal_payment_requires_flag_when_unpaid_interest_exists(
     )
     assert allowed.status_code == 200
     assert allowed.json()["allocated_to_principal"] == 20
+
+
+def _create_loan_for(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    customer_id: int,
+    principal: float,
+    days_ago: int,
+) -> dict:
+    response = client.post(
+        "/api/v1/loans",
+        headers=auth_headers,
+        json={
+            "customer_id": customer_id,
+            "loan_type": "pawn",
+            "principal_amount": principal,
+            "monthly_interest_rate": 10.0,
+            "disbursement_date": str(date.today() - timedelta(days=days_ago)),
+            "due_day": 5,
+        },
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+def test_principal_payment_spreads_over_several_loans_oldest_first(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """One payment can settle a whole loan and part of the next, oldest disbursement first."""
+    customer = create_customer(document_number="DOC-MULTI-PRINCIPAL")
+    older = _create_loan_for(client, auth_headers, customer["id"], principal=300, days_ago=90)
+    newer = _create_loan_for(client, auth_headers, customer["id"], principal=500, days_ago=10)
+
+    response = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "pay_all_outstanding": True,
+            "total_amount": 400,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+
+    assert [item["loan_id"] for item in body["allocations"]] == [older["id"], newer["id"]]
+    assert body["total_allocated_amount"] == 400
+    assert body["allocations"][0]["allocated_to_principal"] == 300
+    assert body["allocations"][0]["new_outstanding_principal"] == 0
+    assert body["allocations"][0]["loan_status"] == LoanStatus.closed.value
+    assert body["allocations"][1]["allocated_to_principal"] == 100
+    assert body["allocations"][1]["new_outstanding_principal"] == 400
+
+    # Both ledger rows hang off one payment, so the receipt can show the split.
+    assert len({item["payment_event_id"] for item in body["allocations"]}) == 2
+    events = db_session.scalars(
+        select(PaymentEvent).where(PaymentEvent.payment_id == body["payment_id"])
+    ).all()
+    assert len(list(events)) == 2
+
+
+def test_principal_payment_honours_the_selected_loans(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Unlike interest, a principal selection is obeyed: money must not drift elsewhere."""
+    customer = create_customer(document_number="DOC-SELECT-PRINCIPAL")
+    older = _create_loan_for(client, auth_headers, customer["id"], principal=300, days_ago=90)
+    newer = _create_loan_for(client, auth_headers, customer["id"], principal=500, days_ago=10)
+
+    response = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "selected_loan_ids": [newer["id"]],
+            "total_amount": 200,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
+        },
+    )
+    assert response.status_code == 200
+    body = response.json()
+
+    assert [item["loan_id"] for item in body["allocations"]] == [newer["id"]]
+    assert db_session.get(Loan, older["id"]).outstanding_principal == 300
+    assert db_session.get(Loan, newer["id"]).outstanding_principal == 300
+
+
+def test_principal_payment_over_the_selected_capacity_changes_nothing(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """A payment that cannot be fully applied is refused, not applied halfway."""
+    customer = create_customer(document_number="DOC-OVER-PRINCIPAL")
+    older = _create_loan_for(client, auth_headers, customer["id"], principal=300, days_ago=90)
+    newer = _create_loan_for(client, auth_headers, customer["id"], principal=500, days_ago=10)
+
+    response = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "selected_loan_ids": [older["id"]],
+            "total_amount": 400,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
+        },
+    )
+    assert response.status_code == 400
+
+    db_session.expire_all()
+    assert db_session.get(Loan, older["id"]).outstanding_principal == 300
+    assert db_session.get(Loan, newer["id"]).outstanding_principal == 500
+    assert db_session.scalars(select(Payment).where(Payment.loan_id == older["id"])).first() is None
+
+
+def test_principal_payment_blocked_by_unpaid_interest_names_the_loan(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """The per-loan interest rule still applies when the payment covers several loans."""
+    customer = create_customer(document_number="DOC-BLOCKED-PRINCIPAL")
+    older = _create_loan_for(client, auth_headers, customer["id"], principal=300, days_ago=90)
+    _create_loan_for(client, auth_headers, customer["id"], principal=500, days_ago=10)
+
+    response = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "pay_all_outstanding": True,
+            "total_amount": 100,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": False,
+        },
+    )
+    assert response.status_code == 400
+    assert str(older["id"]) in response.json()["detail"]
+
+    db_session.expire_all()
+    assert db_session.get(Loan, older["id"]).outstanding_principal == 300
+
+
+def test_principal_payment_needs_a_target(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+) -> None:
+    customer = create_customer(document_number="DOC-NOTARGET-PRINCIPAL")
+    _create_loan_for(client, auth_headers, customer["id"], principal=300, days_ago=90)
+
+    response = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={"customer_id": customer["id"], "total_amount": 100, "allow_with_unpaid_interest": True},
+    )
+    assert response.status_code == 400

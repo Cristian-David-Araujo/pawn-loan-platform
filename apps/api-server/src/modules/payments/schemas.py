@@ -121,7 +121,18 @@ class PrincipalContextResponse(BaseModel):
 
 
 class PrincipalPaymentRequest(BaseModel):
-    loan_id: int
+    """One principal payment, against a single loan or spread over several.
+
+    Either form is accepted: `loan_id` targets one loan, or `selected_loan_ids` /
+    `pay_all_outstanding` (with `customer_id`) spread the money over the customer's open
+    loans oldest-disbursement-first. Unlike interest, the client's selection is honoured —
+    an operator settling a specific loan must not have the money silently sent elsewhere.
+    """
+
+    loan_id: int | None = None
+    customer_id: int | None = None
+    selected_loan_ids: list[int] = []
+    pay_all_outstanding: bool = False
     total_amount: float
     payment_date: date | None = None
     payment_method: str = "cash"
@@ -129,11 +140,26 @@ class PrincipalPaymentRequest(BaseModel):
     notes: str = ""
 
 
-class PrincipalPaymentResponse(BaseModel):
+class PrincipalAllocation(BaseModel):
     payment_event_id: int
     loan_id: int
     payment_type: str
+    allocated_to_principal: float
+    new_outstanding_principal: float
+    loan_status: str
+
+
+class PrincipalPaymentResponse(BaseModel):
+    payment_id: int
     total_entered_amount: float
+    total_allocated_amount: float
+    allocations: list[PrincipalAllocation]
+
+    # Flat mirror of the first allocation. The single-loan form produces exactly one, so
+    # these describe it exactly; callers handling several loans should read `allocations`.
+    payment_event_id: int
+    loan_id: int
+    payment_type: str
     allocated_to_principal: float
     new_outstanding_principal: float
     loan_status: str

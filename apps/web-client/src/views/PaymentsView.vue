@@ -24,163 +24,206 @@
 
     <div v-if="activeTab === 'interest'" class="card mt-16">
       <h3>{{ t('payments.pendingInterestTitle') }}</h3>
+      <p class="muted">{{ t('common.breakdownNote') }}</p>
 
       <div class="table-toolbar mt-16" style="justify-content: flex-end;">
         <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedSelectedAmount) }) }}</span>
       </div>
 
-      <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>{{ t('common.actions') }}</th>
-            <th>{{ t('common.loan') }}</th>
-            <th>{{ t('common.type') }}</th>
-            <th>{{ t('payments.period') }}</th>
-            <th>{{ t('payments.dueDate') }}</th>
-            <th>{{ t('payments.originalInterest') }}</th>
-            <th>{{ t('payments.pendingInterest') }}</th>
-            <th>{{ t('payments.penalty') }}</th>
-            <th>{{ t('payments.outstandingPeriod') }}</th>
-            <th>{{ t('common.status') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in paginatedPendingItems" :key="item.interest_charge_id">
-            <td>
-              <input
-                type="checkbox"
-                :checked="selectedChargeIds.has(item.interest_charge_id)"
-                @change="toggleCharge(item.interest_charge_id)"
-              />
-            </td>
-            <td>#{{ item.loan_id }}</td>
-            <td>{{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-            <td>{{ item.billing_period }}</td>
-            <td>{{ formatDateDMY(item.due_date) }}</td>
-            <td>{{ formatCurrency(item.original_interest_amount) }}</td>
-            <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
-            <td>{{ formatCurrency(item.penalty_amount) }}</td>
-            <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
-            <td>
-              <span class="pill" :class="getPendingStatusClass(item)">
-                {{ t(getPendingStatusKey(item)) }}
-              </span>
-            </td>
-          </tr>
-          <tr v-if="!flatPendingItems.length">
-            <td colspan="10">{{ t('payments.noPendingInterest') }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div class="table-wrap" v-if="flatPendingItems.length">
+        <table>
+          <thead>
+            <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  :checked="allChargesSelected"
+                  :aria-label="t('payments.selectAllRows')"
+                  @change="toggleAllCharges"
+                />
+              </th>
+              <th>{{ t('common.loan') }}</th>
+              <th>{{ t('common.type') }}</th>
+              <th>{{ t('payments.period') }}</th>
+              <th>{{ t('payments.dueDate') }}</th>
+              <th class="text-right">{{ t('payments.originalInterest') }}</th>
+              <th class="text-right">{{ t('payments.pendingInterest') }}</th>
+              <th class="text-right">{{ t('payments.penalty') }}</th>
+              <th class="text-right">{{ t('payments.outstandingPeriod') }}</th>
+              <th>{{ t('common.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="item in paginatedPendingItems"
+              :key="item.interest_charge_id"
+              :class="{ 'selected-row': isChargeSelected(item.interest_charge_id) }"
+            >
+              <td>
+                <input
+                  type="checkbox"
+                  :checked="isChargeSelected(item.interest_charge_id)"
+                  :aria-label="t('payments.selectPeriodRow', { period: item.billing_period })"
+                  @change="toggleCharge(item.interest_charge_id)"
+                />
+              </td>
+              <td>#{{ item.loan_id }}</td>
+              <td>{{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+              <td>{{ item.billing_period }}</td>
+              <td>{{ formatDateDMY(item.due_date) }}</td>
+              <td class="text-right">{{ formatCurrency(item.original_interest_amount) }}</td>
+              <td class="text-right">{{ formatCurrency(item.remaining_pending_amount) }}</td>
+              <td class="text-right">{{ formatCurrency(item.penalty_amount) }}</td>
+              <td class="text-right">{{ formatCurrency(item.current_outstanding_balance) }}</td>
+              <td>
+                <span class="pill" :class="getPendingStatusClass(item)">
+                  {{ t(getPendingStatusKey(item)) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <Pagination v-model="pendingInterestCurrentPage" :totalItems="flatPendingItems.length" :itemsPerPage="10" />
+      <div class="empty-state" v-else>
+        <div class="empty-state-icon"><CircleDollarSign :size="22" /></div>
+        <p>{{ selectedCustomerId ? t('payments.noPendingInterest') : t('payments.selectCustomerFirst') }}</p>
+      </div>
+      <Pagination
+        v-if="flatPendingItems.length"
+        v-model="pendingInterestCurrentPage"
+        :totalItems="flatPendingItems.length"
+        :itemsPerPage="10"
+      />
 
-      <div class="card mt-16">
+      <PaymentCollectionForm
+        v-if="flatPendingItems.length"
+        v-model:amount="interestEnteredAmount"
+        v-model:method="interestPaymentMethod"
+        v-model:notes="interestNotes"
+        v-model:print-receipt="printReceiptOnSave"
+        :submit-label="t('payments.registerInterestPayment')"
+        :submit-disabled="interestAmountToPay <= 0 || processing"
+        @use-suggested="useSuggestedAmount"
+        @amount-edited="interestAmountTouched = true"
+        @submit="submitInterestPayment"
+      >
+        <template #icon><CircleDollarSign :size="16" /></template>
         <p>{{ t('payments.selectedItems', { count: selectedChargeIds.size }) }}</p>
         <p>{{ t('payments.amountEntered', { amount: formatCurrency(interestAmountToPay) }) }}</p>
         <p>{{ t('payments.remainingAfterPayment', { amount: formatCurrency(remainingAfterInterestPayment) }) }}</p>
-        <p>{{ t('payments.partialDetected', { amount: formatCurrency(partialAmount) }) }}</p>
-        <p>{{ t('payments.advanceDetected', { amount: formatCurrency(advanceAmount) }) }}</p>
-        <label class="mt-16">
-          {{ t('payments.notes') }}
-          <input v-model="interestNotes" />
-        </label>
-        <div class="form-inline mt-16" style="align-items: flex-end; border-top: 1px solid var(--line); padding-top: 1rem;">
-          <label>
-            {{ t('payments.paymentMethod') }}
-            <CustomSelect v-model="interestPaymentMethod" :options="paymentMethodOptions" />
-          </label>
-          <label>
-            {{ t('payments.totalAmount') }}
-            <CurrencyInput v-model="interestEnteredAmount" @input="interestAmountTouched = true" />
-          </label>
-          <button class="btn btn-secondary" type="button" @click="useSuggestedAmount">
-            <Sparkles :size="16" />
-            {{ t('payments.useSuggested') }}
-          </button>
-
-          <div style="flex: 1;"></div>
-
-          <label class="checkbox-row" style="margin-bottom: 0;">
-            <input v-model="printReceiptOnSave" type="checkbox" />
-            {{ t('common.printReceiptOnSave') }}
-          </label>
-          <button class="btn" type="button" @click="submitInterestPayment" :disabled="interestAmountToPay <= 0 || processing">
-            <CircleDollarSign :size="16" />
-            {{ t('payments.registerInterestPayment') }}
-          </button>
-        </div>
-      </div>
+        <p class="pill pill-warning" v-if="partialAmount > 0">
+          {{ t('payments.partialDetected', { amount: formatCurrency(partialAmount) }) }}
+        </p>
+        <p class="pill pill-upcoming" v-if="advanceAmount > 0">
+          {{ t('payments.advanceDetected', { amount: formatCurrency(advanceAmount) }) }}
+        </p>
+      </PaymentCollectionForm>
     </div>
 
     <div v-if="activeTab === 'principal'" class="card mt-16">
       <h3>{{ t('payments.principalTitle') }}</h3>
+      <p class="muted">{{ t('payments.principalOrderHint') }}</p>
 
-      <label class="mt-16">
-        {{ t('common.loan') }}
-        <CustomSelect v-model.number="selectedPrincipalLoanId" :options="principalContextOptions" />
-      </label>
-
-      <div v-if="selectedPrincipalLoan" class="grid grid-3 mt-16">
-        <div class="card">
-          <p>{{ t('payments.originalPrincipal') }}</p>
-          <strong>{{ formatCurrency(selectedPrincipalLoan.original_principal) }}</strong>
-        </div>
-        <div class="card">
-          <p>{{ t('payments.outstandingPrincipal') }}</p>
-          <strong>{{ formatCurrency(selectedPrincipalLoan.outstanding_principal) }}</strong>
-        </div>
-        <div class="card">
-          <p>{{ t('payments.accruedUnpaidInterest') }}</p>
-          <strong>{{ formatCurrency(selectedPrincipalLoan.accrued_unpaid_interest) }}</strong>
-        </div>
-        <div class="card">
-          <p>{{ t('payments.penalty') }}</p>
-          <strong>{{ formatCurrency(selectedPrincipalLoan.penalties) }}</strong>
-        </div>
-        <div class="card">
-          <p>{{ t('payments.totalPayoff') }}</p>
-          <strong>{{ formatCurrency(selectedPrincipalLoan.total_payoff_amount) }}</strong>
-        </div>
-        <div class="card">
-          <p>{{ t('payments.nextDueDate') }}</p>
-          <strong>{{ formatDateDMY(selectedPrincipalLoan.next_due_date) }}</strong>
-        </div>
+      <div class="table-toolbar mt-16" style="justify-content: flex-end;">
+        <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedPrincipalAmount) }) }}</span>
       </div>
 
-      <div v-if="selectedPrincipalLoan" class="card mt-16">
-        <label class="checkbox-row">
+      <div class="table-wrap" v-if="principalContextItems.length">
+        <table>
+          <thead>
+            <tr>
+              <th>
+                <input
+                  type="checkbox"
+                  :checked="allPrincipalLoansSelected"
+                  :aria-label="t('payments.selectAllRows')"
+                  @change="toggleAllPrincipalLoans"
+                />
+              </th>
+              <th>{{ t('common.loan') }}</th>
+              <th>{{ t('common.type') }}</th>
+              <th>{{ t('payments.disbursedOn') }}</th>
+              <th class="text-right">{{ t('payments.originalPrincipal') }}</th>
+              <th class="text-right">{{ t('payments.outstandingPrincipal') }}</th>
+              <th class="text-right">{{ t('payments.accruedUnpaidInterest') }}</th>
+              <th class="text-right">{{ t('payments.penalty') }}</th>
+              <th class="text-right">{{ t('payments.totalPayoff') }}</th>
+              <th>{{ t('payments.nextDueDate') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(item, index) in paginatedPrincipalItems"
+              :key="item.loan_id"
+              :class="{ 'selected-row': isPrincipalLoanSelected(item.loan_id) }"
+            >
+              <td>
+                <input
+                  type="checkbox"
+                  :checked="isPrincipalLoanSelected(item.loan_id)"
+                  :aria-label="t('payments.selectLoanRow', { id: item.loan_id })"
+                  @change="togglePrincipalLoan(item.loan_id)"
+                />
+              </td>
+              <td>
+                #{{ item.loan_id }}
+                <span class="pill pill-upcoming" v-if="index === 0 && principalCurrentPage === 1">
+                  {{ t('payments.oldestTag') }}
+                </span>
+              </td>
+              <td>{{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+              <td>{{ formatDateDMY(item.disbursement_date) }}</td>
+              <td class="text-right">{{ formatCurrency(item.original_principal) }}</td>
+              <td class="text-right">{{ formatCurrency(item.outstanding_principal) }}</td>
+              <td class="text-right">{{ formatCurrency(item.accrued_unpaid_interest) }}</td>
+              <td class="text-right">{{ formatCurrency(item.penalties) }}</td>
+              <td class="text-right">{{ formatCurrency(item.total_payoff_amount) }}</td>
+              <td>{{ formatDateDMY(item.next_due_date) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="empty-state" v-else>
+        <div class="empty-state-icon"><WalletCards :size="22" /></div>
+        <p>{{ selectedCustomerId ? t('payments.noLoansForPrincipal') : t('payments.selectCustomerFirst') }}</p>
+      </div>
+      <Pagination
+        v-if="principalContextItems.length"
+        v-model="principalCurrentPage"
+        :totalItems="principalContextItems.length"
+        :itemsPerPage="10"
+      />
+
+      <PaymentCollectionForm
+        v-if="principalContextItems.length"
+        v-model:amount="principalAmount"
+        v-model:method="principalPaymentMethod"
+        v-model:notes="principalNotes"
+        v-model:print-receipt="printReceiptOnSave"
+        :submit-label="t('payments.registerPrincipalPayment')"
+        :submit-disabled="!selectedChargeCountPrincipal || principalAmountToPay <= 0 || principalExceedsSelected || processing"
+        @use-suggested="usePrincipalSuggestedAmount"
+        @amount-edited="principalAmountTouched = true"
+        @submit="submitPrincipalPayment"
+      >
+        <template #icon><WalletCards :size="16" /></template>
+        <p>{{ t('payments.selectedItems', { count: selectedChargeCountPrincipal }) }}</p>
+        <p>{{ t('payments.amountEntered', { amount: formatCurrency(principalAmountToPay) }) }}</p>
+        <p>{{ t('payments.remainingAfterPrincipal', { amount: formatCurrency(remainingPrincipalAfterPayment) }) }}</p>
+        <p class="pill pill-overdue" v-if="principalExceedsSelected">
+          {{ t('payments.principalExceedsOutstanding', { amount: formatCurrency(suggestedPrincipalAmount) }) }}
+        </p>
+        <p class="pill pill-warning" v-else-if="blockedPrincipalLoans.length && !allowPrincipalWithUnpaidInterest">
+          {{ t('payments.principalBlockedHint', {
+            loans: blockedPrincipalLoans.map((item) => '#' + item.loan_id).join(', '),
+            amount: formatCurrency(blockedPrincipalInterest)
+          }) }}
+        </p>
+        <label class="checkbox-row mt-16">
           <input v-model="allowPrincipalWithUnpaidInterest" type="checkbox" />
           {{ t('payments.allowWithUnpaidInterest') }}
         </label>
-        <label class="mt-16">
-          {{ t('payments.notes') }}
-          <input v-model="principalNotes" />
-        </label>
-
-        <div class="form-inline mt-16" style="align-items: flex-end; border-top: 1px solid var(--line); padding-top: 1rem;">
-          <label>
-            {{ t('payments.paymentMethod') }}
-            <CustomSelect v-model="principalPaymentMethod" :options="paymentMethodOptions" />
-          </label>
-          <label>
-            {{ t('payments.totalAmount') }}
-            <CurrencyInput v-model="principalAmount" />
-          </label>
-
-          <div style="flex: 1;"></div>
-
-          <label class="checkbox-row" style="margin-bottom: 0;">
-            <input v-model="printReceiptOnSave" type="checkbox" />
-            {{ t('common.printReceiptOnSave') }}
-          </label>
-          <button class="btn" type="button" @click="submitPrincipalPayment" :disabled="!selectedPrincipalLoan || principalAmount <= 0 || processing">
-            <WalletCards :size="16" />
-            {{ t('payments.registerPrincipalPayment') }}
-          </button>
-        </div>
-      </div>
+      </PaymentCollectionForm>
     </div>
 
     <div class="card mt-16" v-if="selectedCustomerId">
@@ -374,12 +417,15 @@
 <script setup lang="ts">
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
+import PaymentCollectionForm from '../components/PaymentCollectionForm.vue'
 import { usePagination } from '../composables/usePagination'
+import { useRowSelection } from '../composables/useRowSelection'
+import type { PaymentMethod } from '../types/domain'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
-import { CircleDollarSign, ChevronDown, ChevronRight, FilterX, Pencil, ReceiptText, Save, Sparkles, WalletCards, Printer } from 'lucide-vue-next'
+import { CircleDollarSign, ChevronDown, ChevronRight, FilterX, Pencil, ReceiptText, Save, WalletCards, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
@@ -388,6 +434,7 @@ import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatDateDMY, toIsoDate } from '../utils/date'
+import { paymentTypeKey } from '../utils/paymentTypes'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -470,18 +517,21 @@ watch(selectedCustomerId, (newId) => {
     principalContext.value = null
     paymentHistory.value = []
   }
+  // useRowSelection prunes the ticked rows itself; this only clears the typed amount so
+  // the next customer does not inherit a figure from the previous one.
+  principalAmount.value = 0
+  principalAmountTouched.value = false
 })
-const selectedPrincipalLoanId = ref<number | null>(null)
 const principalAmount = ref(0)
-const principalPaymentMethod = ref<'cash' | 'bank-transfer' | 'other'>('cash')
+const principalPaymentMethod = ref<PaymentMethod>('cash')
 const allowPrincipalWithUnpaidInterest = ref(false)
 const principalNotes = ref('')
 
-const interestPaymentMethod = ref<'cash' | 'bank-transfer' | 'other'>('cash')
+const interestPaymentMethod = ref<PaymentMethod>('cash')
 const interestNotes = ref('')
 const interestEnteredAmount = ref(0)
 const interestAmountTouched = ref(false)
-const selectedChargeIds = ref(new Set<number>())
+const principalAmountTouched = ref(false)
 
 const pendingInterest = ref<InterestPendingResponse | null>(null)
 const principalContext = ref<PrincipalContextResponse | null>(null)
@@ -534,13 +584,59 @@ const flatPendingItems = computed(() =>
   )
 )
 
+// Oldest loan first: that is the order the API allocates in, so the table shows the path
+// the money will actually take when several loans are ticked.
 const principalContextItems = computed(() =>
-  [...(principalContext.value?.items ?? [])].sort((a, b) => new Date(b.next_due_date).getTime() - new Date(a.next_due_date).getTime())
+  [...(principalContext.value?.items ?? [])].sort((a, b) => {
+    const delta =
+      new Date(a.disbursement_date).getTime() - new Date(b.disbursement_date).getTime()
+    return delta !== 0 ? delta : a.loan_id - b.loan_id
+  })
 )
 
-const selectedPrincipalLoan = computed(
-  () => principalContextItems.value.find((item) => item.loan_id === selectedPrincipalLoanId.value) ?? null
+const {
+  selected: selectedPrincipalLoanIds,
+  selectedRows: selectedPrincipalLoans,
+  isSelected: isPrincipalLoanSelected,
+  toggle: togglePrincipalSelection,
+  toggleAll: toggleAllPrincipalSelection,
+  selectAll: selectAllPrincipalLoans,
+  allSelected: allPrincipalLoansSelected
+} = useRowSelection(principalContextItems, (item) => item.loan_id)
+
+const selectedChargeCountPrincipal = computed(() => selectedPrincipalLoanIds.value.size)
+
+const suggestedPrincipalAmount = computed(() =>
+  selectedPrincipalLoans.value.reduce((sum, item) => sum + item.outstanding_principal, 0)
 )
+
+const principalAmountToPay = computed(() => Math.max(0, principalAmount.value || 0))
+
+const remainingPrincipalAfterPayment = computed(() =>
+  Math.max(0, suggestedPrincipalAmount.value - principalAmountToPay.value)
+)
+
+// Principal has no advance pool, so the API refuses anything it cannot fully apply.
+// Catching it here keeps the operator from submitting a payment that is bound to 400.
+const principalExceedsSelected = computed(
+  () => principalAmountToPay.value > suggestedPrincipalAmount.value
+)
+
+// The API blocks per loan on the pending interest *and* penalty of that loan.
+const blockedPrincipalLoans = computed(() =>
+  selectedPrincipalLoans.value.filter((item) => item.accrued_unpaid_interest + item.penalties > 0)
+)
+
+const blockedPrincipalInterest = computed(() =>
+  blockedPrincipalLoans.value.reduce(
+    (sum, item) => sum + item.accrued_unpaid_interest + item.penalties,
+    0
+  )
+)
+
+const usePrincipalSuggestedAmount = () => {
+  principalAmount.value = suggestedPrincipalAmount.value
+}
 
 const sortedPaymentHistory = computed(() =>
   [...paymentHistory.value].sort((a, b) => new Date(b.payment_date).getTime() - new Date(a.payment_date).getTime())
@@ -630,9 +726,15 @@ const totalPendingOutstanding = computed(() =>
   flatPendingItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0)
 )
 
-const selectedPendingItems = computed(() =>
-  flatPendingItems.value.filter((item) => selectedChargeIds.value.has(item.interest_charge_id))
-)
+const {
+  selected: selectedChargeIds,
+  selectedRows: selectedPendingItems,
+  isSelected: isChargeSelected,
+  toggle: toggleChargeSelection,
+  toggleAll: toggleAllChargeSelection,
+  selectAll: selectAllCharges,
+  allSelected: allChargesSelected
+} = useRowSelection(flatPendingItems, (item) => item.interest_charge_id)
 
 const suggestedSelectedAmount = computed(() =>
   selectedPendingItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0)
@@ -674,17 +776,7 @@ const formatCurrency = (amount: number) =>
     amount
   )
 
-const getPaymentTypeLabel = (paymentType: string) => {
-  if (paymentType === 'partial_principal_payment') return t('payments.typePartialPrincipal')
-  if (paymentType === 'interest_payment' || paymentType === 'interest') return t('payments.typeInterest')
-  if (paymentType === 'penalty_payment') return t('payments.typePenalty')
-  if (paymentType === 'full_payoff') return t('payments.typeFullPayoff')
-  if (paymentType === 'advance_payment' || paymentType === 'advance') return t('payments.typeAdvance')
-  if (paymentType === 'interest_advance_payment') return t('payments.typeInterestAdvance')
-  if (paymentType === 'mixed_payment') return t('payments.typeMixed')
-  if (paymentType === 'principal') return t('payments.principalTab')
-  return paymentType
-}
+const getPaymentTypeLabel = (paymentType: string) => t(paymentTypeKey(paymentType))
 
 const getPaymentMethodLabel = (method: string) => {
   const m = method.toLowerCase()
@@ -785,17 +877,32 @@ const useSuggestedAmount = () => {
   interestAmountTouched.value = false
 }
 
+// Until the operator types an amount by hand, keep it in step with what is ticked.
 const toggleCharge = (chargeId: number) => {
-  const next = new Set(selectedChargeIds.value)
-  if (next.has(chargeId)) {
-    next.delete(chargeId)
-  } else {
-    next.add(chargeId)
-  }
-  selectedChargeIds.value = next
-
+  toggleChargeSelection(chargeId)
   if (!interestAmountTouched.value) {
     useSuggestedAmount()
+  }
+}
+
+const toggleAllCharges = () => {
+  toggleAllChargeSelection()
+  if (!interestAmountTouched.value) {
+    useSuggestedAmount()
+  }
+}
+
+const togglePrincipalLoan = (loanId: number) => {
+  togglePrincipalSelection(loanId)
+  if (!principalAmountTouched.value) {
+    usePrincipalSuggestedAmount()
+  }
+}
+
+const toggleAllPrincipalLoans = () => {
+  toggleAllPrincipalSelection()
+  if (!principalAmountTouched.value) {
+    usePrincipalSuggestedAmount()
   }
 }
 
@@ -814,10 +921,12 @@ const loadCustomerPaymentData = async () => {
   principalContext.value = principal
   paymentHistory.value = history
   resetHistoryFilters()
-  selectedChargeIds.value = new Set(flatPendingItems.value.map((item) => item.interest_charge_id))
+  // Both tabs open with everything ticked and the amount prefilled to that total.
+  selectAllCharges()
   useSuggestedAmount()
-  selectedPrincipalLoanId.value = principal.items[0]?.loan_id ?? null
-  principalAmount.value = selectedPrincipalLoan.value?.outstanding_principal ?? 0
+  selectAllPrincipalLoans()
+  usePrincipalSuggestedAmount()
+  principalAmountTouched.value = false
 }
 
 const submitInterestPayment = async () => {
@@ -865,7 +974,13 @@ const submitInterestPayment = async () => {
 }
 
 const submitPrincipalPayment = async () => {
-  if (!selectedPrincipalLoan.value || principalAmount.value <= 0 || processing.value) {
+  if (
+    !selectedCustomerId.value ||
+    !selectedPrincipalLoanIds.value.size ||
+    principalAmountToPay.value <= 0 ||
+    principalExceedsSelected.value ||
+    processing.value
+  ) {
     return
   }
 
@@ -884,8 +999,10 @@ const submitPrincipalPayment = async () => {
     await apiClient.request('/payments/principal', {
       method: 'POST',
       body: JSON.stringify({
-        loan_id: selectedPrincipalLoan.value.loan_id,
-        total_amount: principalAmount.value,
+        customer_id: selectedCustomerId.value,
+        // Honoured server-side, unlike the interest flow: the operator picks the loans.
+        selected_loan_ids: [...selectedPrincipalLoanIds.value],
+        total_amount: principalAmountToPay.value,
         payment_method: principalPaymentMethod.value,
         allow_with_unpaid_interest: allowPrincipalWithUnpaidInterest.value,
         notes: principalNotes.value
@@ -894,7 +1011,6 @@ const submitPrincipalPayment = async () => {
 
     await refreshAll()
     await loadCustomerPaymentData()
-    principalAmount.value = selectedPrincipalLoan.value?.outstanding_principal ?? 0
     message.value = t('messages.paymentRegistered')
 
     if (printReceiptOnSave.value && selectedCustomerPayments.value.length > 0) {
@@ -912,6 +1028,9 @@ onMounted(async () => {
 })
 const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingItems } = usePagination(flatPendingItems)
 
+const { currentPage: principalCurrentPage, paginatedArray: paginatedPrincipalItems } =
+  usePagination(principalContextItems)
+
 const { currentPage: customerPaymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(filteredCustomerPayments)
 
 const paymentMethodOptions = computed(() => [
@@ -919,14 +1038,6 @@ const paymentMethodOptions = computed(() => [
   { value: 'bank-transfer', label: t('common.bankTransfer') },
   { value: 'other', label: t('common.other') }
 ])
-
-const principalContextOptions = computed(() => {
-  const options: { value: string | number, label: string }[] = []
-  principalContextItems.value.forEach(item => {
-    options.push({ value: item.loan_id, label: t('common.loan') + ' #' + item.loan_id + ' - ' + t('payments.totalOwed') + ': ' + formatCurrency(item.outstanding_principal) })
-  })
-  return options
-})
 
 const historyLoanFilterOptions = computed(() => {
   const options = [{ value: 'all', label: t('payments.allLoans') }]

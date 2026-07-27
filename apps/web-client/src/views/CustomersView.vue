@@ -801,6 +801,7 @@ import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
 import { formatDateDMY, toIsoDate } from '../utils/date'
+import { paymentTypeKey } from '../utils/paymentTypes'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -1612,17 +1613,7 @@ const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => 
   return getPendingStatusKey(item) === 'payments.current' ? 'pill-current' : 'pill-upcoming'
 }
 
-const paymentTypeLabel = (paymentType: string) => {
-  if (paymentType === 'partial_principal_payment') return t('payments.typePartialPrincipal')
-  if (paymentType === 'interest_payment' || paymentType === 'interest') return t('payments.typeInterest')
-  if (paymentType === 'penalty_payment') return t('payments.typePenalty')
-  if (paymentType === 'full_payoff') return t('payments.typeFullPayoff')
-  if (paymentType === 'advance_payment' || paymentType === 'advance') return t('payments.typeAdvance')
-  if (paymentType === 'interest_advance_payment') return t('payments.typeInterestAdvance')
-  if (paymentType === 'mixed_payment') return t('payments.typeMixed')
-  if (paymentType === 'principal') return t('payments.principalTab')
-  return paymentType
-}
+const paymentTypeLabel = (paymentType: string) => t(paymentTypeKey(paymentType))
 
 const getSortDirectionSymbol = (direction: SortDirection) => (direction === 'asc' ? '↑' : '↓')
 

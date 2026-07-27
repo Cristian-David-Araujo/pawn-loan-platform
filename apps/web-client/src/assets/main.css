@@ -599,13 +599,24 @@ a:focus-visible {
   box-shadow: var(--shadow-focus);
 }
 
-input[type="checkbox"] {
+/* Both need this: without it they inherit the text-field rule above and render as
+   full-width 48px boxes. */
+input[type="checkbox"],
+input[type="radio"] {
   min-height: auto;
   width: 18px;
   height: 18px;
-  border-radius: 4px;
+  padding: 0;
   cursor: pointer;
   accent-color: var(--accent);
+}
+
+input[type="checkbox"] {
+  border-radius: 4px;
+}
+
+input[type="radio"] {
+  border-radius: var(--radius-full);
 }
 
 .form {
