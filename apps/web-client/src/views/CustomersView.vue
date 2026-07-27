@@ -153,6 +153,10 @@
               <Printer :size="16" />
               {{ t('common.printStatement') }}
             </a>
+            <a :href="'/print/invoice/history/' + selectedCustomer.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+              <Printer :size="16" />
+              {{ t('common.printHistory') }}
+            </a>
             <button class="btn btn-secondary" type="button" @click="closeDetailModal">
               <X :size="16" />
               {{ t('common.close') }}

@@ -705,7 +705,11 @@ const resetHistoryFilters = () => {
 }
 
 const printHistory = () => {
-  window.print()
+  if (!selectedCustomerId.value) {
+    return
+  }
+  // A dedicated print document instead of printing the whole application page.
+  window.open(`/print/invoice/history/${selectedCustomerId.value}`, '_blank')
 }
 
 const openPaymentEditModal = (payment: {

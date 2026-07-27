@@ -24,6 +24,7 @@
         <div class="invoice-meta">
           <h1 v-if="isPayment">{{ t('payments.receiptTitle', 'Recibo de Pago') }}</h1>
           <h1 v-else-if="isCustomer">{{ t('common.customerStatementTitle') }}</h1>
+          <h1 v-else-if="isHistory">{{ t('common.paymentHistoryTitle') }}</h1>
           <h1 v-else>{{ t('loans.invoiceTitle', 'Factura de Préstamo') }}</h1>
           <p v-if="!isCustomer"><strong>Nº:</strong> {{ idString }}</p>
           <p><strong>Fecha:</strong> {{ dateString }}</p>
@@ -91,7 +92,7 @@
           </div>
         </template>
 
-        <template v-else-if="!isPayment && loan">
+        <template v-else-if="isLoan && loan">
           <table class="print-table">
             <thead>
               <tr>
@@ -127,19 +128,22 @@
         <!-- Customer Statement (Estado de Cuenta) -->
         <template v-else-if="isCustomer && customer">
           <h3>Resumen de Préstamos</h3>
-          <table class="print-table">
+          <table class="print-table compact-table">
             <thead>
               <tr>
                 <th>Préstamo</th>
                 <th>Tipo</th>
                 <th>Estado</th>
                 <th class="text-right">Tasa</th>
-                <th class="text-right">Saldo Principal</th>
+                <th class="text-right">Saldo Capital</th>
+                <th class="text-right">Interés</th>
+                <th class="text-right">Mora</th>
+                <th class="text-right">Total Adeudado</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="l in customerLoans" :key="l.id">
-                <td>#{{ l.id }}</td>
+                <td>{{ loanLabel(l.id) }}</td>
                 <td>{{ l.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
                 <td>
                   <span class="status-badge" :class="getLoanStatusClass(l)">
@@ -148,19 +152,157 @@
                 </td>
                 <td class="text-right">{{ l.monthlyInterestRate }}%</td>
                 <td class="text-right">{{ formatCurrency(l.outstandingPrincipal) }}</td>
+                <td class="text-right">{{ formatCurrency(statementFor(l.id)?.accrued_unpaid_interest ?? 0) }}</td>
+                <td class="text-right">{{ formatCurrency(statementFor(l.id)?.penalties ?? 0) }}</td>
+                <td class="text-right balance-value">
+                  {{ formatCurrency(statementFor(l.id)?.total_payoff_amount ?? l.outstandingPrincipal) }}
+                </td>
               </tr>
               <tr v-if="!customerLoans.length">
-                <td colspan="5" class="text-center">No hay préstamos registrados para este cliente.</td>
+                <td colspan="8" class="text-center">No hay préstamos registrados para este cliente.</td>
               </tr>
             </tbody>
             <tfoot v-if="customerLoans.length">
               <tr>
-                <th colspan="4">TOTAL PRINCIPAL PENDIENTE</th>
+                <th colspan="4">TOTALES</th>
                 <th class="text-right">{{ formatCurrency(customerTotalOutstanding) }}</th>
+                <th class="text-right">{{ formatCurrency(customerOwed.interest) }}</th>
+                <th class="text-right">{{ formatCurrency(customerOwed.penalties) }}</th>
+                <th class="text-right">{{ formatCurrency(customerOwed.total) }}</th>
               </tr>
             </tfoot>
           </table>
+          <p class="muted mt-8">
+            Los préstamos liquidados no generan saldo. El total adeudado incluye capital, interés y mora.
+          </p>
         </template>
+
+        <!-- Payment history -->
+        <template v-else-if="isHistory">
+          <h3>{{ t('common.paymentHistoryTitle') }}</h3>
+          <table class="print-table compact-table">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Préstamo</th>
+                <th>Concepto</th>
+                <th>Periodo</th>
+                <th class="text-right">Interés</th>
+                <th class="text-right">Mora</th>
+                <th class="text-right">Capital</th>
+                <th class="text-right">Total</th>
+                <th>Recibido por</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="event in historyEvents" :key="event.id" :class="{ 'row-reversed': event.is_reversed }">
+                <td>{{ formatDateDMY(event.payment_date) }}</td>
+                <td>{{ loanLabel(event.loan_id) }}</td>
+                <td>
+                  {{ eventTypeLabel(event.payment_type) }}
+                  <strong v-if="event.is_reversed"> · REVERSADO</strong>
+                </td>
+                <td>{{ event.billing_period || '-' }}</td>
+                <td class="text-right">{{ formatCurrency(event.allocated_to_interest) }}</td>
+                <td class="text-right">{{ formatCurrency(event.allocated_to_penalty) }}</td>
+                <td class="text-right">{{ formatCurrency(event.allocated_to_principal) }}</td>
+                <td class="text-right">{{ formatCurrency(event.total_entered_amount) }}</td>
+                <td>{{ event.operator?.full_name || event.operator?.username || '-' }}</td>
+              </tr>
+              <tr v-if="!historyEvents.length">
+                <td colspan="9" class="text-center">No hay pagos registrados para este cliente.</td>
+              </tr>
+            </tbody>
+            <tfoot v-if="historyEvents.length">
+              <tr>
+                <th colspan="4">TOTALES</th>
+                <th class="text-right">{{ formatCurrency(historyTotals.interest) }}</th>
+                <th class="text-right">{{ formatCurrency(historyTotals.penalty) }}</th>
+                <th class="text-right">{{ formatCurrency(historyTotals.principal) }}</th>
+                <th class="text-right">{{ formatCurrency(historyTotals.total) }}</th>
+                <th></th>
+              </tr>
+            </tfoot>
+          </table>
+          <p class="muted mt-8">
+            Los totales excluyen los movimientos reversados. Movimientos registrados: {{ historyEvents.length }}.
+          </p>
+        </template>
+      </div>
+
+      <!-- ── LOAN STATEMENT (estado de cuenta del préstamo) ── -->
+      <div class="balances-section mt-16" v-if="isLoan && loan">
+        <h3>{{ t('common.loanStatementTitle') }}</h3>
+        <table class="print-table balances-table">
+          <tbody>
+            <tr>
+              <td>Saldo de capital</td>
+              <td class="text-right balance-value" :class="{ 'balance-zero': loan.outstandingPrincipal === 0 }">
+                {{ formatCurrency(loan.outstandingPrincipal) }}
+              </td>
+            </tr>
+            <tr>
+              <td>Interés acumulado pendiente</td>
+              <td class="text-right balance-value" :class="{ 'balance-zero': loanOwedInterest === 0 }">
+                {{ formatCurrency(loanOwedInterest) }}
+              </td>
+            </tr>
+            <tr v-if="loanOwedPenalty > 0">
+              <td>Mora</td>
+              <td class="text-right balance-value">{{ formatCurrency(loanOwedPenalty) }}</td>
+            </tr>
+            <tr class="balance-total-row">
+              <td><strong>TOTAL PARA LIQUIDAR</strong></td>
+              <td class="text-right balance-value">{{ formatCurrency(loanTotalOwed) }}</td>
+            </tr>
+            <tr v-if="loanStatement">
+              <td>Próximo vencimiento</td>
+              <td class="text-right">{{ formatDateDMY(loanStatement.next_due_date) }}</td>
+            </tr>
+            <tr>
+              <td><strong>{{ t('common.loanStatus') }}</strong></td>
+              <td class="text-right">
+                <span class="status-badge" :class="loanStatusClass">{{ loanStatusLabel }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <template v-if="loanPendingItems.length">
+          <h3 class="mt-16">Periodos pendientes</h3>
+          <table class="print-table compact-table">
+            <thead>
+              <tr>
+                <th>Periodo</th>
+                <th>Vence</th>
+                <th class="text-right">Interés del periodo</th>
+                <th class="text-right">Pendiente</th>
+                <th class="text-right">Mora</th>
+                <th class="text-right">Subtotal</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in loanPendingItems" :key="item.interest_charge_id">
+                <td>{{ item.billing_period }}</td>
+                <td>{{ formatDateDMY(item.due_date) }}</td>
+                <td class="text-right">{{ formatCurrency(item.original_interest_amount) }}</td>
+                <td class="text-right">{{ formatCurrency(item.remaining_pending_amount) }}</td>
+                <td class="text-right">{{ formatCurrency(item.penalty_amount) }}</td>
+                <td class="text-right balance-value">{{ formatCurrency(item.current_outstanding_balance) }}</td>
+                <td>
+                  <span class="status-badge" :class="item.overdue ? 'status-overdue' : 'status-active'">
+                    {{ item.overdue ? 'Vencido' : 'Vigente' }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+
+        <div class="closed-notice" v-if="loan.status === 'closed'">
+          ✅ Este préstamo ha sido <strong>liquidado en su totalidad</strong>. No presenta saldo pendiente.
+        </div>
       </div>
 
       <!-- ── POST-PAYMENT BALANCES (the main new section) ── -->
@@ -233,11 +375,56 @@ const id = computed(() => Number(route.params.id))
 
 const isPayment = computed(() => type.value === 'payment')
 const isCustomer = computed(() => type.value === 'customer')
+const isHistory = computed(() => type.value === 'history')
+const isLoan = computed(() => !isPayment.value && !isCustomer.value && !isHistory.value)
 const ready = ref(false)
 
 // Post-payment pending interest/penalty fetched from the API
 const pendingInterestAfterPayment = ref<number | null>(null)
 const pendingPenaltyAfterPayment = ref<number | null>(null)
+
+interface LoanStatement {
+  loan_id: number
+  next_due_date: string
+  original_principal: number
+  outstanding_principal: number
+  accrued_unpaid_interest: number
+  penalties: number
+  total_payoff_amount: number
+}
+
+interface PendingInterestItem {
+  interest_charge_id: number
+  loan_id: number
+  billing_period: string
+  due_date: string
+  original_interest_amount: number
+  remaining_pending_amount: number
+  overdue: boolean
+  penalty_amount: number
+  current_outstanding_balance: number
+}
+
+interface PaymentEventRow {
+  id: number
+  payment_type: string
+  loan_id: number
+  billing_period: string
+  total_entered_amount: number
+  allocated_to_interest: number
+  allocated_to_penalty: number
+  allocated_to_principal: number
+  payment_date: string
+  payment_method: string
+  notes: string
+  is_reversed: boolean
+  operator?: { full_name?: string; username?: string } | null
+}
+
+// Statement data: per-loan balances and the pending periods behind them.
+const statements = ref<LoanStatement[]>([])
+const pendingItems = ref<PendingInterestItem[]>([])
+const historyEvents = ref<PaymentEventRow[]>([])
 
 const printDocument = () => {
   window.print()
@@ -247,14 +434,15 @@ const payment = computed(() => state.payments.find(p => p.id === id.value))
 const loan = computed(() => {
   if (isPayment.value && payment.value) {
     return state.loans.find(l => l.id === payment.value!.loanId)
-  } else if (!isPayment.value && !isCustomer.value) {
+  } else if (isLoan.value) {
     return state.loans.find(l => l.id === id.value)
   }
   return undefined
 })
 
 const customer = computed(() => {
-  if (isCustomer.value) {
+  // For customer statements and payment history the route id is the customer.
+  if (isCustomer.value || isHistory.value) {
     return state.customers.find(c => c.id === id.value)
   }
   if (loan.value) {
@@ -268,29 +456,78 @@ const customerLoans = computed(() => {
   return state.loans.filter(l => l.customerId === customer.value!.id)
 })
 
+const loanLabel = (loanId: number) => `LN-${loanId.toString().padStart(6, '0')}`
+
 const customerTotalOutstanding = computed(() => {
   return customerLoans.value.reduce((sum, l) => sum + l.outstandingPrincipal, 0)
 })
 
+const statementFor = (loanId: number) => statements.value.find((item) => item.loan_id === loanId) ?? null
+
+const loanStatement = computed(() => (loan.value ? statementFor(loan.value.id) : null))
+
+const loanPendingItems = computed(() => {
+  const current = loan.value
+  if (!current) return []
+  return pendingItems.value
+    .filter((item) => item.loan_id === current.id)
+    .sort((a, b) => a.due_date.localeCompare(b.due_date))
+})
+
+// Closed loans are absent from the statement endpoints because they owe nothing.
+const loanOwedInterest = computed(() => loanStatement.value?.accrued_unpaid_interest ?? 0)
+const loanOwedPenalty = computed(() => loanStatement.value?.penalties ?? 0)
+const loanTotalOwed = computed(
+  () => loanStatement.value?.total_payoff_amount ?? loan.value?.outstandingPrincipal ?? 0
+)
+
+const customerOwed = computed(() => ({
+  interest: statements.value.reduce((sum, item) => sum + item.accrued_unpaid_interest, 0),
+  penalties: statements.value.reduce((sum, item) => sum + item.penalties, 0),
+  total: statements.value.reduce((sum, item) => sum + item.total_payoff_amount, 0)
+}))
+
+const activeHistoryEvents = computed(() => historyEvents.value.filter((event) => !event.is_reversed))
+
+const historyTotals = computed(() => ({
+  interest: activeHistoryEvents.value.reduce((sum, event) => sum + event.allocated_to_interest, 0),
+  penalty: activeHistoryEvents.value.reduce((sum, event) => sum + event.allocated_to_penalty, 0),
+  principal: activeHistoryEvents.value.reduce((sum, event) => sum + event.allocated_to_principal, 0),
+  total: activeHistoryEvents.value.reduce((sum, event) => sum + event.total_entered_amount, 0)
+}))
+
 const globalSettings = computed(() => state.globalSettings)
 
 const idString = computed(() => {
-  if (isCustomer.value) return `CST-${id.value.toString().padStart(6, '0')}`
+  if (isCustomer.value || isHistory.value) return `CST-${id.value.toString().padStart(6, '0')}`
   if (isPayment.value) return `PAY-${id.value.toString().padStart(6, '0')}`
-  return `LN-${id.value.toString().padStart(6, '0')}`
+  return loanLabel(id.value)
 })
 
 const dateString = computed(() => {
-  if (isCustomer.value) {
+  // Statements and histories are dated the day they are printed.
+  if (isCustomer.value || isHistory.value) {
     return formatDateDMY(new Date().toISOString())
   }
   if (isPayment.value && payment.value) {
     return formatDateDMY(payment.value.paymentDate)
-  } else if (!isPayment.value && !isCustomer.value && loan.value) {
+  }
+  if (isLoan.value && loan.value) {
     return formatDateDMY(loan.value.disbursementDate)
   }
   return ''
 })
+
+const paymentTypeLabels: Record<string, string> = {
+  interest_payment: 'Pago de interés',
+  partial_interest_payment: 'Pago parcial de interés',
+  interest_advance_payment: 'Anticipo de interés',
+  partial_principal_payment: 'Abono a capital',
+  full_settlement: 'Liquidación total',
+  mixed_payment: 'Pago mixto'
+}
+
+const eventTypeLabel = (value: string) => paymentTypeLabels[value] ?? value.replace(/_/g, ' ')
 
 const formatCurrency = (val: number) => {
   const code = globalSettings.value?.currencyCode || 'COP'
@@ -343,24 +580,42 @@ const paymentMethodLabel = computed(() => {
   return t('common.other')
 })
 
+const loadStatement = async (customerId: number) => {
+  const [context, pending] = await Promise.all([
+    apiClient.request<{ items: LoanStatement[] }>(`/payments/customers/${customerId}/principal-context`),
+    apiClient.request<{
+      groups: { items: PendingInterestItem[] }[]
+      total_pending_interest: number
+      total_pending_penalty: number
+    }>(`/payments/customers/${customerId}/interest-pending`)
+  ])
+
+  statements.value = context.items
+  pendingItems.value = pending.groups.flatMap((group) => group.items)
+  return pending
+}
+
 onMounted(async () => {
   await ensureInitialized()
 
-  // For payment receipts, fetch current interest/penalty pending for the customer
-  // so we can show "remaining balances AFTER this payment" on the receipt
-  if (isPayment.value && payment.value && loan.value) {
-    try {
-      const customerId = loan.value.customerId
-      const res = await apiClient.request<{
-        total_pending_interest: number
-        total_pending_penalty: number
-      }>(`/payments/customers/${customerId}/interest-pending`)
-      pendingInterestAfterPayment.value = res.total_pending_interest
-      pendingPenaltyAfterPayment.value = res.total_pending_penalty
-    } catch {
-      // Non-critical — if the call fails we simply don't show pending interest row
-      pendingInterestAfterPayment.value = null
+  try {
+    if (isPayment.value && payment.value && loan.value) {
+      // Balances remaining AFTER this payment, for the receipt.
+      const pending = await loadStatement(loan.value.customerId)
+      pendingInterestAfterPayment.value = pending.total_pending_interest
+      pendingPenaltyAfterPayment.value = pending.total_pending_penalty
+    } else if (isLoan.value && loan.value) {
+      await loadStatement(loan.value.customerId)
+    } else if (isCustomer.value && customer.value) {
+      await loadStatement(customer.value.id)
+    } else if (isHistory.value) {
+      historyEvents.value = await apiClient.request<PaymentEventRow[]>(
+        `/payments/customers/${id.value}/history`
+      )
     }
+  } catch {
+    // Non-critical: the document still prints with the data already in the store.
+    pendingInterestAfterPayment.value = null
   }
 
   ready.value = true
@@ -537,6 +792,31 @@ onMounted(async () => {
 
 .text-right {
   text-align: right !important;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* Wider statement and history tables need to stay on one printed page width. */
+.compact-table th,
+.compact-table td {
+  padding: 7px 8px;
+  font-size: 0.82em;
+}
+
+.row-reversed td {
+  color: #94a3b8;
+  text-decoration: line-through;
+}
+
+.row-reversed td strong {
+  color: #dc2626;
+  text-decoration: none;
+}
+
+.mt-8 {
+  margin-top: 8px;
 }
 
 .payment-notes {
