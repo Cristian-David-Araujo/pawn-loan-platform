@@ -16,6 +16,7 @@ class GlobalSettingsUpdate(BaseModel):
     date_format: str
     default_late_penalty_rate: float
     interest_generation_lead_days: int | None = None
+    default_grace_days: int | None = None
 
 
 class GlobalSettingsRead(BaseModel):
@@ -34,4 +35,5 @@ class GlobalSettingsRead(BaseModel):
     date_format: str
     default_late_penalty_rate: float
     interest_generation_lead_days: int
+    default_grace_days: int
     updated_at: datetime

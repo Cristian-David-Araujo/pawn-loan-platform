@@ -69,11 +69,16 @@ def test_renew_closes_source_and_creates_new_loan(client: TestClient, auth_heade
     assert source_response.json()["status"] == "closed"
 
 
-def test_update_loan_allows_rate_due_day_and_status(
+def test_update_loan_allows_rate_and_status_but_grace_follows_the_policy(
     client: TestClient,
     auth_headers: dict[str, str],
     create_loan,
 ) -> None:
+    """Grace days are a portfolio setting, so a per-loan value must not take hold.
+
+    They used to be whatever the caller sent — and the create form sent the day-of-month of
+    the disbursement date, so a loan signed on the 25th quietly got 25 days of grace.
+    """
     loan = create_loan(principal=1200)
 
     response = client.put(
@@ -85,8 +90,8 @@ def test_update_loan_allows_rate_due_day_and_status(
 
     payload = response.json()
     assert payload["monthly_interest_rate"] == 9.5
-    assert payload["due_day"] == 12
     assert payload["status"] == "overdue"
+    assert payload["due_day"] == 0  # the configured default, not the 12 that was sent
 
 
 def test_create_loan_generates_interest_immediately_for_past_disbursement(

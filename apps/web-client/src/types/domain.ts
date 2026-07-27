@@ -93,4 +93,5 @@ export interface GlobalSettings {
   dateFormat: string
   defaultLatePenaltyRate: number
   interestGenerationLeadDays: number
+  defaultGraceDays: number
 }

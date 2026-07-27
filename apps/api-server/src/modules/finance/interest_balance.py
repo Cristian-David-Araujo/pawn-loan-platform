@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import InterestCharge, Loan, PaymentEvent
+from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, PaymentEvent
 
 ADVANCE_PAYMENT_TYPE = "interest_advance_payment"
 
@@ -64,11 +64,30 @@ class LoanInterestBalance:
 
 
 def charge_due_date(period_end: date, grace_days: int) -> date:
-    """Due date of a billing period.
-
-    ``Loan.due_day`` is used as the grace period in days after ``period_end``.
-    """
+    """Due date of a billing period: the period end plus the grace days."""
     return period_end + timedelta(days=max(0, grace_days))
+
+
+def default_grace_days(db: Session) -> int:
+    """The configured grace period, shared by the whole portfolio.
+
+    Grace used to come from ``Loan.due_day``, which the create form filled with the
+    day-of-month of the disbursement — so a loan signed on the 25th silently got 25 days of
+    grace and one signed on the 3rd got three. It is a policy, not a property of the loan.
+    """
+    settings = db.get(GlobalSettings, 1)
+    return max(0, settings.default_grace_days) if settings is not None else 0
+
+
+def grace_days_for_loan(loan: Loan, configured_grace_days: int) -> int:
+    """Grace only exists to postpone the penalty, so a loan that charges none gets none.
+
+    Otherwise a penalty-free loan would sit as "upcoming" for the whole grace window while
+    its interest was already due, hiding the debt from the collection screens.
+    """
+    if loan.late_penalty_rate <= 0:
+        return 0
+    return max(0, configured_grace_days)
 
 
 def _sum_interest(events: list[PaymentEvent]) -> float:
@@ -112,6 +131,7 @@ def _build_loan_balance(
     events_by_charge: dict[int, list[PaymentEvent]],
     advance_events: list[PaymentEvent],
     as_of_date: date,
+    configured_grace_days: int,
 ) -> LoanInterestBalance:
     advance_pool = _sum_interest(advance_events)
     items: list[PendingInterestItem] = []
@@ -126,7 +146,7 @@ def _build_loan_balance(
             pending_interest = round(pending_interest - applied, 2)
             advance_pool = round(advance_pool - applied, 2)
 
-        due_date = charge_due_date(charge.period_end, loan.due_day)
+        due_date = charge_due_date(charge.period_end, grace_days_for_loan(loan, configured_grace_days))
         overdue = due_date < as_of_date
         penalty_amount = (
             round(pending_interest * (loan.late_penalty_rate / 100), 2)
@@ -167,6 +187,7 @@ def pending_interest_for_loans(
 ) -> dict[int, LoanInterestBalance]:
     """Pending interest for several loans using a fixed number of queries."""
     loan_ids = [loan.id for loan in loans]
+    configured_grace_days = default_grace_days(db)
     charges = _charges_for_loans(db, loan_ids)
     events = _active_events_for_loans(db, loan_ids)
 
@@ -190,6 +211,7 @@ def pending_interest_for_loans(
             events_by_charge=events_by_charge,
             advance_events=advances_by_loan.get(loan.id, []),
             as_of_date=as_of_date,
+            configured_grace_days=configured_grace_days,
         )
         for loan in loans
     }

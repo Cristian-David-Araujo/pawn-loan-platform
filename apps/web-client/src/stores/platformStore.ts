@@ -88,6 +88,7 @@ interface BackendGlobalSettings {
   date_format: string
   default_late_penalty_rate: number
   interest_generation_lead_days?: number
+  default_grace_days?: number
 }
 
 interface CreateCustomerPayload {
@@ -117,7 +118,6 @@ interface CreateLoanPayload {
   principalAmount: number
   monthlyInterestRate: number
   latePenaltyRate: number
-  dueDay: number
   disbursementDate: string
 }
 
@@ -137,7 +137,6 @@ interface UpdateLoanPayload {
   monthlyInterestRate: number
   latePenaltyRate: number
   disbursementDate: string
-  dueDay: number
   status: Loan['status']
 }
 
@@ -186,6 +185,7 @@ interface UpdateGlobalSettingsPayload {
   dateFormat: string
   defaultLatePenaltyRate: number
   interestGenerationLeadDays: number
+  defaultGraceDays: number
 }
 
 const state = reactive({
@@ -288,7 +288,8 @@ const mapGlobalSettings = (data: BackendGlobalSettings): GlobalSettings => ({
   timezone: data.timezone,
   dateFormat: data.date_format,
   defaultLatePenaltyRate: data.default_late_penalty_rate,
-  interestGenerationLeadDays: data.interest_generation_lead_days ?? 10
+  interestGenerationLeadDays: data.interest_generation_lead_days ?? 10,
+  defaultGraceDays: data.default_grace_days ?? 0
 })
 
 const splitName = (fullName: string) => {
@@ -441,7 +442,6 @@ const createLoan = async (payload: CreateLoanPayload) => {
       monthly_interest_rate: payload.monthlyInterestRate,
       late_penalty_rate: payload.latePenaltyRate,
       disbursement_date: payload.disbursementDate,
-      due_day: payload.dueDay
     })
   })
 
@@ -537,7 +537,8 @@ const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
       timezone: payload.timezone,
       date_format: payload.dateFormat,
       default_late_penalty_rate: payload.defaultLatePenaltyRate,
-      interest_generation_lead_days: payload.interestGenerationLeadDays
+      interest_generation_lead_days: payload.interestGenerationLeadDays,
+      default_grace_days: payload.defaultGraceDays
     })
   })
 
@@ -557,7 +558,6 @@ const updateLoan = async (payload: UpdateLoanPayload) => {
       monthly_interest_rate: payload.monthlyInterestRate,
       late_penalty_rate: payload.latePenaltyRate,
       disbursement_date: payload.disbursementDate,
-      due_day: payload.dueDay,
       status: payload.status
     })
   })

@@ -1,12 +1,13 @@
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, Payment, User
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
+from src.infrastructure.tasks.interest_scheduler import release_cycle_lock, try_acquire_cycle_lock
 from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.modules.finance.schemas import InterestChargeRead, InterestGenerationRequest, LoanBalanceRead
 from src.shared.dependencies.auth import get_current_user
@@ -22,24 +23,36 @@ def generate_interest(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> list[InterestCharge]:
-    settings = db.get(GlobalSettings, 1)
-    lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
-    effective_as_of_date = payload.as_of_date + timedelta(days=lead_days)
-
-    loans = list(db.scalars(select(Loan).where(Loan.status == LoanStatus.active)).all())
-    generated: list[InterestCharge] = []
-
-    for loan in loans:
-        generated.extend(
-            generate_missing_interest_charges_for_loan(
-                db=db,
-                loan=loan,
-                as_of_date=effective_as_of_date,
-                charge_date=payload.as_of_date,
-            )
+    # The scheduler guards its cycle with this lock; running the manual endpoint without it
+    # let both generate the same billing period at once. Nothing at the DB level rejected
+    # the duplicate, so customers ended up charged — and in two cases paying — twice.
+    if not try_acquire_cycle_lock(db):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Interest generation is already running. Try again in a moment.",
         )
 
-    db.commit()
+    try:
+        settings = db.get(GlobalSettings, 1)
+        lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
+        effective_as_of_date = payload.as_of_date + timedelta(days=lead_days)
+
+        loans = list(db.scalars(select(Loan).where(Loan.status == LoanStatus.active)).all())
+        generated: list[InterestCharge] = []
+
+        for loan in loans:
+            generated.extend(
+                generate_missing_interest_charges_for_loan(
+                    db=db,
+                    loan=loan,
+                    as_of_date=effective_as_of_date,
+                    charge_date=payload.as_of_date,
+                )
+            )
+
+        db.commit()
+    finally:
+        release_cycle_lock(db)
 
     for charge in generated:
         db.refresh(charge)

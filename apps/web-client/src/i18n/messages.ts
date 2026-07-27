@@ -540,6 +540,9 @@ export const messages = {
       interestGenerationLeadDays: 'Days before next interest date to pre-generate charge',
       interestGenerationLeadDaysHelp:
         'If set to 3, the interest charge is generated 3 days before the monthly interest date.',
+      defaultGraceDays: 'Grace days before the late penalty starts',
+      defaultGraceDaysHelp:
+        'Counted from the end of each billing period. Loans with no late penalty rate get no grace: their interest is due the day the period ends.',
       saveSettings: 'Save settings',
       colombiaPresetTitle: 'Recommended preset for Colombia',
       colombiaPresetHint: 'Applies COP, America/Bogota and DD/MM/YYYY as baseline configuration.',
@@ -1207,6 +1210,9 @@ export const messages = {
       interestGenerationLeadDays: 'Dias antes de la siguiente fecha de interes para pre-generar el cargo',
       interestGenerationLeadDaysHelp:
         'Si configuras 3, el cargo de interes se genera 3 dias antes de la fecha mensual de interes.',
+      defaultGraceDays: 'Días de gracia antes de que empiece la mora',
+      defaultGraceDaysHelp:
+        'Se cuentan desde que termina cada período de cobro. Los préstamos sin tasa de mora no tienen gracia: su interés vence el mismo día que termina el período.',
       saveSettings: 'Guardar configuraciones',
       colombiaPresetTitle: 'Preset recomendado para Colombia',
       colombiaPresetHint: 'Aplica COP, America/Bogota y DD/MM/YYYY como configuracion base.',
