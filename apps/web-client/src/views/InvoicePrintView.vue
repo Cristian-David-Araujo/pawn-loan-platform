@@ -33,10 +33,10 @@
 
       <!-- Customer info -->
       <div class="customer-info" v-if="customer">
-        <h3>Datos del Cliente</h3>
-        <p><strong>Nombre:</strong> {{ customer.fullName }}</p>
+        <h3>{{ t('common.customerDataTitle') }}</h3>
+        <p><strong>{{ t('common.name') }}:</strong> {{ customer.fullName }}</p>
         <p><strong>{{ customer.documentType }}:</strong> {{ customer.documentNumber }}</p>
-        <p><strong>Teléfono:</strong> {{ customer.phone }}</p>
+        <p><strong>{{ t('common.phone') }}:</strong> {{ customer.phone }}</p>
       </div>
 
       <!-- Loan context (payment receipts) -->
@@ -56,38 +56,38 @@
           <table class="print-table">
             <thead>
               <tr>
-                <th>Concepto</th>
-                <th class="text-right">Monto</th>
+                <th>{{ t('common.concept') }}</th>
+                <th class="text-right">{{ t('common.amount') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="payment.allocatedToPrincipal > 0">
-                <td>Abono a Capital</td>
+                <td>{{ t('common.principalPayment') }}</td>
                 <td class="text-right">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
               </tr>
               <tr v-if="payment.allocatedToInterest > 0">
-                <td>Intereses</td>
+                <td>{{ t('common.interestCharges') }}</td>
                 <td class="text-right">{{ formatCurrency(payment.allocatedToInterest) }}</td>
               </tr>
               <tr v-if="payment.allocatedToPenalty > 0">
-                <td>Mora / Penalización</td>
+                <td>{{ t('common.penaltyCharge') }}</td>
                 <td class="text-right">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
               </tr>
               <tr v-if="payment.allocatedToFees > 0">
-                <td>Cargos / Comisiones</td>
+                <td>{{ t('common.feesCharge') }}</td>
                 <td class="text-right">{{ formatCurrency(payment.allocatedToFees) }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr>
-                <th>TOTAL PAGADO</th>
+                <th>{{ t('common.totalPaid') }}</th>
                 <th class="text-right">{{ formatCurrency(payment.totalAmount) }}</th>
               </tr>
             </tfoot>
           </table>
           <div class="payment-notes mt-16">
-            <p><strong>Método de Pago:</strong> {{ paymentMethodLabel }}</p>
-            <p v-if="payment.notes"><strong>Notas:</strong> {{ payment.notes }}</p>
+            <p><strong>{{ t('common.method') }}:</strong> {{ paymentMethodLabel }}</p>
+            <p v-if="payment.notes"><strong>{{ t('common.notes') }}:</strong> {{ payment.notes }}</p>
             <p v-if="payment.receiver"><strong>{{ t('common.receivedBy', 'Recibido por') }}:</strong> {{ payment.receiver.full_name || payment.receiver.username }}</p>
           </div>
         </template>
@@ -96,49 +96,49 @@
           <table class="print-table">
             <thead>
               <tr>
-                <th>Detalles del Préstamo</th>
-                <th class="text-right">Valor</th>
+                <th>{{ t('common.loanDetailsTitle') }}</th>
+                <th class="text-right">{{ t('common.value') }}</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td>Monto Principal</td>
+                <td>{{ t('common.principalAmount') }}</td>
                 <td class="text-right">{{ formatCurrency(loan.principalAmount) }}</td>
               </tr>
               <tr>
-                <td>Tasa de Interés Mensual</td>
+                <td>{{ t('common.monthlyInterestRate') }}</td>
                 <td class="text-right">{{ loan.monthlyInterestRate }}%</td>
               </tr>
               <tr v-if="loan.latePenaltyRate > 0">
-                <td>Tasa de Penalización por Mora</td>
+                <td>{{ t('common.latePenaltyRate') }}</td>
                 <td class="text-right">{{ loan.latePenaltyRate }}%</td>
               </tr>
               <tr>
-                <td>Día de Pago</td>
-                <td class="text-right">{{ loan.dueDay }} de cada mes</td>
+                <td>{{ t('common.paymentDay') }}</td>
+                <td class="text-right">{{ t('common.dayOfEachMonth', { day: loan.dueDay }) }}</td>
               </tr>
             </tbody>
           </table>
           <div class="payment-notes mt-16" v-if="loan.description || loan.created_by">
-            <p v-if="loan.description"><strong>Descripción:</strong> {{ loan.description }}</p>
+            <p v-if="loan.description"><strong>{{ t('common.description') }}:</strong> {{ loan.description }}</p>
             <p v-if="loan.created_by"><strong>{{ t('common.createdBy', 'Generado por') }}:</strong> {{ loan.created_by.full_name || loan.created_by.username }}</p>
           </div>
         </template>
 
         <!-- Customer Statement (Estado de Cuenta) -->
         <template v-else-if="isCustomer && customer">
-          <h3>Resumen de Préstamos</h3>
+          <h3>{{ t('common.loansSummaryTitle') }}</h3>
           <table class="print-table compact-table">
             <thead>
               <tr>
-                <th>Préstamo</th>
-                <th>Tipo</th>
-                <th>Estado</th>
-                <th class="text-right">Tasa</th>
-                <th class="text-right">Saldo Capital</th>
-                <th class="text-right">Interés</th>
-                <th class="text-right">Mora</th>
-                <th class="text-right">Total Adeudado</th>
+                <th>{{ t('common.loan') }}</th>
+                <th>{{ t('common.type') }}</th>
+                <th>{{ t('common.status') }}</th>
+                <th class="text-right">{{ t('loans.rate') }}</th>
+                <th class="text-right">{{ t('common.principalBalance') }}</th>
+                <th class="text-right">{{ t('common.interest') }}</th>
+                <th class="text-right">{{ t('common.penalty') }}</th>
+                <th class="text-right">{{ t('common.totalOwed') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -159,12 +159,12 @@
                 </td>
               </tr>
               <tr v-if="!customerLoans.length">
-                <td colspan="8" class="text-center">No hay préstamos registrados para este cliente.</td>
+                <td colspan="8" class="text-center">{{ t('common.noLoansForCustomer') }}</td>
               </tr>
             </tbody>
             <tfoot v-if="customerLoans.length">
               <tr>
-                <th colspan="4">TOTALES</th>
+                <th colspan="4">{{ t('common.totals') }}</th>
                 <th class="text-right">{{ formatCurrency(customerTotalOutstanding) }}</th>
                 <th class="text-right">{{ formatCurrency(customerOwed.interest) }}</th>
                 <th class="text-right">{{ formatCurrency(customerOwed.penalties) }}</th>
@@ -172,9 +172,7 @@
               </tr>
             </tfoot>
           </table>
-          <p class="muted mt-8">
-            Los préstamos liquidados no generan saldo. El total adeudado incluye capital, interés y mora.
-          </p>
+          <p class="muted mt-8">{{ t('common.statementNote') }}</p>
         </template>
 
         <!-- Payment history -->
@@ -183,15 +181,15 @@
           <table class="print-table compact-table">
             <thead>
               <tr>
-                <th>Fecha</th>
-                <th>Préstamo</th>
-                <th>Concepto</th>
-                <th>Periodo</th>
-                <th class="text-right">Interés</th>
-                <th class="text-right">Mora</th>
-                <th class="text-right">Capital</th>
-                <th class="text-right">Total</th>
-                <th>Recibido por</th>
+                <th>{{ t('common.date') }}</th>
+                <th>{{ t('common.loan') }}</th>
+                <th>{{ t('common.concept') }}</th>
+                <th>{{ t('payments.period') }}</th>
+                <th class="text-right">{{ t('common.interest') }}</th>
+                <th class="text-right">{{ t('common.penalty') }}</th>
+                <th class="text-right">{{ t('common.principal') }}</th>
+                <th class="text-right">{{ t('common.total') }}</th>
+                <th>{{ t('common.receivedBy') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -200,7 +198,7 @@
                 <td>{{ loanLabel(event.loan_id) }}</td>
                 <td>
                   {{ eventTypeLabel(event.payment_type) }}
-                  <strong v-if="event.is_reversed"> · REVERSADO</strong>
+                  <strong v-if="event.is_reversed"> · {{ t('common.reversedFlag') }}</strong>
                 </td>
                 <td>{{ event.billing_period || '-' }}</td>
                 <td class="text-right">{{ formatCurrency(event.allocated_to_interest) }}</td>
@@ -210,12 +208,12 @@
                 <td>{{ event.operator?.full_name || event.operator?.username || '-' }}</td>
               </tr>
               <tr v-if="!historyEvents.length">
-                <td colspan="9" class="text-center">No hay pagos registrados para este cliente.</td>
+                <td colspan="9" class="text-center">{{ t('common.noPaymentsForCustomer') }}</td>
               </tr>
             </tbody>
             <tfoot v-if="historyEvents.length">
               <tr>
-                <th colspan="4">TOTALES</th>
+                <th colspan="4">{{ t('common.totals') }}</th>
                 <th class="text-right">{{ formatCurrency(historyTotals.interest) }}</th>
                 <th class="text-right">{{ formatCurrency(historyTotals.penalty) }}</th>
                 <th class="text-right">{{ formatCurrency(historyTotals.principal) }}</th>
@@ -224,9 +222,7 @@
               </tr>
             </tfoot>
           </table>
-          <p class="muted mt-8">
-            Los totales excluyen los movimientos reversados. Movimientos registrados: {{ historyEvents.length }}.
-          </p>
+          <p class="muted mt-8">{{ t('common.historyNote', { count: historyEvents.length }) }}</p>
         </template>
       </div>
 
@@ -236,27 +232,27 @@
         <table class="print-table balances-table">
           <tbody>
             <tr>
-              <td>Saldo de capital</td>
+              <td>{{ t('common.remainingPrincipal') }}</td>
               <td class="text-right balance-value" :class="{ 'balance-zero': loan.outstandingPrincipal === 0 }">
                 {{ formatCurrency(loan.outstandingPrincipal) }}
               </td>
             </tr>
             <tr>
-              <td>Interés acumulado pendiente</td>
+              <td>{{ t('common.accruedInterest') }}</td>
               <td class="text-right balance-value" :class="{ 'balance-zero': loanOwedInterest === 0 }">
                 {{ formatCurrency(loanOwedInterest) }}
               </td>
             </tr>
             <tr v-if="loanOwedPenalty > 0">
-              <td>Mora</td>
+              <td>{{ t('common.penalty') }}</td>
               <td class="text-right balance-value">{{ formatCurrency(loanOwedPenalty) }}</td>
             </tr>
             <tr class="balance-total-row">
-              <td><strong>TOTAL PARA LIQUIDAR</strong></td>
+              <td><strong>{{ t('common.totalToSettle') }}</strong></td>
               <td class="text-right balance-value">{{ formatCurrency(loanTotalOwed) }}</td>
             </tr>
             <tr v-if="loanStatement">
-              <td>Próximo vencimiento</td>
+              <td>{{ t('common.nextDueDate') }}</td>
               <td class="text-right">{{ formatDateDMY(loanStatement.next_due_date) }}</td>
             </tr>
             <tr>
@@ -269,17 +265,17 @@
         </table>
 
         <template v-if="loanPendingItems.length">
-          <h3 class="mt-16">Periodos pendientes</h3>
+          <h3 class="mt-16">{{ t('common.pendingPeriodsTitle') }}</h3>
           <table class="print-table compact-table">
             <thead>
               <tr>
-                <th>Periodo</th>
-                <th>Vence</th>
-                <th class="text-right">Interés del periodo</th>
-                <th class="text-right">Pendiente</th>
-                <th class="text-right">Mora</th>
-                <th class="text-right">Subtotal</th>
-                <th>Estado</th>
+                <th>{{ t('payments.period') }}</th>
+                <th>{{ t('common.dueOn') }}</th>
+                <th class="text-right">{{ t('common.periodInterest') }}</th>
+                <th class="text-right">{{ t('common.pending') }}</th>
+                <th class="text-right">{{ t('common.penalty') }}</th>
+                <th class="text-right">{{ t('common.subtotal') }}</th>
+                <th>{{ t('common.status') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -292,7 +288,7 @@
                 <td class="text-right balance-value">{{ formatCurrency(item.current_outstanding_balance) }}</td>
                 <td>
                   <span class="status-badge" :class="item.overdue ? 'status-overdue' : 'status-active'">
-                    {{ item.overdue ? 'Vencido' : 'Vigente' }}
+                    {{ item.overdue ? t('common.overdue') : t('common.periodCurrent') }}
                   </span>
                 </td>
               </tr>
@@ -301,7 +297,7 @@
         </template>
 
         <div class="closed-notice" v-if="loan.status === 'closed'">
-          ✅ Este préstamo ha sido <strong>liquidado en su totalidad</strong>. No presenta saldo pendiente.
+          {{ t('common.loanClosedNotice') }}
         </div>
       </div>
 
@@ -339,18 +335,18 @@
 
         <!-- Loan closed notice -->
         <div class="closed-notice" v-if="loan.status === 'closed'">
-          ✅ Este préstamo ha sido <strong>liquidado en su totalidad</strong>. ¡Gracias!
+          {{ t('common.loanClosedNotice') }}
         </div>
       </div>
 
       <div class="invoice-footer">
-        <p>Gracias por su confianza.</p>
-        <p class="muted">Documento generado por {{ t('app.title') }}</p>
+        <p>{{ t('common.thanksNote') }}</p>
+        <p class="muted">{{ t('common.generatedBy', { app: appDisplayName }) }}</p>
       </div>
     </div>
-    
+
     <div v-else class="loading">
-      Cargando documento...
+      {{ t('common.loadingDocument') }}
     </div>
 
     <!-- The user prints from the browser, we auto-trigger on load -->
@@ -498,6 +494,9 @@ const historyTotals = computed(() => ({
 
 const globalSettings = computed(() => state.globalSettings)
 
+// Per-instance name, so a white-labelled deployment prints its own brand.
+const appDisplayName = computed(() => globalSettings.value?.appName || t('app.title'))
+
 const idString = computed(() => {
   if (isCustomer.value || isHistory.value) return `CST-${id.value.toString().padStart(6, '0')}`
   if (isPayment.value) return `PAY-${id.value.toString().padStart(6, '0')}`
@@ -518,16 +517,19 @@ const dateString = computed(() => {
   return ''
 })
 
-const paymentTypeLabels: Record<string, string> = {
-  interest_payment: 'Pago de interés',
-  partial_interest_payment: 'Pago parcial de interés',
-  interest_advance_payment: 'Anticipo de interés',
-  partial_principal_payment: 'Abono a capital',
-  full_settlement: 'Liquidación total',
-  mixed_payment: 'Pago mixto'
+const eventTypeKeys: Record<string, string> = {
+  interest_payment: 'common.eventInterestPayment',
+  partial_interest_payment: 'common.eventPartialInterestPayment',
+  interest_advance_payment: 'common.eventInterestAdvance',
+  partial_principal_payment: 'common.eventPartialPrincipalPayment',
+  full_settlement: 'common.eventFullSettlement',
+  mixed_payment: 'common.eventMixedPayment'
 }
 
-const eventTypeLabel = (value: string) => paymentTypeLabels[value] ?? value.replace(/_/g, ' ')
+const eventTypeLabel = (value: string) => {
+  const key = eventTypeKeys[value]
+  return key ? t(key) : value.replace(/_/g, ' ')
+}
 
 const formatCurrency = (val: number) => {
   const code = globalSettings.value?.currencyCode || 'COP'
@@ -540,19 +542,23 @@ const formatCurrency = (val: number) => {
  */
 const getPaymentTypeLabel = (p: typeof payment.value) => {
   if (!p) return ''
-  if (p.allocatedToPrincipal > 0 && p.allocatedToInterest === 0) return 'Pago de Capital'
-  if (p.allocatedToInterest > 0 && p.allocatedToPrincipal === 0) return 'Pago de Interés'
-  if (p.allocatedToPenalty > 0 && p.allocatedToPrincipal === 0 && p.allocatedToInterest === 0) return 'Pago de Mora'
-  return 'Pago Mixto'
+  if (p.allocatedToPrincipal > 0 && p.allocatedToInterest === 0) return t('common.typePrincipalPayment')
+  if (p.allocatedToInterest > 0 && p.allocatedToPrincipal === 0) return t('common.typeInterestPayment')
+  if (p.allocatedToPenalty > 0 && p.allocatedToPrincipal === 0 && p.allocatedToInterest === 0) {
+    return t('common.typePenaltyPayment')
+  }
+  return t('common.typeMixedPayment')
 }
 
 const getLoanStatusLabel = (l: { status: string }) => {
-  const map: Record<string, string> = {
-    active: 'Activo',
-    overdue: 'Vencido',
-    closed: 'Liquidado'
+  const keys: Record<string, string> = {
+    active: 'common.active',
+    overdue: 'common.overdue',
+    defaulted: 'common.defaulted',
+    closed: 'common.closed'
   }
-  return map[l.status] ?? l.status
+  const key = keys[l.status]
+  return key ? t(key) : l.status
 }
 
 const loanStatusLabel = computed(() => {
@@ -790,15 +796,9 @@ onMounted(async () => {
   font-size: 0.95em;
 }
 
-.text-right {
-  text-align: right !important;
-}
+/* .text-right, .text-center, .mt-8 and .mt-16 come from main.css. */
 
-.text-center {
-  text-align: center;
-}
-
-/* Wider statement and history tables need to stay on one printed page width. */
+/* Wider statement and history tables need to stay within one printed page width. */
 .compact-table th,
 .compact-table td {
   padding: 7px 8px;
@@ -806,17 +806,13 @@ onMounted(async () => {
 }
 
 .row-reversed td {
-  color: #94a3b8;
+  color: var(--muted, #475569);
   text-decoration: line-through;
 }
 
 .row-reversed td strong {
-  color: #dc2626;
+  color: var(--danger, #ef4444);
   text-decoration: none;
-}
-
-.mt-8 {
-  margin-top: 8px;
 }
 
 .payment-notes {
