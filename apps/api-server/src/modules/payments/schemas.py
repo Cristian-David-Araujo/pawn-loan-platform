@@ -139,6 +139,35 @@ class PrincipalPaymentResponse(BaseModel):
     loan_status: str
 
 
+class PaymentAllocationRead(BaseModel):
+    """One line of the printed "how was this payment distributed" breakdown."""
+
+    payment_event_id: int
+    payment_type: str
+    loan_id: int
+    interest_charge_id: int | None
+    billing_period: str
+    charge_amount: float | None
+    charge_due_date: date | None
+    allocated_to_interest: float
+    allocated_to_penalty: float
+    allocated_to_principal: float
+    allocated_total: float
+    fully_covered: bool
+    is_reversed: bool
+
+
+class PaymentAllocationsResponse(BaseModel):
+    payment_id: int
+    payment_date: date
+    loan_ids: list[int]
+    total_amount: float
+    total_allocated: float
+    unallocated_amount: float
+    is_reversed: bool
+    allocations: list[PaymentAllocationRead]
+
+
 class PaymentEventRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

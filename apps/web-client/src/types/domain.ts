@@ -42,7 +42,9 @@ export interface Loan {
 export interface CollateralItem {
   id: number
   loanId: number
+  itemType: string
   description: string
+  serialNumber: string
   appraisedValue: number
   custodyCode: string
   storageLocation: string

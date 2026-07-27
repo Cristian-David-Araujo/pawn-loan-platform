@@ -46,19 +46,23 @@ Monorepo: `apps/api-server` (FastAPI + SQLAlchemy 2.0, Python 3.12), `apps/web-c
 
 The tree contains clean-architecture placeholder packages (`src/application/`, `src/domain/entities/`, `src/domain/rules/`, `src/domain/value_objects/`, `src/api/v1/routes/`) that are **empty**. Real code is in:
 
-- `src/modules/<domain>/` — one package per domain (`authentication`, `customers`, `loans`, `collateral`, `payments`, `finance`, `reporting`, `settings`, `backup`), each with `router.py` (routes + business logic inline) and `schemas.py` (Pydantic). Business logic mostly lives in the routers; the extracted service modules are all under `finance/`: [interest_generation.py](apps/api-server/src/modules/finance/interest_generation.py), [interest_balance.py](apps/api-server/src/modules/finance/interest_balance.py) and [loan_status.py](apps/api-server/src/modules/finance/loan_status.py).
+- `src/modules/<domain>/` — one package per domain (`authentication`, `customers`, `loans`, `collateral`, `payments`, `finance`, `reporting`, `settings`, `backup`), each with `router.py` (routes + business logic inline) and `schemas.py` (Pydantic). Business logic mostly lives in the routers; the extracted service modules are all under `finance/`: [interest_generation.py](apps/api-server/src/modules/finance/interest_generation.py), [interest_balance.py](apps/api-server/src/modules/finance/interest_balance.py) and [loan_status.py](apps/api-server/src/modules/finance/loan_status.py). `reporting` has no `schemas.py` — its four `/reports/*` endpoints return plain dicts.
 - `src/infrastructure/persistence/models.py` — **all** SQLAlchemy models in one file.
 - `src/domain/enums/` — `LoanType`, `LoanStatus`, `UserRole` only.
 - `src/shared/dependencies/` — `get_db`, `get_current_user`, `require_roles(*roles)`.
 - `src/api/v1/router.py` — aggregates module routers under `/api/v1`.
 
-Routers carry their own prefix (`/customers`, `/payments`, `/collateral-items`, `/reports`, `/settings`); `authentication`, `loans`, and `finance` declare no prefix and spell paths out (`/auth/login`, `/loans`, `/loan-applications`, `/interest/generate`, `/loans/{id}/balance`).
+Routers carry their own prefix (`/customers`, `/payments`, `/collateral-items`, `/reports`, `/settings`); `authentication`, `loans`, and `finance` declare no prefix and spell paths out (`/auth/login`, `/loans`, `/loan-applications`, `/interest/generate`, `/loans/{id}/balance`, `/loans/{id}/ledger`).
+
+There is **no `users` module** — user management (`GET/POST/PUT /users`) lives in [authentication/router.py](apps/api-server/src/modules/authentication/router.py) alongside login, refresh, and the forgot/reset-password pair.
 
 Adding an endpoint: new route in the module's `router.py` + schemas in `schemas.py`; `require_roles(...)` on every route; `write_audit(db, ...)` after any financial or collateral mutation (it commits).
 
 ### Startup side effects
 
 [main.py](apps/api-server/src/main.py) on startup runs `alembic upgrade head` + `init_database()` when `DB_INIT_ON_STARTUP`, then starts an in-process thread scheduler for interest generation when `AUTO_INTEREST_GENERATION_ENABLED`. `init_database()` takes a PG advisory lock so multiple workers can't race on enum creation/seed. Bootstrap never overwrites the admin password unless `ADMIN_PASSWORD_RESET_ON_STARTUP=true`.
+
+Every uvicorn worker starts its own scheduler thread, so `run_interest_generation_cycle` guards itself with `pg_try_advisory_lock(INTEREST_CYCLE_LOCK_ID)` and silently skips the cycle when another worker holds it — nothing at the DB level rejects a duplicate billing period, so losing that lock means double-charging customers. Both lock helpers in [interest_scheduler.py](apps/api-server/src/infrastructure/tasks/interest_scheduler.py) short-circuit to "acquired" on non-PostgreSQL dialects so the SQLite test suite still runs; the backup restore takes the same lock id.
 
 ### Financial model — the core invariants
 
@@ -72,6 +76,7 @@ Two-table payment record: `Payment` is the money received; `PaymentEvent` is the
 - **Interest payments are always allocated oldest-charge-first** — selection hints from the client are accepted but deliberately ignored ([payments/router.py](apps/api-server/src/modules/payments/router.py)). Within a charge: penalty before interest. Leftover money becomes an `interest_advance_payment` event with `interest_charge_id = NULL`; that advance pool is then netted against future pending charges when computing balances.
 - **Principal payments** are blocked while accrued interest is unpaid unless `allow_with_unpaid_interest`, can't exceed `outstanding_principal`, and auto-close the loan at zero.
 - **`active` ↔ `overdue` is automatic**, owned by `refresh_overdue_loan_statuses` and run inside the interest cycle (scheduler and `POST /interest/generate`). `closed` and `defaulted` are terminal states set only by explicit operator actions; the job never touches them.
+- **Renewal** (`POST /loans/{id}/renew`) never mutates the source loan's numbers: it closes the source and inserts a *new* `Loan` whose `principal_amount` and `outstanding_principal` are the source's outstanding, `disbursement_date` is today (so the interest anchor day moves), and `renewal_of` points back at the source. Rate and `due_day` are inherited unless overridden in the payload.
 - **Foreclosure** (pawn loans only) sets `LoanStatus.defaulted` and flips `in_custody` collateral to `for_sale`.
 - Customers and loans with credit history cannot be deleted — 409 `"...related credit records"`; the frontend matches on that substring to show an archive-instead message.
 - Use `get_local_date(db)` / `get_local_datetime(db)` (reads `GlobalSettings.timezone`, default `America/Bogota`) for "today" — not `date.today()`.
@@ -95,9 +100,29 @@ The import is a **full replace**, not a merge: it wipes every table and reloads 
 - Date display/parsing goes through [utils/date.ts](apps/web-client/src/utils/date.ts), whose global format is set from `GlobalSettings.dateFormat` on load. Send ISO (`YYYY-MM-DD`) to the API via `toIsoDate`.
 - UI conventions from `.agents/skills/`: create/edit forms belong in modals (or a dedicated route), triggered from `PageHeader`'s `#actions` slot — never inline forms above a table; always render an `.empty-state` instead of a bare table header; group fields in `.form-section` with a title; mobile-first with AA contrast and visible focus states.
 
+### Printable documents
+
+All four printable documents are one component, [InvoicePrintView.vue](apps/web-client/src/views/InvoicePrintView.vue), on a single route `/print/invoice/:type/:id` that sits **outside** `AppLayout` (no nav chrome) and calls `window.print()` ~500 ms after mount. `:type` selects the document — `payment` (receipt), `loan` (loan statement), `customer` (customer statement), `history` (payment history) — and the `isLoan` branch is the fallback, so an unknown `:type` renders a loan statement rather than erroring. Callers are plain `<a target="_blank">` links (or `router.push` right after creating a loan/payment) in `LoansView`, `PaymentsView`, `CustomersView`, and `LoanDetailModal`.
+
+There is **no HTML-rendering print endpoint on the backend**. The view reads the store for entity data and fetches figures directly: `/payments/customers/{id}/principal-context` (per-loan payoff figures), `/payments/customers/{id}/interest-pending` (the pending periods behind them), `/payments/{id}/allocations` (the receipt's distribution breakdown) and, for `history`, `/payments/customers/{id}/history`. For a `payment` receipt those calls run *after* the payment, so the figures printed are the balances remaining afterwards. A failed fetch is swallowed — the document still prints with whatever the store held.
+
+Because the view destructures those responses by exact field name, renaming one server-side prints zeros instead of failing. [tests/test_printable_statements.py](apps/api-server/tests/test_printable_statements.py) exists solely to pin that contract (field names plus the arithmetic) — update it in the same change as any rename, and don't treat it as a redundant duplicate of the payments tests.
+
+`GET /payments/{id}/allocations` exists because `Payment` alone cannot explain itself: it stores only per-bucket totals and its `loan_id` is just the *first* loan touched, while one payment routinely settles several `InterestCharge`s across several loans (allocation is oldest-first). The endpoint returns the `PaymentEvent` rows in `id` order — the real order the money was applied — enriched with each charge's own amount and due date, so the receipt can print "this $100k covered invoice A in full and invoice B partially". `fully_covered` is derived from the `partial_interest_payment` type stamped at creation, not recomputed. Payments made through the plain `POST /payments` path have no ledger rows, so the list comes back empty and the receipt falls back to the per-bucket summary table.
+
+The `loan` document also prints the pledged items (custody code, description, appraised value, plus an appraised total) from `state.collateralItems` filtered by `loanId` — no extra fetch. Columns appear only when they carry information: `item_type` and `serial_number` default to `general`/empty and have no form field anywhere; `status` is `in_custody` for every item on a freshly issued document, so it shows up only on a reprint after a foreclosure/release/sale.
+
+**`physical_condition` is deliberately not printed.** It defaults to `"good"`, no UI collects it, and `CollateralUpdate` omits it, so it can never be edited — every row in a real database carries the default. Printing it would assert on a customer-facing document that the item was inspected and found in good condition when no such assessment was ever recorded. The test for whether a defaulted field may be printed is whether its fallback reads as "nothing recorded" (empty serial, `general` type — safe to hide) or as a substantive claim (`good` — must not be shown). If a form field for it is ever added, printing it becomes legitimate.
+
+`CollateralItem.status` is a plain varchar, not an enum, and `PUT /collateral-items/{id}` writes `payload.status` through unvalidated. The values endpoints actually produce are `in_custody` (create), `for_sale` (foreclosure), `released`, `liquidated` and `sold`. **`returned` is written only by [seed.py](apps/api-server/src/infrastructure/persistence/seed.py) — no endpoint ever sets it**, yet it is carried in `types/domain.ts` and labelled in `CollateralsView`, sitting confusingly next to the real `released`. Treat it as demo-data residue rather than a domain state.
+
+Print styling is deliberately restrained — whitespace carries the structure. One accent colour, one emphasis weight (`.balance-value`), one hairline, `.doc-section` + `.section-title` for every block in all four documents. No panel fills, no header-row fills, no bordered pills. Columns that would be all zeros are dropped rather than printed empty, and `@media print` forces `print-color-adjust: exact` (browsers drop backgrounds, which would erase every status pill) plus `table-header-group` so long tables repeat their header. When adding to these documents, reuse those two classes instead of introducing another sectioning device.
+
 ## Tests
 
 `pytest` only, in `apps/api-server/tests/`, one file per module. [conftest.py](apps/api-server/tests/conftest.py) builds a fresh app per test with `get_db` overridden, plus `auth_headers`, `create_customer`, and `create_loan` fixtures; tests exercise endpoints end-to-end through `TestClient`. The scheduler is disabled in the `app` fixture.
+
+A few files guard cross-cutting invariants rather than one module, and are easy to mistake for duplicates: `test_printable_statements.py` (frontend field contract, above), `test_interest_scheduler_lock.py` (multi-worker cycle lock), `test_payment_reversal.py`, `test_loan_status.py` (the automatic `active` ↔ `overdue` job), and `test_backup_import.py` (the full-replace guards).
 
 The engine is **in-memory SQLite by default**, or PostgreSQL when `TEST_DATABASE_URL` is set — CI sets it, so the suite runs on both. Backend code must therefore stay SQLite-compatible (no PG-only SQL outside the guarded bootstrap). To reproduce the CI run locally:
 

@@ -21,6 +21,8 @@ from src.modules.payments.schemas import (
     InterestPendingGroup,
     InterestPendingItem,
     InterestPendingResponse,
+    PaymentAllocationRead,
+    PaymentAllocationsResponse,
     PaymentCreate,
     PaymentEventRead,
     PaymentRead,
@@ -716,6 +718,97 @@ def reverse_payment(
     )
 
     return payment
+
+
+@router.get("/{payment_id}/allocations", response_model=PaymentAllocationsResponse)
+def payment_allocations(
+    payment_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
+) -> PaymentAllocationsResponse:
+    """The ledger rows behind one payment, in the order the money was applied.
+
+    A single payment can settle several interest charges across several loans, because
+    allocation is oldest-charge-first and ignores any client selection. ``Payment`` only
+    keeps the per-bucket totals and points at the *first* loan, so the printed receipt
+    needs this breakdown to be traceable. Payments created through the plain
+    ``POST /payments`` path have no ledger rows and return an empty list.
+    """
+    payment = db.get(Payment, payment_id)
+    if payment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+
+    events = list(
+        db.scalars(
+            select(PaymentEvent)
+            .where(PaymentEvent.payment_id == payment.id)
+            .order_by(PaymentEvent.id.asc())
+        ).all()
+    )
+
+    charge_ids = [event.interest_charge_id for event in events if event.interest_charge_id is not None]
+    charges = (
+        {
+            charge.id: charge
+            for charge in db.scalars(select(InterestCharge).where(InterestCharge.id.in_(charge_ids))).all()
+        }
+        if charge_ids
+        else {}
+    )
+
+    loan_ids = sorted({event.loan_id for event in events} | {payment.loan_id})
+    loans = {loan.id: loan for loan in db.scalars(select(Loan).where(Loan.id.in_(loan_ids))).all()}
+
+    allocations: list[PaymentAllocationRead] = []
+    for event in events:
+        charge = charges.get(event.interest_charge_id) if event.interest_charge_id is not None else None
+        loan = loans.get(event.loan_id)
+        allocations.append(
+            PaymentAllocationRead(
+                payment_event_id=event.id,
+                payment_type=event.payment_type,
+                loan_id=event.loan_id,
+                interest_charge_id=event.interest_charge_id,
+                billing_period=event.billing_period,
+                charge_amount=charge.amount if charge is not None else None,
+                charge_due_date=(
+                    charge_due_date(charge.period_end, loan.due_day)
+                    if charge is not None and loan is not None
+                    else None
+                ),
+                allocated_to_interest=event.allocated_to_interest,
+                allocated_to_penalty=event.allocated_to_penalty,
+                allocated_to_principal=event.allocated_to_principal,
+                allocated_total=round(
+                    event.allocated_to_interest + event.allocated_to_penalty + event.allocated_to_principal,
+                    2,
+                ),
+                # "partial_interest_payment" is stamped precisely when the allocation did
+                # not clear the charge, so it is the authoritative signal here.
+                fully_covered=event.payment_type != "partial_interest_payment",
+                is_reversed=event.is_reversed,
+            )
+        )
+
+    # Reversal is a separate axis from allocation: a reversed payment keeps its rows but
+    # they no longer count, so totals only sum live rows while `is_reversed` explains the gap.
+    total_allocated = round(
+        sum(item.allocated_total for item in allocations if not item.is_reversed), 2
+    )
+    never_allocated = round(
+        payment.total_amount - sum(item.allocated_total for item in allocations), 2
+    )
+
+    return PaymentAllocationsResponse(
+        payment_id=payment.id,
+        payment_date=payment.payment_date,
+        loan_ids=loan_ids,
+        total_amount=round(payment.total_amount, 2),
+        total_allocated=total_allocated,
+        unallocated_amount=max(0.0, never_allocated),
+        is_reversed=payment.is_reversed,
+        allocations=allocations,
+    )
 
 
 @router.get("/events/{event_id}", response_model=PaymentEventRead)

@@ -40,7 +40,9 @@ interface BackendLoan {
 interface BackendCollateral {
   id: number
   loan_id: number
+  item_type: string
   description: string
+  serial_number: string
   appraised_value: number
   custody_code: string
   storage_location: string
@@ -233,7 +235,10 @@ const mapLoan = (item: BackendLoan): Loan => ({
 const mapCollateral = (item: BackendCollateral): CollateralItem => ({
   id: item.id,
   loanId: item.loan_id,
+  itemType: item.item_type,
   description: item.description,
+  // The serial identifies the pledged item on the printed loan document.
+  serialNumber: item.serial_number,
   appraisedValue: item.appraised_value,
   custodyCode: item.custody_code,
   storageLocation: item.storage_location,
@@ -258,7 +263,9 @@ const mapPayment = (item: BackendPayment): Payment => ({
   allocatedToPrincipal: item.allocated_to_principal,
   paymentMethod: item.payment_method,
   notes: item.notes,
-  isReversed: item.is_reversed
+  isReversed: item.is_reversed,
+  // Printed receipts credit whoever took the money, so this has to survive the mapping.
+  receiver: item.receiver ?? null
 })
 
 const mapGlobalSettings = (data: BackendGlobalSettings): GlobalSettings => ({

@@ -9,226 +9,320 @@
         <div class="company-details">
           <h2>{{ globalSettings?.companyName || globalSettings?.appName || t('app.title') }}</h2>
           <p v-if="globalSettings?.companyDocumentNumber">
-            {{ globalSettings.companyDocumentType || 'NIT/CC' }}: {{ globalSettings.companyDocumentNumber }}
+            {{ globalSettings.companyDocumentType || t('common.taxId') }}: {{ globalSettings.companyDocumentNumber }}
           </p>
           <p v-if="globalSettings?.companyAddress">
             {{ globalSettings.companyAddress }}
           </p>
           <p v-if="globalSettings?.companyPhone">
-            Tel: {{ globalSettings.companyPhone }}
+            {{ t('common.phoneShort') }}: {{ globalSettings.companyPhone }}
           </p>
           <p v-if="globalSettings?.companyEmail">
-            Email: {{ globalSettings.companyEmail }}
+            {{ t('common.emailLabel') }}: {{ globalSettings.companyEmail }}
           </p>
         </div>
         <div class="invoice-meta">
-          <h1 v-if="isPayment">{{ t('payments.receiptTitle', 'Recibo de Pago') }}</h1>
-          <h1 v-else-if="isCustomer">{{ t('common.customerStatementTitle') }}</h1>
-          <h1 v-else-if="isHistory">{{ t('common.paymentHistoryTitle') }}</h1>
-          <h1 v-else>{{ t('loans.invoiceTitle', 'Factura de Préstamo') }}</h1>
-          <p v-if="!isCustomer"><strong>Nº:</strong> {{ idString }}</p>
-          <p><strong>Fecha:</strong> {{ dateString }}</p>
+          <h1>{{ documentTitle }}</h1>
+          <p v-if="!isCustomer"><strong>{{ t('common.documentNo') }}:</strong> {{ idString }}</p>
+          <p><strong>{{ t('common.documentDate') }}:</strong> {{ dateString }}</p>
         </div>
       </div>
 
-      <!-- Customer info -->
-      <div class="customer-info" v-if="customer">
-        <h3>{{ t('common.customerDataTitle') }}</h3>
-        <p><strong>{{ t('common.name') }}:</strong> {{ customer.fullName }}</p>
-        <p><strong>{{ customer.documentType }}:</strong> {{ customer.documentNumber }}</p>
-        <p><strong>{{ t('common.phone') }}:</strong> {{ customer.phone }}</p>
+      <!-- A reversed payment must never read as a valid receipt. -->
+      <div class="reversed-notice" v-if="isPayment && payment?.isReversed">
+        {{ t('common.reversedFlag') }} — {{ t('common.paymentReversedNotice') }}
       </div>
 
-      <!-- Loan context (payment receipts) -->
-      <div class="loan-info mt-16" v-if="isPayment && loan">
-        <h3>{{ t('common.loanInfo') }}</h3>
-        <div class="loan-info-grid">
-          <p><strong>{{ t('common.loanNumber') }}:</strong> LN-{{ loan.id.toString().padStart(6, '0') }}</p>
-          <p v-if="loan.description"><strong>{{ t('common.description') }}:</strong> {{ loan.description }}</p>
-          <p><strong>{{ t('common.type') }}:</strong> {{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</p>
-          <p v-if="payment"><strong>{{ t('common.receiptPaymentType') }}:</strong> {{ getPaymentTypeLabel(payment) }}</p>
+      <!-- Customer info -->
+      <div class="doc-section" v-if="customer">
+        <h3 class="section-title">{{ t('common.customerDataTitle') }}</h3>
+        <div class="info-grid">
+          <p><strong>{{ t('common.name') }}:</strong> {{ customer.fullName }}</p>
+          <p><strong>{{ customer.documentType }}:</strong> {{ customer.documentNumber }}</p>
+          <p><strong>{{ t('common.phone') }}:</strong> {{ customer.phone }}</p>
+        </div>
+      </div>
+
+      <!-- Payment metadata (receipts) -->
+      <div class="doc-section" v-if="isPayment && payment">
+        <h3 class="section-title">{{ t('common.paymentDetailsTitle') }}</h3>
+        <div class="info-grid">
+          <p v-if="spansMultipleLoans">
+            <strong>{{ t('common.loansCovered') }}:</strong> {{ coveredLoanLabels }}
+          </p>
+          <p v-else-if="loan"><strong>{{ t('common.loanNumber') }}:</strong> {{ loanLabel(loan.id) }}</p>
+          <p v-if="loan">
+            <strong>{{ t('common.type') }}:</strong>
+            {{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}
+          </p>
+          <p><strong>{{ t('common.receiptPaymentType') }}:</strong> {{ getPaymentTypeLabel(payment) }}</p>
+          <p>
+            <strong>{{ t('common.amountReceived') }}:</strong>
+            <span class="balance-value">{{ formatCurrency(payment.totalAmount) }}</span>
+          </p>
+          <p><strong>{{ t('common.method') }}:</strong> {{ paymentMethodLabel }}</p>
+          <p v-if="payment.receiver">
+            <strong>{{ t('common.receivedBy') }}:</strong>
+            {{ payment.receiver.full_name || payment.receiver.username }}
+          </p>
+          <p class="span-2" v-if="payment.notes">
+            <strong>{{ t('common.notes') }}:</strong> {{ payment.notes }}
+          </p>
         </div>
       </div>
 
       <!-- Payment details table -->
-      <div class="invoice-details mt-16">
+      <div class="invoice-details">
         <template v-if="isPayment && payment">
-          <table class="print-table">
-            <thead>
-              <tr>
-                <th>{{ t('common.concept') }}</th>
-                <th class="text-right">{{ t('common.amount') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="payment.allocatedToPrincipal > 0">
-                <td>{{ t('common.principalPayment') }}</td>
-                <td class="text-right">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-              </tr>
-              <tr v-if="payment.allocatedToInterest > 0">
-                <td>{{ t('common.interestCharges') }}</td>
-                <td class="text-right">{{ formatCurrency(payment.allocatedToInterest) }}</td>
-              </tr>
-              <tr v-if="payment.allocatedToPenalty > 0">
-                <td>{{ t('common.penaltyCharge') }}</td>
-                <td class="text-right">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-              </tr>
-              <tr v-if="payment.allocatedToFees > 0">
-                <td>{{ t('common.feesCharge') }}</td>
-                <td class="text-right">{{ formatCurrency(payment.allocatedToFees) }}</td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr>
-                <th>{{ t('common.totalPaid') }}</th>
-                <th class="text-right">{{ formatCurrency(payment.totalAmount) }}</th>
-              </tr>
-            </tfoot>
-          </table>
-          <div class="payment-notes mt-16">
-            <p><strong>{{ t('common.method') }}:</strong> {{ paymentMethodLabel }}</p>
-            <p v-if="payment.notes"><strong>{{ t('common.notes') }}:</strong> {{ payment.notes }}</p>
-            <p v-if="payment.receiver"><strong>{{ t('common.receivedBy', 'Recibido por') }}:</strong> {{ payment.receiver.full_name || payment.receiver.username }}</p>
+          <!-- Only for legacy payments with no ledger rows: the breakdown below
+               already totals the same buckets, so showing both is noise. -->
+          <div class="doc-section" v-if="!breakdownLines.length">
+            <h3 class="section-title">{{ t('common.paymentSummaryTitle') }}</h3>
+            <table class="print-table">
+              <thead>
+                <tr>
+                  <th>{{ t('common.concept') }}</th>
+                  <th class="text-right">{{ t('common.amount') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="payment.allocatedToPrincipal > 0">
+                  <td>{{ t('common.principalPayment') }}</td>
+                  <td class="text-right">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                </tr>
+                <tr v-if="payment.allocatedToInterest > 0">
+                  <td>{{ t('common.interestCharges') }}</td>
+                  <td class="text-right">{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                </tr>
+                <tr v-if="payment.allocatedToPenalty > 0">
+                  <td>{{ t('common.penaltyCharge') }}</td>
+                  <td class="text-right">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                </tr>
+                <tr v-if="payment.allocatedToFees > 0">
+                  <td>{{ t('common.feesCharge') }}</td>
+                  <td class="text-right">{{ formatCurrency(payment.allocatedToFees) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th>{{ t('common.totalPaid') }}</th>
+                  <th class="text-right">{{ formatCurrency(payment.totalAmount) }}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- One payment can settle several invoices, so show where each part landed. -->
+          <div class="doc-section" v-if="breakdownLines.length">
+            <h3 class="section-title">{{ t('common.paymentBreakdownTitle') }}</h3>
+            <table class="print-table">
+              <thead>
+                <tr>
+                  <th v-if="spansMultipleLoans">{{ t('common.loan') }}</th>
+                  <th>{{ t('payments.period') }}</th>
+                  <th>{{ t('common.dueOn') }}</th>
+                  <th class="text-right">{{ t('common.chargeAmount') }}</th>
+                  <th class="text-right">{{ t('common.interest') }}</th>
+                  <th class="text-right" v-if="breakdownHasPenalty">{{ t('common.penalty') }}</th>
+                  <th class="text-right" v-if="breakdownHasPrincipal">{{ t('common.principal') }}</th>
+                  <th class="text-right">{{ t('common.applied') }}</th>
+                  <th>{{ t('common.coverage') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="line in breakdownLines"
+                  :key="line.payment_event_id"
+                  :class="{ 'row-reversed': line.is_reversed }"
+                >
+                  <td v-if="spansMultipleLoans">{{ loanLabel(line.loan_id) }}</td>
+                  <td>{{ line.billing_period || eventTypeLabel(line.payment_type) }}</td>
+                  <td>{{ line.charge_due_date ? formatDateDMY(line.charge_due_date) : '—' }}</td>
+                  <td class="text-right">
+                    {{ line.charge_amount !== null ? formatCurrency(line.charge_amount) : '—' }}
+                  </td>
+                  <td class="text-right">{{ formatCurrency(line.allocated_to_interest) }}</td>
+                  <td class="text-right" v-if="breakdownHasPenalty">
+                    {{ formatCurrency(line.allocated_to_penalty) }}
+                  </td>
+                  <td class="text-right" v-if="breakdownHasPrincipal">
+                    {{ formatCurrency(line.allocated_to_principal) }}
+                  </td>
+                  <td class="text-right balance-value">{{ formatCurrency(line.allocated_total) }}</td>
+                  <td class="coverage-cell">{{ coverageLabel(line) }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th :colspan="breakdownLabelSpan">{{ t('common.totalApplied') }}</th>
+                  <th class="text-right">{{ formatCurrency(breakdownTotals.interest) }}</th>
+                  <th class="text-right" v-if="breakdownHasPenalty">
+                    {{ formatCurrency(breakdownTotals.penalty) }}
+                  </th>
+                  <th class="text-right" v-if="breakdownHasPrincipal">
+                    {{ formatCurrency(breakdownTotals.principal) }}
+                  </th>
+                  <th class="text-right">{{ formatCurrency(breakdownTotals.total) }}</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+            <p class="note" v-if="unallocatedAmount > 0">
+              {{ t('common.unallocatedAmount') }}: <strong>{{ formatCurrency(unallocatedAmount) }}</strong>
+            </p>
+            <p class="muted">{{ t('common.breakdownNote') }}</p>
           </div>
         </template>
 
         <template v-else-if="isLoan && loan">
-          <table class="print-table">
-            <thead>
-              <tr>
-                <th>{{ t('common.loanDetailsTitle') }}</th>
-                <th class="text-right">{{ t('common.value') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{{ t('common.principalAmount') }}</td>
-                <td class="text-right">{{ formatCurrency(loan.principalAmount) }}</td>
-              </tr>
-              <tr>
-                <td>{{ t('common.monthlyInterestRate') }}</td>
-                <td class="text-right">{{ loan.monthlyInterestRate }}%</td>
-              </tr>
-              <tr v-if="loan.latePenaltyRate > 0">
-                <td>{{ t('common.latePenaltyRate') }}</td>
-                <td class="text-right">{{ loan.latePenaltyRate }}%</td>
-              </tr>
-              <tr>
-                <td>{{ t('common.paymentDay') }}</td>
-                <td class="text-right">{{ t('common.dayOfEachMonth', { day: loan.dueDay }) }}</td>
-              </tr>
-            </tbody>
-          </table>
-          <div class="payment-notes mt-16" v-if="loan.description || loan.created_by">
-            <p v-if="loan.description"><strong>{{ t('common.description') }}:</strong> {{ loan.description }}</p>
-            <p v-if="loan.created_by"><strong>{{ t('common.createdBy', 'Generado por') }}:</strong> {{ loan.created_by.full_name || loan.created_by.username }}</p>
+          <div class="doc-section">
+            <h3 class="section-title">{{ t('common.loanDetailsTitle') }}</h3>
+            <table class="print-table">
+              <thead>
+                <tr>
+                  <th>{{ t('common.concept') }}</th>
+                  <th class="text-right">{{ t('common.value') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>{{ t('common.principalAmount') }}</td>
+                  <td class="text-right">{{ formatCurrency(loan.principalAmount) }}</td>
+                </tr>
+                <tr>
+                  <td>{{ t('common.monthlyInterestRate') }}</td>
+                  <td class="text-right">{{ loan.monthlyInterestRate }}%</td>
+                </tr>
+                <tr v-if="loan.latePenaltyRate > 0">
+                  <td>{{ t('common.latePenaltyRate') }}</td>
+                  <td class="text-right">{{ loan.latePenaltyRate }}%</td>
+                </tr>
+                <tr>
+                  <td>{{ t('common.paymentDay') }}</td>
+                  <td class="text-right">{{ t('common.dayOfEachMonth', { day: loan.dueDay }) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="info-grid" v-if="loan.description || loan.created_by">
+              <p class="span-2" v-if="loan.description">
+                <strong>{{ t('common.description') }}:</strong> {{ loan.description }}
+              </p>
+              <p v-if="loan.created_by">
+                <strong>{{ t('common.createdBy') }}:</strong>
+                {{ loan.created_by.full_name || loan.created_by.username }}
+              </p>
+            </div>
           </div>
         </template>
 
         <!-- Customer Statement (Estado de Cuenta) -->
         <template v-else-if="isCustomer && customer">
-          <h3>{{ t('common.loansSummaryTitle') }}</h3>
-          <table class="print-table compact-table">
-            <thead>
-              <tr>
-                <th>{{ t('common.loan') }}</th>
-                <th>{{ t('common.type') }}</th>
-                <th>{{ t('common.status') }}</th>
-                <th class="text-right">{{ t('loans.rate') }}</th>
-                <th class="text-right">{{ t('common.principalBalance') }}</th>
-                <th class="text-right">{{ t('common.interest') }}</th>
-                <th class="text-right">{{ t('common.penalty') }}</th>
-                <th class="text-right">{{ t('common.totalOwed') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="l in customerLoans" :key="l.id">
-                <td>{{ loanLabel(l.id) }}</td>
-                <td>{{ l.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-                <td>
-                  <span class="status-badge" :class="getLoanStatusClass(l)">
-                    {{ getLoanStatusLabel(l) }}
-                  </span>
-                </td>
-                <td class="text-right">{{ l.monthlyInterestRate }}%</td>
-                <td class="text-right">{{ formatCurrency(l.outstandingPrincipal) }}</td>
-                <td class="text-right">{{ formatCurrency(statementFor(l.id)?.accrued_unpaid_interest ?? 0) }}</td>
-                <td class="text-right">{{ formatCurrency(statementFor(l.id)?.penalties ?? 0) }}</td>
-                <td class="text-right balance-value">
-                  {{ formatCurrency(statementFor(l.id)?.total_payoff_amount ?? l.outstandingPrincipal) }}
-                </td>
-              </tr>
-              <tr v-if="!customerLoans.length">
-                <td colspan="8" class="text-center">{{ t('common.noLoansForCustomer') }}</td>
-              </tr>
-            </tbody>
-            <tfoot v-if="customerLoans.length">
-              <tr>
-                <th colspan="4">{{ t('common.totals') }}</th>
-                <th class="text-right">{{ formatCurrency(customerTotalOutstanding) }}</th>
-                <th class="text-right">{{ formatCurrency(customerOwed.interest) }}</th>
-                <th class="text-right">{{ formatCurrency(customerOwed.penalties) }}</th>
-                <th class="text-right">{{ formatCurrency(customerOwed.total) }}</th>
-              </tr>
-            </tfoot>
-          </table>
-          <p class="muted mt-8">{{ t('common.statementNote') }}</p>
+          <div class="doc-section">
+            <h3 class="section-title">{{ t('common.loansSummaryTitle') }}</h3>
+            <table class="print-table compact-table">
+              <thead>
+                <tr>
+                  <th>{{ t('common.loan') }}</th>
+                  <th>{{ t('common.type') }}</th>
+                  <th>{{ t('common.status') }}</th>
+                  <th class="text-right">{{ t('loans.rate') }}</th>
+                  <th class="text-right">{{ t('common.principalBalance') }}</th>
+                  <th class="text-right">{{ t('common.interest') }}</th>
+                  <th class="text-right">{{ t('common.penalty') }}</th>
+                  <th class="text-right">{{ t('common.totalOwed') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="l in customerLoans" :key="l.id">
+                  <td>{{ loanLabel(l.id) }}</td>
+                  <td>{{ l.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+                  <td>
+                    <span class="status-badge" :class="getLoanStatusClass(l)">
+                      {{ getLoanStatusLabel(l) }}
+                    </span>
+                  </td>
+                  <td class="text-right">{{ l.monthlyInterestRate }}%</td>
+                  <td class="text-right">{{ formatCurrency(l.outstandingPrincipal) }}</td>
+                  <td class="text-right">{{ formatCurrency(statementFor(l.id)?.accrued_unpaid_interest ?? 0) }}</td>
+                  <td class="text-right">{{ formatCurrency(statementFor(l.id)?.penalties ?? 0) }}</td>
+                  <td class="text-right balance-value">
+                    {{ formatCurrency(statementFor(l.id)?.total_payoff_amount ?? l.outstandingPrincipal) }}
+                  </td>
+                </tr>
+                <tr v-if="!customerLoans.length">
+                  <td colspan="8" class="text-center">{{ t('common.noLoansForCustomer') }}</td>
+                </tr>
+              </tbody>
+              <tfoot v-if="customerLoans.length">
+                <tr>
+                  <th colspan="4">{{ t('common.totals') }}</th>
+                  <th class="text-right">{{ formatCurrency(customerTotalOutstanding) }}</th>
+                  <th class="text-right">{{ formatCurrency(customerOwed.interest) }}</th>
+                  <th class="text-right">{{ formatCurrency(customerOwed.penalties) }}</th>
+                  <th class="text-right">{{ formatCurrency(customerOwed.total) }}</th>
+                </tr>
+              </tfoot>
+            </table>
+            <p class="muted">{{ t('common.statementNote') }}</p>
+          </div>
         </template>
 
         <!-- Payment history -->
         <template v-else-if="isHistory">
-          <h3>{{ t('common.paymentHistoryTitle') }}</h3>
-          <table class="print-table compact-table">
-            <thead>
-              <tr>
-                <th>{{ t('common.date') }}</th>
-                <th>{{ t('common.loan') }}</th>
-                <th>{{ t('common.concept') }}</th>
-                <th>{{ t('payments.period') }}</th>
-                <th class="text-right">{{ t('common.interest') }}</th>
-                <th class="text-right">{{ t('common.penalty') }}</th>
-                <th class="text-right">{{ t('common.principal') }}</th>
-                <th class="text-right">{{ t('common.total') }}</th>
-                <th>{{ t('common.receivedBy') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="event in historyEvents" :key="event.id" :class="{ 'row-reversed': event.is_reversed }">
-                <td>{{ formatDateDMY(event.payment_date) }}</td>
-                <td>{{ loanLabel(event.loan_id) }}</td>
-                <td>
-                  {{ eventTypeLabel(event.payment_type) }}
-                  <strong v-if="event.is_reversed"> · {{ t('common.reversedFlag') }}</strong>
-                </td>
-                <td>{{ event.billing_period || '-' }}</td>
-                <td class="text-right">{{ formatCurrency(event.allocated_to_interest) }}</td>
-                <td class="text-right">{{ formatCurrency(event.allocated_to_penalty) }}</td>
-                <td class="text-right">{{ formatCurrency(event.allocated_to_principal) }}</td>
-                <td class="text-right">{{ formatCurrency(event.total_entered_amount) }}</td>
-                <td>{{ event.operator?.full_name || event.operator?.username || '-' }}</td>
-              </tr>
-              <tr v-if="!historyEvents.length">
-                <td colspan="9" class="text-center">{{ t('common.noPaymentsForCustomer') }}</td>
-              </tr>
-            </tbody>
-            <tfoot v-if="historyEvents.length">
-              <tr>
-                <th colspan="4">{{ t('common.totals') }}</th>
-                <th class="text-right">{{ formatCurrency(historyTotals.interest) }}</th>
-                <th class="text-right">{{ formatCurrency(historyTotals.penalty) }}</th>
-                <th class="text-right">{{ formatCurrency(historyTotals.principal) }}</th>
-                <th class="text-right">{{ formatCurrency(historyTotals.total) }}</th>
-                <th></th>
-              </tr>
-            </tfoot>
-          </table>
-          <p class="muted mt-8">{{ t('common.historyNote', { count: historyEvents.length }) }}</p>
+          <div class="doc-section">
+            <h3 class="section-title">{{ t('common.paymentHistoryTitle') }}</h3>
+            <table class="print-table compact-table">
+              <thead>
+                <tr>
+                  <th>{{ t('common.date') }}</th>
+                  <th>{{ t('common.loan') }}</th>
+                  <th>{{ t('common.concept') }}</th>
+                  <th>{{ t('payments.period') }}</th>
+                  <th class="text-right">{{ t('common.interest') }}</th>
+                  <th class="text-right">{{ t('common.penalty') }}</th>
+                  <th class="text-right">{{ t('common.principal') }}</th>
+                  <th class="text-right">{{ t('common.total') }}</th>
+                  <th>{{ t('common.receivedBy') }}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="event in historyEvents" :key="event.id" :class="{ 'row-reversed': event.is_reversed }">
+                  <td>{{ formatDateDMY(event.payment_date) }}</td>
+                  <td>{{ loanLabel(event.loan_id) }}</td>
+                  <td>
+                    {{ eventTypeLabel(event.payment_type) }}
+                    <strong v-if="event.is_reversed"> · {{ t('common.reversedFlag') }}</strong>
+                  </td>
+                  <td>{{ event.billing_period || '-' }}</td>
+                  <td class="text-right">{{ formatCurrency(event.allocated_to_interest) }}</td>
+                  <td class="text-right">{{ formatCurrency(event.allocated_to_penalty) }}</td>
+                  <td class="text-right">{{ formatCurrency(event.allocated_to_principal) }}</td>
+                  <td class="text-right">{{ formatCurrency(event.total_entered_amount) }}</td>
+                  <td>{{ event.operator?.full_name || event.operator?.username || '-' }}</td>
+                </tr>
+                <tr v-if="!historyEvents.length">
+                  <td colspan="9" class="text-center">{{ t('common.noPaymentsForCustomer') }}</td>
+                </tr>
+              </tbody>
+              <tfoot v-if="historyEvents.length">
+                <tr>
+                  <th colspan="4">{{ t('common.totals') }}</th>
+                  <th class="text-right">{{ formatCurrency(historyTotals.interest) }}</th>
+                  <th class="text-right">{{ formatCurrency(historyTotals.penalty) }}</th>
+                  <th class="text-right">{{ formatCurrency(historyTotals.principal) }}</th>
+                  <th class="text-right">{{ formatCurrency(historyTotals.total) }}</th>
+                  <th></th>
+                </tr>
+              </tfoot>
+            </table>
+            <p class="muted">{{ t('common.historyNote', { count: historyEvents.length }) }}</p>
+          </div>
         </template>
       </div>
 
       <!-- ── LOAN STATEMENT (estado de cuenta del préstamo) ── -->
-      <div class="balances-section mt-16" v-if="isLoan && loan">
-        <h3>{{ t('common.loanStatementTitle') }}</h3>
+      <div class="doc-section" v-if="isLoan && loan">
+        <h3 class="section-title">{{ t('common.loanStatementTitle') }}</h3>
         <table class="print-table balances-table">
           <tbody>
             <tr>
@@ -251,59 +345,98 @@
               <td><strong>{{ t('common.totalToSettle') }}</strong></td>
               <td class="text-right balance-value">{{ formatCurrency(loanTotalOwed) }}</td>
             </tr>
-            <tr v-if="loanStatement">
-              <td>{{ t('common.nextDueDate') }}</td>
-              <td class="text-right">{{ formatDateDMY(loanStatement.next_due_date) }}</td>
-            </tr>
-            <tr>
-              <td><strong>{{ t('common.loanStatus') }}</strong></td>
-              <td class="text-right">
-                <span class="status-badge" :class="loanStatusClass">{{ loanStatusLabel }}</span>
-              </td>
-            </tr>
           </tbody>
         </table>
-
-        <template v-if="loanPendingItems.length">
-          <h3 class="mt-16">{{ t('common.pendingPeriodsTitle') }}</h3>
-          <table class="print-table compact-table">
-            <thead>
-              <tr>
-                <th>{{ t('payments.period') }}</th>
-                <th>{{ t('common.dueOn') }}</th>
-                <th class="text-right">{{ t('common.periodInterest') }}</th>
-                <th class="text-right">{{ t('common.pending') }}</th>
-                <th class="text-right">{{ t('common.penalty') }}</th>
-                <th class="text-right">{{ t('common.subtotal') }}</th>
-                <th>{{ t('common.status') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="item in loanPendingItems" :key="item.interest_charge_id">
-                <td>{{ item.billing_period }}</td>
-                <td>{{ formatDateDMY(item.due_date) }}</td>
-                <td class="text-right">{{ formatCurrency(item.original_interest_amount) }}</td>
-                <td class="text-right">{{ formatCurrency(item.remaining_pending_amount) }}</td>
-                <td class="text-right">{{ formatCurrency(item.penalty_amount) }}</td>
-                <td class="text-right balance-value">{{ formatCurrency(item.current_outstanding_balance) }}</td>
-                <td>
-                  <span class="status-badge" :class="item.overdue ? 'status-overdue' : 'status-active'">
-                    {{ item.overdue ? t('common.overdue') : t('common.periodCurrent') }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </template>
+        <!-- Non-monetary facts belong outside the figures, so the table closes on its total. -->
+        <div class="info-grid">
+          <p v-if="loanStatement">
+            <strong>{{ t('common.nextDueDate') }}:</strong> {{ formatDateDMY(loanStatement.next_due_date) }}
+          </p>
+          <p>
+            <strong>{{ t('common.loanStatus') }}:</strong>
+            <span class="status-badge" :class="loanStatusClass">{{ loanStatusLabel }}</span>
+          </p>
+        </div>
 
         <div class="closed-notice" v-if="loan.status === 'closed'">
           {{ t('common.loanClosedNotice') }}
         </div>
       </div>
 
+      <!-- Pledged items backing the loan; absent for personal loans. -->
+      <div class="doc-section" v-if="isLoan && loanCollateral.length">
+        <h3 class="section-title">{{ t('common.collateralSectionTitle') }}</h3>
+        <table class="print-table compact-table">
+          <thead>
+            <tr>
+              <th>{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.description') }}</th>
+              <th v-if="collateralHasItemType">{{ t('common.type') }}</th>
+              <th v-if="collateralHasSerial">{{ t('common.serialNumber') }}</th>
+              <th class="text-right">{{ t('collateral.appraisedValue') }}</th>
+              <th v-if="collateralHasStatus">{{ t('common.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in loanCollateral" :key="item.id">
+              <td>{{ item.custodyCode }}</td>
+              <td>{{ item.description }}</td>
+              <td v-if="collateralHasItemType">{{ item.itemType || '—' }}</td>
+              <td v-if="collateralHasSerial">{{ item.serialNumber || '—' }}</td>
+              <td class="text-right balance-value">{{ formatCurrency(item.appraisedValue) }}</td>
+              <td v-if="collateralHasStatus">
+                <span class="status-badge" :class="collateralStatusClass(item.status)">
+                  {{ collateralStatusLabel(item.status) }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <th :colspan="collateralLabelSpan">{{ t('common.totalAppraised') }}</th>
+              <th class="text-right">{{ formatCurrency(collateralTotalAppraised) }}</th>
+              <th v-if="collateralHasStatus"></th>
+            </tr>
+          </tfoot>
+        </table>
+        <p class="muted">{{ t('common.collateralNote') }}</p>
+      </div>
+
+      <div class="doc-section" v-if="isLoan && loanPendingItems.length">
+        <h3 class="section-title">{{ t('common.pendingPeriodsTitle') }}</h3>
+        <table class="print-table compact-table">
+          <thead>
+            <tr>
+              <th>{{ t('payments.period') }}</th>
+              <th>{{ t('common.dueOn') }}</th>
+              <th class="text-right">{{ t('common.periodInterest') }}</th>
+              <th class="text-right">{{ t('common.pending') }}</th>
+              <th class="text-right">{{ t('common.penalty') }}</th>
+              <th class="text-right">{{ t('common.subtotal') }}</th>
+              <th>{{ t('common.status') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in loanPendingItems" :key="item.interest_charge_id">
+              <td>{{ item.billing_period }}</td>
+              <td>{{ formatDateDMY(item.due_date) }}</td>
+              <td class="text-right">{{ formatCurrency(item.original_interest_amount) }}</td>
+              <td class="text-right">{{ formatCurrency(item.remaining_pending_amount) }}</td>
+              <td class="text-right">{{ formatCurrency(item.penalty_amount) }}</td>
+              <td class="text-right balance-value">{{ formatCurrency(item.current_outstanding_balance) }}</td>
+              <td>
+                <span class="status-badge" :class="item.overdue ? 'status-overdue' : 'status-active'">
+                  {{ item.overdue ? t('common.overdue') : t('common.periodCurrent') }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- ── POST-PAYMENT BALANCES (the main new section) ── -->
-      <div class="balances-section mt-16" v-if="isPayment && loan">
-        <h3>{{ t('common.remainingBalancesTitle') }}</h3>
+      <div class="doc-section" v-if="isPayment && loan">
+        <h3 class="section-title">{{ t('common.remainingBalancesTitle') }}</h3>
         <table class="print-table balances-table">
           <tbody>
             <tr>
@@ -324,14 +457,14 @@
                 {{ formatCurrency(pendingPenaltyAfterPayment) }}
               </td>
             </tr>
-            <tr class="balance-total-row">
-              <td><strong>{{ t('common.loanStatus') }}</strong></td>
-              <td class="text-right">
-                <span class="status-badge" :class="loanStatusClass">{{ loanStatusLabel }}</span>
-              </td>
-            </tr>
           </tbody>
         </table>
+        <div class="info-grid">
+          <p>
+            <strong>{{ t('common.loanStatus') }}:</strong>
+            <span class="status-badge" :class="loanStatusClass">{{ loanStatusLabel }}</span>
+          </p>
+        </div>
 
         <!-- Loan closed notice -->
         <div class="closed-notice" v-if="loan.status === 'closed'">
@@ -417,10 +550,39 @@ interface PaymentEventRow {
   operator?: { full_name?: string; username?: string } | null
 }
 
+/** One line of "where did this payment go" — see GET /payments/{id}/allocations. */
+interface PaymentAllocation {
+  payment_event_id: number
+  payment_type: string
+  loan_id: number
+  interest_charge_id: number | null
+  billing_period: string
+  charge_amount: number | null
+  charge_due_date: string | null
+  allocated_to_interest: number
+  allocated_to_penalty: number
+  allocated_to_principal: number
+  allocated_total: number
+  fully_covered: boolean
+  is_reversed: boolean
+}
+
+interface PaymentAllocations {
+  payment_id: number
+  payment_date: string
+  loan_ids: number[]
+  total_amount: number
+  total_allocated: number
+  unallocated_amount: number
+  is_reversed: boolean
+  allocations: PaymentAllocation[]
+}
+
 // Statement data: per-loan balances and the pending periods behind them.
 const statements = ref<LoanStatement[]>([])
 const pendingItems = ref<PendingInterestItem[]>([])
 const historyEvents = ref<PaymentEventRow[]>([])
+const breakdown = ref<PaymentAllocations | null>(null)
 
 const printDocument = () => {
   window.print()
@@ -470,6 +632,59 @@ const loanPendingItems = computed(() => {
     .sort((a, b) => a.due_date.localeCompare(b.due_date))
 })
 
+const loanCollateral = computed(() => {
+  const current = loan.value
+  if (!current) return []
+  return state.collateralItems
+    .filter((item) => item.loanId === current.id)
+    .sort((a, b) => a.custodyCode.localeCompare(b.custodyCode))
+})
+
+const collateralTotalAppraised = computed(() =>
+  loanCollateral.value.reduce((sum, item) => sum + item.appraisedValue, 0)
+)
+
+// Type and serial are API-only fields with empty-ish defaults, so their columns show up
+// only once somebody fills them in — otherwise the table prints a constant.
+const collateralHasItemType = computed(() =>
+  loanCollateral.value.some((item) => item.itemType && item.itemType !== 'general')
+)
+
+const collateralHasSerial = computed(() =>
+  loanCollateral.value.some((item) => Boolean(item.serialNumber))
+)
+
+// Collateral can only be registered on an open loan and starts out in custody, so on a
+// freshly issued document this column is a constant. It only earns its space on a reprint
+// after something moved the item (foreclosure, release, sale).
+const collateralHasStatus = computed(() =>
+  loanCollateral.value.some((item) => item.status !== 'in-custody')
+)
+
+const collateralLabelSpan = computed(
+  () => 2 + (collateralHasItemType.value ? 1 : 0) + (collateralHasSerial.value ? 1 : 0)
+)
+
+const collateralStatusKeys: Record<string, string> = {
+  'in-custody': 'collaterals.statusInCustody',
+  returned: 'collaterals.statusReturned',
+  released: 'collaterals.statusReleased',
+  for_sale: 'collaterals.statusForSale',
+  sold: 'collaterals.statusSold',
+  liquidated: 'collaterals.statusLiquidated'
+}
+
+const collateralStatusLabel = (value: string) => {
+  const key = collateralStatusKeys[value]
+  return key ? t(key) : value
+}
+
+const collateralStatusClass = (value: string) => {
+  if (value === 'in-custody' || value === 'returned') return 'status-closed'
+  if (value === 'liquidated' || value === 'sold') return 'status-overdue'
+  return 'status-active'
+}
+
 // Closed loans are absent from the statement endpoints because they owe nothing.
 const loanOwedInterest = computed(() => loanStatement.value?.accrued_unpaid_interest ?? 0)
 const loanOwedPenalty = computed(() => loanStatement.value?.penalties ?? 0)
@@ -482,6 +697,46 @@ const customerOwed = computed(() => ({
   penalties: statements.value.reduce((sum, item) => sum + item.penalties, 0),
   total: statements.value.reduce((sum, item) => sum + item.total_payoff_amount, 0)
 }))
+
+const breakdownLines = computed(() => breakdown.value?.allocations ?? [])
+
+// Reversed lines stay visible for traceability but must not inflate the totals.
+const breakdownTotals = computed(() => {
+  const live = breakdownLines.value.filter((line) => !line.is_reversed)
+  return {
+    interest: live.reduce((sum, line) => sum + line.allocated_to_interest, 0),
+    penalty: live.reduce((sum, line) => sum + line.allocated_to_penalty, 0),
+    principal: live.reduce((sum, line) => sum + line.allocated_to_principal, 0),
+    total: live.reduce((sum, line) => sum + line.allocated_total, 0)
+  }
+})
+
+const unallocatedAmount = computed(() => breakdown.value?.unallocated_amount ?? 0)
+
+// `Payment.loan_id` only points at the first loan, so a multi-loan payment needs the real list.
+const coveredLoanIds = computed(() => {
+  const ids = breakdown.value?.loan_ids ?? []
+  if (ids.length) return ids
+  return loan.value ? [loan.value.id] : []
+})
+
+const spansMultipleLoans = computed(() => coveredLoanIds.value.length > 1)
+
+const coveredLoanLabels = computed(() => coveredLoanIds.value.map(loanLabel).join(', '))
+
+const coverageLabel = (line: PaymentAllocation) =>
+  line.fully_covered ? t('common.coverageFull') : t('common.coveragePartial')
+
+// Columns that would be all zeros are dropped, so the table stays readable on paper.
+const breakdownHasPenalty = computed(() =>
+  breakdownLines.value.some((line) => line.allocated_to_penalty > 0)
+)
+
+const breakdownHasPrincipal = computed(() =>
+  breakdownLines.value.some((line) => line.allocated_to_principal > 0)
+)
+
+const breakdownLabelSpan = computed(() => (spansMultipleLoans.value ? 4 : 3))
 
 const activeHistoryEvents = computed(() => historyEvents.value.filter((event) => !event.is_reversed))
 
@@ -496,6 +751,13 @@ const globalSettings = computed(() => state.globalSettings)
 
 // Per-instance name, so a white-labelled deployment prints its own brand.
 const appDisplayName = computed(() => globalSettings.value?.appName || t('app.title'))
+
+const documentTitle = computed(() => {
+  if (isPayment.value) return t('common.receiptTitle')
+  if (isCustomer.value) return t('common.customerStatementTitle')
+  if (isHistory.value) return t('common.paymentHistoryTitle')
+  return t('common.loanInvoiceTitle')
+})
 
 const idString = computed(() => {
   if (isCustomer.value || isHistory.value) return `CST-${id.value.toString().padStart(6, '0')}`
@@ -570,7 +832,8 @@ const getLoanStatusClass = (l: { status: string }) => {
   return {
     'status-active': l.status === 'active',
     'status-overdue': l.status === 'overdue',
-    'status-closed': l.status === 'closed'
+    'status-closed': l.status === 'closed',
+    'status-defaulted': l.status === 'defaulted'
   }
 }
 
@@ -606,10 +869,14 @@ onMounted(async () => {
 
   try {
     if (isPayment.value && payment.value && loan.value) {
-      // Balances remaining AFTER this payment, for the receipt.
-      const pending = await loadStatement(loan.value.customerId)
+      // Balances remaining AFTER this payment, plus the ledger rows the payment produced.
+      const [pending, allocations] = await Promise.all([
+        loadStatement(loan.value.customerId),
+        apiClient.request<PaymentAllocations>(`/payments/${id.value}/allocations`)
+      ])
       pendingInterestAfterPayment.value = pending.total_pending_interest
       pendingPenaltyAfterPayment.value = pending.total_pending_penalty
+      breakdown.value = allocations
     } else if (isLoan.value && loan.value) {
       await loadStatement(loan.value.customerId)
     } else if (isCustomer.value && customer.value) {
@@ -632,10 +899,17 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* ── Document shell ──────────────────────────────────────────
+   The four documents (receipt, loan invoice, customer statement, payment
+   history) share this shell so they read as one family of paperwork.
+
+   Deliberately restrained: whitespace carries the structure, not fills and
+   rules. One accent colour, one emphasis weight, one hairline. Anything that
+   adds a second way of saying "this is a section" has been left out. */
 .print-container {
-  background: #f1f5f9;
+  background: var(--surface-hover);
   min-height: 100vh;
-  padding: 40px;
+  padding: 40px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -644,229 +918,377 @@ onMounted(async () => {
 .actions-bar {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   width: 100%;
-  max-width: 800px;
+  max-width: 840px;
   margin-bottom: 20px;
 }
 
 .invoice-box {
-  background: white;
+  --doc-gap: 34px;
+  background: var(--surface);
   width: 100%;
-  max-width: 800px;
-  padding: 40px;
-  box-shadow: var(--shadow-lg, 0 10px 15px -3px rgba(0, 0, 0, 0.1));
-  border-radius: var(--radius-lg, 8px);
-  color: var(--text, #334155);
-  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  max-width: 840px;
+  padding: 56px 52px;
+  box-shadow: var(--shadow);
+  border-radius: var(--radius-xs);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.65;
 }
 
+/* ── Header ── */
 .invoice-header {
   display: flex;
   justify-content: space-between;
-  border-bottom: 2px solid #e2e8f0;
-  padding-bottom: 20px;
-  margin-bottom: 20px;
+  align-items: flex-start;
+  gap: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line);
 }
 
 .company-details h2 {
-  margin: 0 0 5px 0;
-  color: #0f172a;
+  margin: 0 0 4px 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.company-details p,
+.invoice-meta p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.invoice-meta {
+  text-align: right;
+  flex-shrink: 0;
 }
 
 .invoice-meta h1 {
-  margin: 0 0 10px 0;
-  color: var(--accent, #4f46e5);
-  font-size: 24px;
-  text-align: right;
+  margin: 0 0 6px 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--accent);
 }
 
-.invoice-meta p {
-  margin: 0;
-  text-align: right;
+/* ── Sections ──
+   A quiet lead-in label is the only sectioning device; no boxes, no rules. */
+.doc-section {
+  margin-top: var(--doc-gap);
 }
 
-.customer-info h3, .loan-info h3, .balances-section h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  color: #475569;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 5px;
+.section-title {
+  margin: 0 0 12px 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--muted);
 }
 
-.customer-info p, .loan-info p {
-  margin: 5px 0;
-}
-
-.loan-info-grid {
+.info-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 16px;
+  gap: 6px 32px;
 }
 
+.info-grid p {
+  margin: 0;
+}
+
+.info-grid strong {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+/* Free text (notes, descriptions) needs the full width, not half a column. */
+.info-grid p.span-2 {
+  grid-column: 1 / -1;
+}
+
+/* Metadata trailing a table reads as a caption, so it needs breathing room. */
+.print-table + .info-grid {
+  margin-top: 18px;
+}
+
+/* ── Tables ── */
 .print-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
 }
 
-.print-table th, .print-table td {
-  padding: 12px;
-  border-bottom: 1px solid #e2e8f0;
+.print-table th,
+.print-table td {
+  padding: 11px 14px 11px 0;
   text-align: left;
+  vertical-align: top;
 }
 
-.print-table th {
-  background-color: var(--surface-soft, #f8fafc);
+.print-table th:last-child,
+.print-table td:last-child {
+  padding-right: 0;
+}
+
+.print-table thead th {
+  padding-top: 0;
+  padding-bottom: 9px;
+  font-size: 10.5px;
   font-weight: 600;
-  color: var(--text, #475569);
-  border-bottom: 2px solid var(--line-light, #e2e8f0);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.print-table tbody td {
+  border-bottom: 1px solid var(--line-light);
+}
+
+.print-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .print-table tfoot th {
-  background-color: #f1f5f9;
-  font-size: 18px;
-  color: #0f172a;
-}
-
-/* Balances section */
-.balances-section {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.balances-section h3 {
-  color: var(--accent, #4f46e5);
-  border-bottom-color: var(--line-light, #e2e8f0);
-}
-
-.balances-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.balances-table .balance-total-row td {
-  border-bottom: none;
-  padding-top: 14px;
-}
-
-.balance-value {
-  font-weight: 700;
-  font-size: 1.05em;
-  color: #0f172a;
-}
-
-.balance-zero {
-  color: #16a34a !important;
-}
-
-/* Status badge */
-.status-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 0.85em;
+  padding-top: 13px;
   font-weight: 600;
+  border-top: 1px solid var(--line);
 }
 
-.status-active {
-  background: #dcfce7;
-  color: #15803d;
+.print-table .text-right {
+  white-space: nowrap;
 }
 
-.status-overdue {
-  background: #fee2e2;
-  color: #dc2626;
-}
-
-.status-closed {
-  background: #d1fae5;
-  color: #065f46;
-}
-
-/* Closed notice */
-.closed-notice {
-  margin-top: 12px;
-  background: #d1fae5;
-  border: 1px solid #6ee7b7;
-  border-radius: 6px;
-  padding: 12px 16px;
-  color: #065f46;
-  font-size: 0.95em;
-}
-
-/* .text-right, .text-center, .mt-8 and .mt-16 come from main.css. */
-
-/* Wider statement and history tables need to stay within one printed page width. */
+/* The statement and history tables carry 8-9 columns, so they step down one
+   notch rather than getting their own visual language. */
 .compact-table th,
 .compact-table td {
-  padding: 7px 8px;
-  font-size: 0.82em;
+  padding: 9px 10px 9px 0;
+  font-size: 12.5px;
 }
 
 .row-reversed td {
-  color: var(--muted, #475569);
+  color: var(--muted);
   text-decoration: line-through;
 }
 
 .row-reversed td strong {
-  color: var(--danger, #ef4444);
+  color: var(--danger);
   text-decoration: none;
 }
 
-.payment-notes {
-  background: var(--surface-soft, #f8fafc);
-  padding: 15px;
-  border-radius: var(--radius-md, 6px);
-  border-left: 4px solid var(--accent, #4f46e5);
+.coverage-cell {
+  color: var(--muted);
 }
 
+/* ── Balances ──
+   Same table language as everything else; only the closing figure is bolder. */
+.balances-table td {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-light);
+}
+
+.balances-table tr:last-child td {
+  border-bottom: none;
+}
+
+.balances-table .balance-total-row td {
+  border-top: 1px solid var(--line);
+  border-bottom: none;
+  padding-top: 13px;
+  font-size: 15px;
+}
+
+.balance-value {
+  font-weight: 600;
+}
+
+/* A settled bucket reads as good news rather than just another figure. */
+.balance-zero {
+  color: #065f46;
+}
+
+/* ── Status pills: the app's own pill shape, minus the border. ── */
+.status-badge {
+  display: inline-block;
+  border-radius: var(--radius-full);
+  padding: 0.15rem 0.55rem;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+}
+
+.status-active {
+  background: var(--info-soft);
+  color: #3730a3;
+}
+
+.status-overdue,
+.status-defaulted {
+  background: var(--danger-soft);
+  color: #b91c1c;
+}
+
+.status-closed {
+  background: var(--success-soft);
+  color: #065f46;
+}
+
+/* ── Notices: one shape, tinted by meaning. ── */
+.closed-notice,
+.reversed-notice,
+.note {
+  margin: 14px 0 0 0;
+  padding: 10px 14px;
+  border-left: 2px solid var(--line);
+  background: var(--surface-soft);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.closed-notice {
+  border-left-color: var(--success);
+  background: var(--success-soft);
+  color: #065f46;
+}
+
+.reversed-notice {
+  margin-top: var(--doc-gap);
+  border-left-color: var(--danger);
+  background: var(--danger-soft);
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.note {
+  border-left-color: var(--warning);
+  background: var(--warning-soft);
+  color: #92400e;
+}
+
+/* ── Footer ── */
 .invoice-footer {
-  margin-top: 50px;
+  margin-top: 48px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
   text-align: center;
-  border-top: 1px solid #e2e8f0;
-  padding-top: 20px;
+}
+
+.invoice-footer p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .muted {
-  color: #94a3b8;
+  margin: 12px 0 0 0;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .loading {
-  font-size: 1.2rem;
-  color: #64748b;
+  font-size: 1.05rem;
+  color: var(--muted);
   text-align: center;
   width: 100%;
   padding-top: 100px;
 }
 
-@media print {
-  body * {
-    visibility: hidden;
+/* .text-right, .text-center, .mt-8 and .mt-16 come from main.css. */
+
+@media (max-width: 640px) {
+  .print-container {
+    padding: 16px 10px;
   }
+
+  .invoice-box {
+    --doc-gap: 26px;
+    padding: 26px 20px;
+  }
+
+  .invoice-header {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .invoice-meta {
+    text-align: left;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  /* Browsers drop backgrounds by default, which would flatten every pill and
+     notice to white. These documents go to customers, so keep them. */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   .no-print {
     display: none !important;
   }
+
   .print-container {
+    display: block;
     background: transparent;
     padding: 0;
+    min-height: 0;
   }
-  .invoice-box, .invoice-box * {
-    visibility: visible;
-  }
+
   .invoice-box {
-    position: absolute;
-    left: 0;
-    top: 0;
-    box-shadow: none;
-    padding: 0;
+    --doc-gap: 26px;
     max-width: none;
     width: 100%;
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+    font-size: 10.5pt;
   }
+
+  /* Long tables repeat their header on every page and never split a row. */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-row-group;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+
+  .section-title,
+  .invoice-header {
+    break-after: avoid;
+  }
+
+  .balances-table,
+  .info-grid,
+  .closed-notice,
+  .reversed-notice,
+  .note,
+  .invoice-footer {
+    break-inside: avoid;
+  }
+
+  .invoice-footer {
+    margin-top: 30px;
+  }
+
   @page {
-    margin: 1.5cm;
+    margin: 1.6cm;
   }
 }
 </style>
