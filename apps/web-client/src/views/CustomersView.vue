@@ -439,7 +439,6 @@
                 <th>{{ t('common.id') }}</th>
                 <th>{{ t('common.type') }}</th>
                 <th>{{ t('customers.loanDisbursementDate') }}</th>
-                <th :title="t('loans.graceDaysHelp')">{{ t('loans.dueDay') }}</th>
                 <th>{{ t('common.principal') }}</th>
                 <th>{{ t('loans.outstanding') }}</th>
                 <th>{{ t('loans.rate') }}</th>
@@ -457,7 +456,6 @@
                 <td>#{{ loan.id }}</td>
                 <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
                 <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
-                <td>{{ loan.dueDay }}</td>
                 <td>{{ formatCurrency(loan.principalAmount) }}</td>
                 <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
                 <td>{{ loan.monthlyInterestRate }}%</td>
@@ -677,17 +675,6 @@
                 :label="t('loans.disbursementDate')"
                 :placeholder="t('settings.dateFormat')"
                 :required="true"
-              />
-            </label>
-            <label :title="t('loans.graceDaysHelp')">
-              {{ t('loans.dueDay') }}
-              <input
-                v-model.number="loanEditForm.dueDay"
-                type="number"
-                min="0"
-                max="60"
-                required
-                :title="t('loans.graceDaysHelp')"
               />
             </label>
             <label>
@@ -966,7 +953,6 @@ const loanEditForm = reactive({
   monthlyInterestRate: 0,
   latePenaltyRate: 0,
   disbursementDate: '',
-  dueDay: 1,
   status: 'active' as Loan['status']
 })
 
@@ -1259,7 +1245,6 @@ const openLoanEditModal = (loan: Loan) => {
   loanEditForm.monthlyInterestRate = loan.monthlyInterestRate
   loanEditForm.latePenaltyRate = loan.latePenaltyRate
   loanEditForm.disbursementDate = formatDateDMY(loan.disbursementDate)
-  loanEditForm.dueDay = loan.dueDay
   loanEditForm.status = loan.status
   showLoanEditModal.value = true
 }
@@ -1484,7 +1469,6 @@ const handleUpdateLoan = async () => {
       monthlyInterestRate: loanEditForm.monthlyInterestRate,
       latePenaltyRate: loanEditForm.latePenaltyRate,
       disbursementDate,
-      dueDay: loanEditForm.dueDay,
       status: loanEditForm.status
     })
 

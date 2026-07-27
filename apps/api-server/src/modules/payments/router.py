@@ -10,6 +10,8 @@ from src.infrastructure.persistence.models import InterestCharge, Loan, Payment,
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.finance.interest_balance import (
     charge_due_date,
+    default_grace_days,
+    grace_days_for_loan,
     pending_interest_for_customer,
     pending_interest_items_for_customer,
     sync_interest_charge_statuses,
@@ -376,6 +378,7 @@ def principal_context(
     items: list[PrincipalLoanContext] = []
     today = get_local_date(db)
 
+    configured_grace_days = default_grace_days(db)
     pending_items = _pending_interest_items_for_customer(db, customer_id, today)
     pending_by_loan: dict[int, list[InterestPendingItem]] = {}
     for pending in pending_items:
@@ -407,7 +410,7 @@ def principal_context(
                 disbursement_date=loan.disbursement_date,
                 next_due_date=charge_due_date(
                     _next_interest_generation_date(today, loan.disbursement_date),
-                    loan.due_day,
+                    grace_days_for_loan(loan, configured_grace_days),
                 ),
                 original_principal=loan.principal_amount,
                 outstanding_principal=loan.outstanding_principal,
@@ -927,7 +930,9 @@ def payment_allocations(
                 billing_period=event.billing_period,
                 charge_amount=charge.amount if charge is not None else None,
                 charge_due_date=(
-                    charge_due_date(charge.period_end, loan.due_day)
+                    charge_due_date(
+                        charge.period_end, grace_days_for_loan(loan, default_grace_days(db))
+                    )
                     if charge is not None and loan is not None
                     else None
                 ),

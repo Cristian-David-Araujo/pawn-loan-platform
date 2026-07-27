@@ -52,6 +52,8 @@ def update_global_settings(
     settings.default_late_penalty_rate = payload.default_late_penalty_rate
     if payload.interest_generation_lead_days is not None:
         settings.interest_generation_lead_days = max(0, payload.interest_generation_lead_days)
+    if payload.default_grace_days is not None:
+        settings.default_grace_days = max(0, payload.default_grace_days)
 
     db.commit()
     db.refresh(settings)
@@ -65,7 +67,8 @@ def update_global_settings(
         new_data=(
             f"currency={settings.currency_code},timezone={settings.timezone},"
             f"date_format={settings.date_format},default_late_penalty_rate={settings.default_late_penalty_rate},"
-            f"interest_generation_lead_days={settings.interest_generation_lead_days}"
+            f"interest_generation_lead_days={settings.interest_generation_lead_days},"
+            f"default_grace_days={settings.default_grace_days}"
         ),
     )
 

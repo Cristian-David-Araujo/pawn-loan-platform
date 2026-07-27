@@ -456,7 +456,6 @@ const form = reactive({
   principalAmount: 1000,
   monthlyInterestRate: 8,
   latePenaltyRate: 0,
-  dueDay: 5,
   disbursementDate: formatDateDMY(todayIso)
 })
 
@@ -472,9 +471,6 @@ const handleCreateLoan = async () => {
     return
   }
 
-  // Extraer el dia de la fecha de desembolso para usarlo como dueDay
-  const disbursementDay = parseInt(disbursementDate.split('-')[2], 10)
-
     if (form.loanType === 'pawn' && (!applyCollateralAssociation.value || collateralQueue.value.length === 0)) {
       formError.value = t('messages.pawnMustHaveCollateral')
       return
@@ -485,8 +481,7 @@ const handleCreateLoan = async () => {
     ...form,
     customerId: form.customerId as number,
     disbursementDate,
-    latePenaltyRate: applyLatePenalty.value ? form.latePenaltyRate : 0,
-    dueDay: disbursementDay
+    latePenaltyRate: applyLatePenalty.value ? form.latePenaltyRate : 0
   }
 
   const firstConfirmation = await confirm(

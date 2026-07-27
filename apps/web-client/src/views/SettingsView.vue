@@ -201,6 +201,21 @@
             :title="t('settings.interestGenerationLeadDaysHelp')"
           />
         </label>
+        <label :title="t('settings.defaultGraceDaysHelp')">
+          <span class="field-label-row">
+            {{ t('settings.defaultGraceDays') }}
+            <span class="field-help" aria-hidden="true">ⓘ</span>
+          </span>
+          <input
+            v-model.number="form.defaultGraceDays"
+            type="number"
+            min="0"
+            max="31"
+            step="1"
+            required
+            :title="t('settings.defaultGraceDaysHelp')"
+          />
+        </label>
         </div>
       </div>
 
@@ -286,7 +301,8 @@ const form = reactive({
   timezone: 'America/Bogota',
   dateFormat: 'DD/MM/YYYY',
   defaultLatePenaltyRate: 0,
-  interestGenerationLeadDays: 10
+  interestGenerationLeadDays: 10,
+  defaultGraceDays: 0
 })
 
 onMounted(async () => {
@@ -304,6 +320,7 @@ onMounted(async () => {
     form.dateFormat = state.globalSettings.dateFormat
     form.defaultLatePenaltyRate = state.globalSettings.defaultLatePenaltyRate
     form.interestGenerationLeadDays = state.globalSettings.interestGenerationLeadDays
+    form.defaultGraceDays = state.globalSettings.defaultGraceDays
   }
 })
 

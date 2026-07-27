@@ -1,6 +1,6 @@
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.domain.enums.loan import LoanStatus, LoanType
@@ -174,6 +174,9 @@ class CollateralItem(Base):
 
 class InterestCharge(Base):
     __tablename__ = "interest_charges"
+    # A loan can only ever owe one charge per billing period. Without this the interest
+    # scheduler racing the manual endpoint produced duplicates that customers then paid.
+    __table_args__ = (UniqueConstraint("loan_id", "period_start", "period_end", name="uq_interest_charge_period"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     loan_id: Mapped[int] = mapped_column(ForeignKey("loans.id"), index=True)
@@ -262,4 +265,8 @@ class GlobalSettings(Base):
     date_format: Mapped[str] = mapped_column(String(20), default="DD/MM/YYYY")
     default_late_penalty_rate: Mapped[float] = mapped_column(Float, default=0)
     interest_generation_lead_days: Mapped[int] = mapped_column(Integer, default=10)
+    # Days after a period ends before it counts as late. Global on purpose: it used to be
+    # taken from the day-of-month of each disbursement, so a loan signed on the 25th got 25
+    # days of grace and one signed on the 3rd got three.
+    default_grace_days: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)

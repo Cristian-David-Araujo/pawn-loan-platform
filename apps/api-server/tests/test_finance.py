@@ -1,9 +1,12 @@
 from datetime import date, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from src.infrastructure.persistence.models import InterestCharge
+from src.infrastructure.persistence.models import GlobalSettings, InterestCharge
 from src.infrastructure.tasks.interest_scheduler import run_interest_generation_cycle
 
 
@@ -242,3 +245,126 @@ def test_auto_interest_generation_cycle_creates_due_charges(
 
     charges = list(db_session.scalars(select(InterestCharge)).all())
     assert len(charges) == 1
+
+
+def _set_grace_days(db_session: Session, days: int) -> None:
+    settings = db_session.get(GlobalSettings, 1)
+    if settings is None:
+        settings = GlobalSettings(id=1)
+        db_session.add(settings)
+    settings.default_grace_days = days
+    db_session.commit()
+
+
+def test_grace_days_come_from_the_setting_not_the_disbursement_day(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """A loan signed on the 25th used to get 25 days of grace, one signed on the 3rd got 3."""
+    _set_grace_days(db_session, 5)
+    customer = create_customer(document_number="GRACE-POLICY")
+
+    created = client.post(
+        "/api/v1/loans",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "loan_type": "personal",
+            "principal_amount": 500,
+            "monthly_interest_rate": 5,
+            "late_penalty_rate": 2,
+            "disbursement_date": str(date.today().replace(day=25) - timedelta(days=31)),
+            "due_day": 25,
+        },
+    )
+    assert created.status_code == 201
+    assert created.json()["due_day"] == 5
+
+    charges = client.get(f"/api/v1/loans/{created.json()['id']}/ledger", headers=auth_headers)
+    assert charges.status_code == 200
+
+
+def test_a_loan_without_penalty_gets_no_grace(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Grace only postpones the penalty, so a penalty-free loan is due when the period ends.
+
+    Otherwise the debt sits as "upcoming" for the whole grace window and stays out of the
+    collection screens even though nothing can ever be charged for paying late.
+    """
+    _set_grace_days(db_session, 30)
+    customer = create_customer(document_number="GRACE-NO-PENALTY")
+
+    disbursed = date.today() - timedelta(days=40)
+    created = client.post(
+        "/api/v1/loans",
+        headers=auth_headers,
+        json={
+            "customer_id": customer["id"],
+            "loan_type": "personal",
+            "principal_amount": 1000,
+            "monthly_interest_rate": 10,
+            "late_penalty_rate": 0,
+            "disbursement_date": str(disbursed),
+        },
+    )
+    assert created.status_code == 201
+    loan_id = created.json()["id"]
+
+    pending = client.get(
+        f"/api/v1/payments/customers/{customer['id']}/interest-pending", headers=auth_headers
+    )
+    assert pending.status_code == 200
+    items = [item for group in pending.json()["groups"] for item in group["items"]]
+    assert items, "the loan accrued interest and should be collectable"
+
+    item = items[0]
+    charge = db_session.scalars(
+        select(InterestCharge).where(InterestCharge.id == item["interest_charge_id"])
+    ).one()
+    # No grace: the period is due the day it ends, despite the 30 day global setting.
+    assert item["due_date"] == str(charge.period_end)
+    assert item["overdue"] is True
+    assert loan_id == item["loan_id"]
+
+
+def test_the_same_billing_period_cannot_be_charged_twice(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+    db_session: Session,
+) -> None:
+    """The database is what guarantees it; the advisory lock only makes the race rare.
+
+    A scheduler cycle overlapping the manual endpoint produced duplicate charges that
+    customers were then billed — and in some cases paid — twice.
+    """
+    loan = create_loan(principal=1000)
+    charge = InterestCharge(
+        loan_id=loan["id"],
+        period_start=date.today() - timedelta(days=60),
+        period_end=date.today() - timedelta(days=30),
+        charge_date=date.today() - timedelta(days=30),
+        amount=100,
+        status="generated",
+    )
+    db_session.add(charge)
+    db_session.commit()
+
+    duplicate = InterestCharge(
+        loan_id=loan["id"],
+        period_start=charge.period_start,
+        period_end=charge.period_end,
+        charge_date=charge.charge_date,
+        amount=100,
+        status="generated",
+    )
+    db_session.add(duplicate)
+    with pytest.raises(IntegrityError):
+        db_session.commit()
+    db_session.rollback()

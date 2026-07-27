@@ -316,7 +316,6 @@ const saveDescription = async () => {
       monthlyInterestRate: props.loan.monthlyInterestRate,
       latePenaltyRate: props.loan.latePenaltyRate,
       disbursementDate: props.loan.disbursementDate,
-      dueDay: props.loan.dueDay,
       status: props.loan.status,
       description: descriptionDraft.value,
     })

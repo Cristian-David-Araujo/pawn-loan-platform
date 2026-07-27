@@ -41,7 +41,8 @@ class LoanCreate(BaseModel):
     monthly_interest_rate: float
     late_penalty_rate: float = 0
     disbursement_date: date
-    due_day: int
+    # Grace days come from GlobalSettings; accepted for compatibility, ignored on write.
+    due_day: int | None = None
 
 
 class LoanRead(BaseModel):
@@ -74,7 +75,7 @@ class LoanUpdate(BaseModel):
     monthly_interest_rate: float
     late_penalty_rate: float | None = None
     disbursement_date: date | None = None
-    due_day: int
+    due_day: int | None = None
     status: LoanStatus
 
 

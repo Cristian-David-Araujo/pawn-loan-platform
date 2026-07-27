@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import AuditLog, CollateralItem, GlobalSettings, InterestCharge, Loan, LoanApplication, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date
+from src.modules.finance.interest_balance import default_grace_days
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan, recalculate_interest_charges_for_loan
 from src.modules.loans.schemas import (
     CloseLoanRequest,
@@ -107,7 +108,9 @@ def create_loan(
         monthly_interest_rate=payload.monthly_interest_rate,
         late_penalty_rate=payload.late_penalty_rate,
         disbursement_date=payload.disbursement_date,
-        due_day=payload.due_day,
+        # Grace is portfolio policy. The create form used to send the day-of-month of the
+        # disbursement here, which handed a loan signed on the 25th a 25 day grace period.
+        due_day=default_grace_days(db),
         status=LoanStatus.active,
     )
     db.add(loan)
@@ -190,7 +193,7 @@ def update_loan(
     loan.monthly_interest_rate = payload.monthly_interest_rate
     loan.late_penalty_rate = payload.late_penalty_rate if payload.late_penalty_rate is not None else loan.late_penalty_rate
     loan.disbursement_date = payload.disbursement_date if payload.disbursement_date is not None else loan.disbursement_date
-    loan.due_day = payload.due_day
+    loan.due_day = default_grace_days(db)
     loan.status = payload.status
 
     settings = db.get(GlobalSettings, 1)
@@ -336,7 +339,7 @@ def renew_loan(
         outstanding_principal=source.outstanding_principal,
         monthly_interest_rate=payload.monthly_interest_rate or source.monthly_interest_rate,
         disbursement_date=get_local_date(db),
-        due_day=payload.due_day or source.due_day,
+        due_day=default_grace_days(db),
         status=LoanStatus.active,
         renewal_of=source.id,
     )
