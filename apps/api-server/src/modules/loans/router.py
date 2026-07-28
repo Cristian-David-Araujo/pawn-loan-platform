@@ -190,11 +190,13 @@ def update_loan(
     loan.description = payload.description if payload.description is not None else loan.description
     loan.principal_amount = next_principal_amount
     loan.outstanding_principal = next_outstanding_principal
-    loan.monthly_interest_rate = payload.monthly_interest_rate
+    loan.monthly_interest_rate = (
+        payload.monthly_interest_rate if payload.monthly_interest_rate is not None else loan.monthly_interest_rate
+    )
     loan.late_penalty_rate = payload.late_penalty_rate if payload.late_penalty_rate is not None else loan.late_penalty_rate
     loan.disbursement_date = payload.disbursement_date if payload.disbursement_date is not None else loan.disbursement_date
     loan.due_day = default_grace_days(db)
-    loan.status = payload.status
+    loan.status = payload.status if payload.status is not None else loan.status
 
     settings = db.get(GlobalSettings, 1)
     lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0

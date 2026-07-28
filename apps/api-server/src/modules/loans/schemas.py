@@ -72,11 +72,13 @@ class LoanUpdate(BaseModel):
     description: str | None = None
     principal_amount: float | None = None
     outstanding_principal: float | None = None
-    monthly_interest_rate: float
+    monthly_interest_rate: float | None = None
     late_penalty_rate: float | None = None
     disbursement_date: date | None = None
     due_day: int | None = None
-    status: LoanStatus
+    # Optional so an edit can carry only what changed: a required rate and status meant
+    # every form submit resent the whole loan and triggered a full charge recalculation.
+    status: LoanStatus | None = None
 
 
 class RenewalRequest(BaseModel):
