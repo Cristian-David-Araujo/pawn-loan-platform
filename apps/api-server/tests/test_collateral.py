@@ -397,7 +397,7 @@ def test_release_collateral_rejected_while_interest_is_pending(
     closed = client.post(
         f"/api/v1/loans/{loan['id']}/close",
         headers=auth_headers,
-        json={"force": True},
+        json={"force": True, "reason": "settled by agreement with the customer"},
     )
     assert closed.status_code == 200
     db_session.expire_all()

@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import AuditLog, CollateralItem, GlobalSettings, InterestCharge, Loan, LoanApplication, Payment, PaymentEvent, User
-from src.infrastructure.utils.datetime_utils import get_local_date
-from src.modules.finance.interest_balance import default_grace_days
+from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
+from src.modules.finance.interest_balance import default_grace_days, pending_interest_total_for_loan
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan, recalculate_interest_charges_for_loan
 from src.modules.finance.penalties import freeze_due_penalties
 from src.modules.loans.schemas import (
@@ -416,10 +416,28 @@ def close_loan(
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
 
+    pending_interest = pending_interest_total_for_loan(db, loan, get_local_date(db))
+    owes_something = loan.outstanding_principal > 0 or pending_interest > 0
+
     if not payload.force and loan.outstanding_principal > 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Outstanding principal must be zero")
 
+    # A forced close over a live balance writes that balance off. The grounds are mandatory
+    # and stored on the loan, for the same reason a payment reversal stores them: otherwise
+    # the debt simply disappears with nobody's name on the decision.
+    forced_write_off = payload.force and owes_something
+    if forced_write_off and not (payload.reason or "").strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Closing a loan that still owes money requires a reason",
+        )
+
     loan.status = LoanStatus.closed
+    if forced_write_off:
+        loan.force_closed_reason = (payload.reason or "").strip()
+        loan.force_closed_at = get_local_datetime(db)
+        loan.force_closed_by = current_user.id
+
     db.commit()
     db.refresh(loan)
 
@@ -429,7 +447,11 @@ def close_loan(
         entity_type="Loan",
         entity_id=str(loan.id),
         user=current_user,
-        new_data="status=closed",
+        new_data=(
+            f"status=closed,forced={forced_write_off},"
+            f"written_off_principal={loan.outstanding_principal},written_off_interest={pending_interest},"
+            f"reason={loan.force_closed_reason}"
+        ),
     )
 
     return loan
