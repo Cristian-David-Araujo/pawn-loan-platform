@@ -138,3 +138,6 @@ dump-*.sql
 # Platform data exports. These archives hold the full customer, loan and payment
 # history plus user password hashes, so they must never reach the repository.
 *-export-*.zip
+
+# Local database dumps: customer data, never commit.
+.backups/
