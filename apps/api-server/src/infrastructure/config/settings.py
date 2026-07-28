@@ -43,6 +43,34 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(ROOT_ENV_FILE), extra="ignore")
 
 
+# The values shipped in `.env.example` and printed in the README. Convenient in development,
+# and an unlocked front door in production.
+DEVELOPMENT_DEFAULTS = {
+    "admin_password": "admin123",
+    "jwt_secret_key": "change_this_in_production",
+}
+
+
+def assert_production_secrets(settings: Settings) -> None:
+    """Refuse to serve production with the documented development credentials.
+
+    Only the literal defaults are rejected, so an installation that already set its own
+    values is never affected. It fails at startup rather than warning, because a warning in a
+    container log is a warning nobody reads: `admin` / `admin123` appears in the README, in
+    `.env.example` and in the seed, and a public deployment keeping it is an open door — and
+    the JWT signing key being the published string means anyone can mint their own token.
+    """
+    if settings.app_env.strip().lower() != "production":
+        return
+
+    unchanged = [name for name, default in DEVELOPMENT_DEFAULTS.items() if getattr(settings, name) == default]
+    if unchanged:
+        raise RuntimeError(
+            "Refusing to start with development credentials in production. "
+            f"Set these in the environment: {', '.join(sorted(name.upper() for name in unchanged))}"
+        )
+
+
 @lru_cache
 def get_settings() -> Settings:
     return Settings()

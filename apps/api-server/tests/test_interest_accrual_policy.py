@@ -352,6 +352,63 @@ def test_a_loan_with_no_penalty_rate_records_a_zero_instead_of_nothing(
     assert charge.penalty_applied_at is not None
 
 
+def test_a_period_still_running_does_not_block_a_principal_payment(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """`interest_generation_lead_days` bills the month in progress on purpose.
+
+    Showing it as pending is the point of the setting — it lets the upcoming period appear on
+    the collection screen early. Blocking on it was not: a customer was refused their own
+    principal payment over interest for days that had not happened yet.
+    """
+    _configure(db_session, lead_days=10)
+    customer = create_customer()
+    # Disbursed 25 days ago: the period ends in 5 days, so lead days have already billed it.
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=25, penalty_rate=0)
+
+    charges = _charges(db_session, loan["id"])
+    assert len(charges) == 1, "expected the period in progress to be billed early"
+    assert charges[0].period_end > date.today()
+
+    pending = client.get(
+        f"/api/v1/payments/customers/{customer['id']}/interest-pending", headers=auth_headers
+    ).json()
+    assert pending["total_pending_interest"] == 50000, "the upcoming period should still be visible"
+
+    paid = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={"loan_id": loan["id"], "total_amount": 400000, "payment_method": "cash"},
+    )
+    assert paid.status_code == 200, paid.text
+
+    db_session.expire_all()
+    assert db_session.get(Loan, loan["id"]).outstanding_principal == 600000
+
+
+def test_a_period_that_has_ended_still_blocks_a_principal_payment(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """The rule itself stands: interest that has accrued comes before principal."""
+    _configure(db_session, lead_days=10)
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=40, penalty_rate=0)
+
+    refused = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={"loan_id": loan["id"], "total_amount": 400000, "payment_method": "cash"},
+    )
+    assert refused.status_code == 400
+    assert "unpaid accrued interest" in refused.json()["detail"].lower()
+
+
 def test_editing_a_payment_corrects_how_it_was_recorded_not_how_much_it_moved(
     client: TestClient,
     auth_headers: dict[str, str],
