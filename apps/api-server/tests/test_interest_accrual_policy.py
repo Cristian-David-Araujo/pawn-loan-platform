@@ -12,7 +12,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.infrastructure.persistence.models import GlobalSettings, InterestCharge
+from src.domain.enums.loan import LoanStatus
+from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan
 
 
 def _configure(db_session: Session, *, grace_days: int = 5, lead_days: int = 0) -> None:
@@ -136,6 +137,131 @@ def test_an_edit_only_reaches_periods_that_have_not_ended(
     after = _charges(db_session, loan["id"])
     assert after[0].amount == 50000, "the closed period must keep the amount it was invoiced at"
     assert after[1].amount == 30000, "the open period must follow the new principal"
+
+
+def test_an_overdue_loan_keeps_accruing_month_after_month(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Falling behind does not freeze the debt.
+
+    Generation ran over `active` loans only, so the cycle that flagged a loan `overdue` was
+    the last one to bill it: five months of arrears reported the two months charged before
+    the transition, and the customer who came back to settle was handed the rest at once.
+    """
+    _configure(db_session)
+    today = date.today()
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=35)
+
+    assert len(_charges(db_session, loan["id"])) == 1
+
+    def run_cycle(days_ahead: int) -> None:
+        cycle = client.post(
+            "/api/v1/interest/generate",
+            headers=auth_headers,
+            json={"as_of_date": (today + timedelta(days=days_ahead)).isoformat()},
+        )
+        assert cycle.status_code == 200, cycle.text
+        db_session.expire_all()
+
+    run_cycle(30)
+    assert db_session.get(Loan, loan["id"]).status == LoanStatus.overdue
+    billed = len(_charges(db_session, loan["id"]))
+
+    # 35 day steps: longer than the longest month, so each cycle crosses exactly one
+    # anchor, and shorter than two of them. The count must go up by one every time.
+    for offset in (65, 100, 135, 170):
+        run_cycle(offset)
+        billed += 1
+        assert len(_charges(db_session, loan["id"])) == billed, "an overdue loan skipped a month"
+
+    charges = _charges(db_session, loan["id"])
+    assert db_session.get(Loan, loan["id"]).status == LoanStatus.overdue
+    assert all(item.amount == 50000 for item in charges)
+    assert sum(item.amount for item in charges) == 50000 * billed
+
+
+def test_a_defaulted_loan_stops_accruing(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Foreclosing is a decision to collect through the pledge, not through more interest."""
+    _configure(db_session)
+    today = date.today()
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=35)
+
+    foreclose = client.post(f"/api/v1/loans/{loan['id']}/foreclose", headers=auth_headers)
+    assert foreclose.status_code == 200, foreclose.text
+
+    before = len(_charges(db_session, loan["id"]))
+    cycle = client.post(
+        "/api/v1/interest/generate",
+        headers=auth_headers,
+        json={"as_of_date": (today + timedelta(days=90)).isoformat()},
+    )
+    assert cycle.status_code == 200, cycle.text
+    assert len(_charges(db_session, loan["id"])) == before
+
+
+def test_a_period_marked_as_not_billed_is_never_generated_again(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """The months the old defect skipped are closed, and a *new* gap still self-heals.
+
+    Deploying the accrual fix on a portfolio full of holes would have billed every skipped
+    month at once. They are marked instead — and because the marker is an ordinary charge,
+    the generator's "skip what exists" rule is what keeps them closed, so nothing else had
+    to give up filling a gap that appears from here on.
+    """
+    _configure(db_session)
+    today = date.today()
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=95)
+
+    charges = _charges(db_session, loan["id"])
+    assert len(charges) == 3
+
+    # Stand in for the migration: the middle period was never billed.
+    skipped = charges[1]
+    skipped.amount = 0
+    skipped.status = "not_billed"
+    skipped.penalty_amount = 0
+    db_session.commit()
+
+    # And a payment on the loan must not quietly relabel it.
+    client.post(
+        "/api/v1/payments/interest",
+        headers=auth_headers,
+        json={"customer_id": customer["id"], "total_amount": 10000, "payment_method": "cash"},
+    )
+
+    cycle = client.post(
+        "/api/v1/interest/generate",
+        headers=auth_headers,
+        json={"as_of_date": (today + timedelta(days=1)).isoformat()},
+    )
+    assert cycle.status_code == 200, cycle.text
+
+    after = _charges(db_session, loan["id"])
+    assert len(after) == 3, "the skipped period was billed again"
+    marked = [item for item in after if item.period_start == skipped.period_start][0]
+    assert marked.amount == 0
+    assert marked.status == "not_billed", "the record of why the month is missing was erased"
+
+    pending = client.get(
+        f"/api/v1/payments/customers/{customer['id']}/interest-pending", headers=auth_headers
+    ).json()
+    listed = [item for group in pending["groups"] for item in group["items"]]
+    assert all(item["interest_charge_id"] != marked.id for item in listed), "a zero charge was billed"
 
 
 def test_a_penalty_does_not_shrink_when_the_customer_pays_part_of_the_interest(

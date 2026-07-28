@@ -5,11 +5,13 @@ from threading import Event, Thread
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.database import SessionLocal
 from src.infrastructure.persistence.models import GlobalSettings, Loan
 from src.infrastructure.utils.datetime_utils import get_local_date
-from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
+from src.modules.finance.interest_generation import (
+    ACCRUING_STATUSES,
+    generate_missing_interest_charges_for_loan,
+)
 from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.modules.finance.penalties import describe_frozen_penalties, freeze_due_penalties
 from src.shared.utils.audit import write_audit
@@ -58,7 +60,7 @@ def run_interest_generation_cycle(
         reference_date = as_of_date or get_local_date(db)
         effective_as_of_date = reference_date + timedelta(days=lead_days)
 
-        loans = list(db.scalars(select(Loan).where(Loan.status == LoanStatus.active)).all())
+        loans = list(db.scalars(select(Loan).where(Loan.status.in_(ACCRUING_STATUSES))).all())
         generated = []
         for loan in loans:
             generated.extend(

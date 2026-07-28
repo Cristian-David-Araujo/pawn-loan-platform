@@ -330,6 +330,12 @@ def sync_interest_charge_statuses(db: Session, loan_id: int) -> None:
             events_by_charge.setdefault(event.interest_charge_id, []).append(event)
 
     for charge in charges:
+        # A zero charge is a period that was never billed, marked as such so the generator
+        # does not decide to bill it years later. There is nothing to keep in sync, and
+        # overwriting its status would erase the only record of why the month is missing.
+        if charge.amount <= 0:
+            continue
+
         paid_interest = _sum_interest(events_by_charge.get(charge.id, []))
         if paid_interest <= 0:
             charge.status = "generated"

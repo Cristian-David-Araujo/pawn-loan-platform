@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, Payment, User
-from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
+from src.modules.finance.interest_generation import (
+    ACCRUING_STATUSES,
+    generate_missing_interest_charges_for_loan,
+)
 from src.infrastructure.tasks.interest_scheduler import release_cycle_lock, try_acquire_cycle_lock
 from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.modules.finance.penalties import describe_frozen_penalties, freeze_due_penalties
@@ -38,7 +40,7 @@ def generate_interest(
         lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
         effective_as_of_date = payload.as_of_date + timedelta(days=lead_days)
 
-        loans = list(db.scalars(select(Loan).where(Loan.status == LoanStatus.active)).all())
+        loans = list(db.scalars(select(Loan).where(Loan.status.in_(ACCRUING_STATUSES))).all())
         generated: list[InterestCharge] = []
 
         for loan in loans:

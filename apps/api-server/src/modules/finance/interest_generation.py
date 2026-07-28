@@ -4,7 +4,19 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, PaymentEvent
+
+# Interest accrues while the debt is alive, and falling behind does not make it less alive.
+# Generation used to run over `active` only, so the moment a loan turned `overdue` it stopped
+# billing: a customer five months behind kept a debt frozen at the two months billed before
+# the transition. The debt was not lost, only hidden — `_iter_due_periods` walks from the
+# disbursement, so the day that loan returned to `active` the whole backlog landed at once,
+# and until then the portfolio reports understated the arrears of the worst-off customers.
+#
+# `closed` and `defaulted` stay out: a settled loan has nothing to bill, and a foreclosure
+# is the operator's decision to collect through the pledge instead of through more interest.
+ACCRUING_STATUSES = (LoanStatus.active, LoanStatus.overdue)
 
 
 def _month_anchor(year: int, month: int, anchor_day: int) -> date:
