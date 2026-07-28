@@ -75,11 +75,18 @@ Edit `.env.production` and set secure values:
 - `DOMAIN` (for example `app.example.com`)
 - `POSTGRES_PASSWORD`
 - `DATABASE_URL`
-- `JWT_SECRET_KEY`
-- `ADMIN_PASSWORD`
+- `JWT_SECRET_KEY` — **required**: the API refuses to start in production while this holds the
+  published development default. Generate one with `openssl rand -base64 48`.
+- `ADMIN_PASSWORD` — only seeds the admin account on the very first boot
 - `VITE_API_BASE_URL` (for example `https://app.example.com/api/v1`)
 
 Important: `DATABASE_URL` credentials must match `POSTGRES_USER` and `POSTGRES_PASSWORD`.
+
+`ADMIN_PASSWORD` is not the live credential. Once the account exists, the password lives in the
+database and the operator changes it from the users screen, so this variable goes stale by
+design — editing it later changes nothing. If the admin is ever locked out, set
+`ADMIN_PASSWORD_RESET_ON_STARTUP=true` for one boot and turn it back off; be aware that this
+overwrites whatever password the operator had set.
 
 ## 7) Deploy the Stack
 
@@ -191,7 +198,9 @@ cat /opt/pawn_loan_backup.sql | docker compose --env-file .env.production -f doc
 
 ## 11) Security Recommendations
 
-- Use long random secrets for `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, and `ADMIN_PASSWORD`.
+- Use long random secrets for `POSTGRES_PASSWORD` and `JWT_SECRET_KEY`. Use a strong
+  `ADMIN_PASSWORD` too, but remember it only applies to the first boot — the password that
+  actually guards the account is the one stored in the database, changed from the users screen.
 - Keep system packages updated (`apt update && apt upgrade -y`).
 - Restrict SSH (disable password login, optionally change port).
 - Use DigitalOcean backups and snapshots.
