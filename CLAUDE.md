@@ -61,9 +61,9 @@ Adding an endpoint: new route in the module's `router.py` + schemas in `schemas.
 **Who may call what** — `UserRole` is `administrator` / `loan_officer` / `collector`, and the split is a policy, not an accident:
 
 - `require_roles(administrator)` — user management, `PUT /settings`, and the whole `backup` module.
-- `require_roles(administrator, loan_officer)` — everything that creates or changes credit: loan create/update/delete/renew/close/foreclose, application approval, customer writes, collateral, and **all four `/reports/*`** endpoints.
-- `require_roles(administrator, loan_officer, collector)` — reads plus the payment-taking routes. A collector can take money and see the balances behind it, but cannot open a loan, release a pledge, or pull a report.
-- The `finance` module is the deliberate exception: `/interest/generate`, `/loans/{id}/balance` and `/loans/{id}/ledger` take plain `get_current_user`, so any authenticated role can trigger a generation cycle. `GET /settings` is the same.
+- `require_roles(administrator, loan_officer)` — everything that creates or changes credit: loan create/update/delete/renew/close/foreclose, application approval, customer writes, `POST /collateral-items/{id}/sell`, and **all four `/reports/*`** endpoints.
+- `require_roles(administrator, loan_officer, collector)` — reads plus the payment-taking routes. A collector can take money and see the balances behind it, but cannot open a loan or pull a report.
+- Two modules take plain `get_current_user`, so **any authenticated role reaches them**. In `finance` that is deliberate: `/interest/generate`, `/loans/{id}/balance` and `/loans/{id}/ledger` let any role trigger a generation cycle, and `GET /settings` is the same. In `collateral` it is **not** — every route except `sell` (create, update, release, liquidate) is ungated, so a collector can register a pledge, move it to another loan, hand it back or mark it liquidated. Verified against the code, not a policy anybody chose; treat it as an open defect rather than as the rule.
 
 **Loan applications are an API-only surface.** `POST/GET /loan-applications` and `/loan-applications/{id}/approve` exist and write audit rows, but nothing in the web client references them — the frontend creates loans directly, and `Loan.application_id` is nullable and stays `NULL`. Approval sets a varchar `status` and stamps `reviewed_by`/`approved_by`; it does **not** create the loan. Don't assume an approval gate exists in front of loan creation.
 
