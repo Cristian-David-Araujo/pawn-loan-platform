@@ -82,6 +82,12 @@ class Loan(Base):
     due_day: Mapped[int] = mapped_column(Integer)
     status: Mapped[LoanStatus] = mapped_column(Enum(LoanStatus), default=LoanStatus.active)
     renewal_of: Mapped[int | None] = mapped_column(ForeignKey("loans.id"), nullable=True)
+    # Closing a loan that still owes money forgives that money. Same reasoning as a payment
+    # reversal: the audit table has no read path in the application, so without these you
+    # could see a debt had been written off but not by whom, when, or on what grounds.
+    force_closed_reason: Mapped[str] = mapped_column(Text, default="")
+    force_closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    force_closed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
     
@@ -185,6 +191,13 @@ class InterestCharge(Base):
     charge_date: Mapped[date] = mapped_column(Date)
     amount: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(20), default="generated")
+    # The late penalty is a fact, not a formula. It used to be derived on every read from
+    # the interest still pending, so it shrank as the customer paid and a change of
+    # `default_grace_days` erased it from the whole portfolio retroactively. It is fixed
+    # once, when the period falls due, and then it is history: NULL until that happens.
+    penalty_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    penalty_rate_applied: Mapped[float | None] = mapped_column(Float, nullable=True)
+    penalty_applied_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 

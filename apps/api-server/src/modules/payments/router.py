@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
+from src.modules.finance.allocation import AllocationTarget, allocate_oldest_first
+from src.modules.finance.locks import lock_customer_loans, lock_loans
 from src.modules.finance.interest_balance import (
     charge_due_date,
     default_grace_days,
@@ -143,6 +145,10 @@ def pay_interest(
 
     payment_date = payload.payment_date or get_local_date(db)
 
+    # Allocation and the advance pool both span the customer's whole book, so the book is
+    # what has to hold still between reading the balances and writing the ledger rows.
+    lock_customer_loans(db, payload.customer_id)
+
     items = _pending_interest_items_for_customer(db, payload.customer_id, payment_date)
     if not items:
         loan = db.scalar(
@@ -184,9 +190,7 @@ def pay_interest(
             notes=payload.notes,
         )
         db.add(event)
-        db.commit()
-        db.refresh(event)
-
+        db.flush()
         write_audit(
             db,
             action="interest_advance_payment",
@@ -194,7 +198,10 @@ def pay_interest(
             entity_id=str(event.id),
             user=current_user,
             new_data=f"customer={payload.customer_id},amount={advance_amount}",
+            commit=False,
         )
+        db.commit()
+        db.refresh(event)
 
         return InterestPaymentResponse(
             customer_id=payload.customer_id,
@@ -240,40 +247,42 @@ def pay_interest(
     db.add(payment)
     db.flush()
 
-    remaining = round(payload.total_amount, 2)
+    # Oldest period first, penalty before interest — the shared rule, so money taken here and
+    # money coming out of a foreclosure sale can never credit the same debt differently.
+    targets = [
+        AllocationTarget(
+            interest_charge_id=item.interest_charge_id,
+            loan_id=item.loan_id,
+            billing_period=item.billing_period,
+            outstanding=item.current_outstanding_balance,
+            pending_penalty=item.penalty_amount,
+            overdue=item.overdue,
+            due_date=item.due_date,
+        )
+        for item in selected_items
+        if item.interest_charge_id in charge_map
+    ]
+    interest_slices, remaining = allocate_oldest_first(targets, payload.total_amount)
     allocations: list[InterestPaymentAllocation] = []
 
-    for item in selected_items:
-        if remaining <= 0:
-            break
-
-        charge = charge_map.get(item.interest_charge_id)
-        if charge is None:
-            continue
-
-        max_allocatable = item.current_outstanding_balance
-        allocated_total = round(min(max_allocatable, remaining), 2)
-        if allocated_total <= 0:
-            continue
-
-        allocated_penalty = round(min(item.penalty_amount, allocated_total), 2)
-        allocated_interest = round(max(0.0, allocated_total - allocated_penalty), 2)
+    for item_slice in interest_slices:
+        target = item_slice.target
 
         payment_type = "interest_payment"
-        if allocated_total < max_allocatable:
+        if not item_slice.fully_covered:
             payment_type = "partial_interest_payment"
-        elif not item.overdue and item.due_date > payment_date:
+        elif not target.overdue and target.due_date > payment_date:
             payment_type = "interest_advance_payment"
 
         event = PaymentEvent(
             payment_type=payment_type,
             payment_id=payment.id,
-            loan_id=item.loan_id,
-            interest_charge_id=item.interest_charge_id,
-            billing_period=item.billing_period,
-            total_entered_amount=allocated_total,
-            allocated_to_interest=allocated_interest,
-            allocated_to_penalty=allocated_penalty,
+            loan_id=target.loan_id,
+            interest_charge_id=target.interest_charge_id,
+            billing_period=target.billing_period,
+            total_entered_amount=item_slice.allocated_total,
+            allocated_to_interest=item_slice.allocated_interest,
+            allocated_to_penalty=item_slice.allocated_penalty,
             allocated_to_principal=0,
             payment_date=payment_date,
             operator_user_id=current_user.id,
@@ -287,17 +296,15 @@ def pay_interest(
             InterestPaymentAllocation(
                 payment_event_id=event.id,
                 payment_id=payment.id,
-                loan_id=item.loan_id,
-                interest_charge_id=item.interest_charge_id,
+                loan_id=target.loan_id,
+                interest_charge_id=target.interest_charge_id,
                 payment_type=payment_type,
-                billing_period=item.billing_period,
-                allocated_to_interest=allocated_interest,
-                allocated_to_penalty=allocated_penalty,
-                allocated_total=allocated_total,
+                billing_period=target.billing_period,
+                allocated_to_interest=item_slice.allocated_interest,
+                allocated_to_penalty=item_slice.allocated_penalty,
+                allocated_total=item_slice.allocated_total,
             )
         )
-
-        remaining = round(remaining - allocated_total, 2)
 
     if remaining > 0:
         target_loan_id = selected_items[0].loan_id
@@ -349,8 +356,9 @@ def pay_interest(
     for loan_id in {item.loan_id for item in allocations}:
         sync_interest_charge_statuses(db, loan_id)
 
-    db.commit()
-
+    # Same transaction as the money: written after the commit, this row is a second
+    # transaction that can fail while the payment stands, leaving a collection nobody
+    # appears to have taken.
     write_audit(
         db,
         action="interest_payment",
@@ -358,7 +366,9 @@ def pay_interest(
         entity_id=f"customer={payload.customer_id}",
         user=current_user,
         new_data=f"entered={payload.total_amount},allocated={total_allocated}",
+        commit=False,
     )
+    db.commit()
 
     return InterestPaymentResponse(
         customer_id=payload.customer_id,
@@ -502,6 +512,7 @@ def pay_principal(
 
     payment_date = payload.payment_date or get_local_date(db)
     targets = _resolve_principal_targets(db, payload)
+    lock_loans(db, targets)
 
     total_capacity = round(sum(loan.outstanding_principal for loan in targets), 2)
     if round(payload.total_amount, 2) > total_capacity:
@@ -511,10 +522,19 @@ def pay_principal(
         )
 
     if not payload.allow_with_unpaid_interest:
-        pending_items = _pending_interest_items_for_customer(db, targets[0].customer_id, payment_date)
+        # Canonical items rather than the API adapter, because the decision needs
+        # `period_end`: `interest_generation_lead_days` bills a period up to ten days before
+        # it ends, so the pending list deliberately shows the month in progress. Blocking on
+        # that refused a customer's principal payment over interest that had not accrued yet.
+        # A period only counts as accrued once it has run its course.
+        accrued_items = [
+            item
+            for item in pending_interest_items_for_customer(db, targets[0].customer_id, payment_date)
+            if item.period_end <= payment_date
+        ]
         for loan in targets:
             unpaid_interest = round(
-                sum(item.current_outstanding_balance for item in pending_items if item.loan_id == loan.id),
+                sum(item.outstanding for item in accrued_items if item.loan_id == loan.id),
                 2,
             )
             if unpaid_interest > 0:
@@ -587,11 +607,10 @@ def pay_principal(
     if not allocations:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to allocate payment")
 
-    db.commit()
-
     total_allocated = round(sum(item.allocated_to_principal for item in allocations), 2)
     write_audit(
         db,
+        commit=False,
         action="principal_payment",
         entity_type="PaymentEvent",
         entity_id=str(allocations[0].payment_event_id),
@@ -601,6 +620,7 @@ def pay_principal(
             f"amount={total_allocated}"
         ),
     )
+    db.commit()
 
     first = allocations[0]
     return PrincipalPaymentResponse(
@@ -702,69 +722,23 @@ def update_payment(
     if payment.is_reversed:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reversed payments cannot be edited")
 
-    loan = db.get(Loan, payment.loan_id)
-    if loan is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked loan not found")
-
-    allocated_sum = (
-        payload.allocated_to_penalty
-        + payload.allocated_to_interest
-        + payload.allocated_to_fees
-        + payload.allocated_to_principal
-    )
-    if round(allocated_sum, 2) != round(payload.total_amount, 2):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Allocation sum must match total amount")
-
-    old_allocated_principal = payment.allocated_to_principal
     old_payment_snapshot = {
         "payment_date": payment.payment_date,
-        "total_amount": payment.total_amount,
-        "allocated_to_interest": payment.allocated_to_interest,
-        "allocated_to_penalty": payment.allocated_to_penalty,
-        "allocated_to_principal": payment.allocated_to_principal,
         "payment_method": payment.payment_method,
+        "notes": payment.notes,
     }
 
     payment.payment_date = payload.payment_date
-    payment.total_amount = round(payload.total_amount, 2)
-    payment.allocated_to_penalty = round(payload.allocated_to_penalty, 2)
-    payment.allocated_to_interest = round(payload.allocated_to_interest, 2)
-    payment.allocated_to_fees = round(payload.allocated_to_fees, 2)
-    payment.allocated_to_principal = round(payload.allocated_to_principal, 2)
     payment.payment_method = payload.payment_method
     payment.notes = payload.notes
 
-    principal_delta = round(payment.allocated_to_principal - old_allocated_principal, 2)
-    loan.outstanding_principal = round(max(0.0, loan.outstanding_principal - principal_delta), 2)
-    if loan.outstanding_principal == 0:
-        loan.status = LoanStatus.closed
-    elif loan.status == LoanStatus.closed:
-        loan.status = LoanStatus.active
-
-    matching_events = list(
-        db.scalars(
-            select(PaymentEvent).where(
-                PaymentEvent.loan_id == payment.loan_id,
-                PaymentEvent.payment_date == old_payment_snapshot["payment_date"],
-                PaymentEvent.total_entered_amount == old_payment_snapshot["total_amount"],
-                PaymentEvent.allocated_to_interest == old_payment_snapshot["allocated_to_interest"],
-                PaymentEvent.allocated_to_penalty == old_payment_snapshot["allocated_to_penalty"],
-                PaymentEvent.allocated_to_principal == old_payment_snapshot["allocated_to_principal"],
-                PaymentEvent.payment_method == old_payment_snapshot["payment_method"],
-            )
-        ).all()
-    )
-    if len(matching_events) == 1:
-        event = matching_events[0]
-        event.total_entered_amount = payment.total_amount
-        event.allocated_to_interest = payment.allocated_to_interest
-        event.allocated_to_penalty = payment.allocated_to_penalty
-        event.allocated_to_principal = payment.allocated_to_principal
+    # Located by `payment_id`, not by matching six fields for an exact value: that lookup
+    # updated a single row only when precisely one matched, so a collection spread over
+    # several periods — or two identical payments on the same day — silently updated none.
+    for event in db.scalars(select(PaymentEvent).where(PaymentEvent.payment_id == payment.id)).all():
         event.payment_date = payment.payment_date
         event.payment_method = payment.payment_method
-
-    db.flush()
-    sync_interest_charge_statuses(db, payment.loan_id)
+        event.notes = payment.notes
 
     db.commit()
     db.refresh(payment)
@@ -776,14 +750,10 @@ def update_payment(
         entity_id=str(payment.id),
         user=current_user,
         old_data=(
-            f"total={old_payment_snapshot['total_amount']},principal={old_payment_snapshot['allocated_to_principal']},"
-            f"date={old_payment_snapshot['payment_date']},method={old_payment_snapshot['payment_method']}"
+            f"date={old_payment_snapshot['payment_date']},method={old_payment_snapshot['payment_method']},"
+            f"notes={old_payment_snapshot['notes']}"
         ),
-        new_data=(
-            f"total={payment.total_amount},principal={payment.allocated_to_principal},"
-            f"date={payment.payment_date},method={payment.payment_method},"
-            f"linked_event_updated={len(matching_events) == 1}"
-        ),
+        new_data=f"date={payment.payment_date},method={payment.payment_method},notes={payment.notes}",
     )
 
     return payment
@@ -855,11 +825,9 @@ def reverse_payment(
     for loan_id in affected_loan_ids:
         sync_interest_charge_statuses(db, loan_id)
 
-    db.commit()
-    db.refresh(payment)
-
     write_audit(
         db,
+        commit=False,
         action="reverse_payment",
         entity_type="Payment",
         entity_id=str(payment.id),
@@ -874,6 +842,9 @@ def reverse_payment(
             f"principal_restored={restored_by_loan},reason={payment.reversal_reason}"
         ),
     )
+
+    db.commit()
+    db.refresh(payment)
 
     return payment
 

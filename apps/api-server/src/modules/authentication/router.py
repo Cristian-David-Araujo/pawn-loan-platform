@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.infrastructure.config.settings import get_settings
@@ -205,6 +205,24 @@ def update_user(
         user.is_active = payload.is_active
     if payload.password is not None and payload.password.strip():
         user.hashed_password = get_password_hash(payload.password)
+
+    # The same invariant the backup restore refuses to break: an installation with no active
+    # administrator can never get one back, because creating users is itself admin-only. The
+    # only admin could demote themselves and lock user management, settings and backups away
+    # for good — recoverable only with direct database access.
+    db.flush()
+    remaining_admins = db.scalar(
+        select(func.count(User.id)).where(
+            User.role == UserRole.administrator,
+            User.is_active.is_(True),
+        )
+    )
+    if not remaining_admins:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The system must keep at least one active administrator",
+        )
 
     db.commit()
     db.refresh(user)
