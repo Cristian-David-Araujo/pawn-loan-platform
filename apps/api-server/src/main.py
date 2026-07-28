@@ -5,7 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from src.api.v1.router import api_router
-from src.infrastructure.config.settings import get_settings
+from src.infrastructure.config.settings import assert_production_secrets, get_settings
 from src.infrastructure.persistence.database import engine
 from src.infrastructure.persistence.init_db import init_database
 from src.infrastructure.persistence.migrations import run_database_migrations
@@ -34,6 +34,10 @@ app.add_middleware(
 
 @app.on_event("startup")
 def startup_event() -> None:
+    # Before anything is served, and before the bootstrap can create an admin with the
+    # password that is printed in the README.
+    assert_production_secrets(settings)
+
     if settings.db_init_on_startup:
         run_database_migrations()
         init_database()

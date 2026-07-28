@@ -522,10 +522,19 @@ def pay_principal(
         )
 
     if not payload.allow_with_unpaid_interest:
-        pending_items = _pending_interest_items_for_customer(db, targets[0].customer_id, payment_date)
+        # Canonical items rather than the API adapter, because the decision needs
+        # `period_end`: `interest_generation_lead_days` bills a period up to ten days before
+        # it ends, so the pending list deliberately shows the month in progress. Blocking on
+        # that refused a customer's principal payment over interest that had not accrued yet.
+        # A period only counts as accrued once it has run its course.
+        accrued_items = [
+            item
+            for item in pending_interest_items_for_customer(db, targets[0].customer_id, payment_date)
+            if item.period_end <= payment_date
+        ]
         for loan in targets:
             unpaid_interest = round(
-                sum(item.current_outstanding_balance for item in pending_items if item.loan_id == loan.id),
+                sum(item.outstanding for item in accrued_items if item.loan_id == loan.id),
                 2,
             )
             if unpaid_interest > 0:
