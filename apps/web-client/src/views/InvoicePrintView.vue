@@ -70,6 +70,7 @@
             <strong>{{ t('common.type') }}:</strong>
             {{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}
           </p>
+          <p><strong>{{ t('common.paymentDateLabel') }}:</strong> {{ formatDateDMY(payment.paymentDate) }}</p>
           <p><strong>{{ t('common.receiptPaymentType') }}:</strong> {{ getPaymentTypeLabel(payment) }}</p>
           <p>
             <strong>{{ t('common.amountReceived') }}:</strong>
@@ -212,6 +213,10 @@
               </thead>
               <tbody>
                 <tr>
+                  <td>{{ t('common.loanDate') }}</td>
+                  <td class="text-right">{{ formatDateDMY(loan.disbursementDate) }}</td>
+                </tr>
+                <tr>
                   <td>{{ t('common.principalAmount') }}</td>
                   <td class="text-right">{{ formatCurrency(loan.principalAmount) }}</td>
                 </tr>
@@ -223,9 +228,11 @@
                   <td>{{ t('common.latePenaltyRate') }}</td>
                   <td class="text-right">{{ loan.latePenaltyRate }}%</td>
                 </tr>
-                <tr>
+                <!-- The billing day comes from the disbursement date, not from the grace
+                     setting: printing that made the document say "0 of each month". -->
+                <tr v-if="loanBillingDay !== null">
                   <td>{{ t('common.paymentDay') }}</td>
-                  <td class="text-right">{{ t('common.dayOfEachMonth', { day: loan.dueDay }) }}</td>
+                  <td class="text-right">{{ t('common.dayOfEachMonth', { day: loanBillingDay }) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -573,7 +580,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { usePlatformStore } from '../stores/platformStore'
-import { formatDateDMY } from '../utils/date'
+import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
 import { apiClient } from '../services/api'
 
@@ -700,6 +707,10 @@ const customerTotalOutstanding = computed(() => {
 })
 
 const statementFor = (loanId: number) => statements.value.find((item) => item.loan_id === loanId) ?? null
+
+const loanBillingDay = computed(() =>
+  loan.value ? billingAnchorDay(loan.value.disbursementDate) : null
+)
 
 const loanStatement = computed(() => (loan.value ? statementFor(loan.value.id) : null))
 
@@ -959,19 +970,12 @@ const idString = computed(() => {
   return loanLabel(id.value)
 })
 
-const dateString = computed(() => {
-  // Statements and histories are dated the day they are printed.
-  if (isCustomer.value || isHistory.value) {
-    return formatDateDMY(new Date().toISOString())
-  }
-  if (isPayment.value && payment.value) {
-    return formatDateDMY(payment.value.paymentDate)
-  }
-  if (isLoan.value && loan.value) {
-    return formatDateDMY(loan.value.disbursementDate)
-  }
-  return ''
-})
+/**
+ * Every document is dated the day it is printed. The dates that belong to the business
+ * fact — when the loan was disbursed, when the payment was received — are printed in the
+ * body, so a reprint cannot pass itself off as having been issued back then.
+ */
+const dateString = computed(() => formatDateDMY(new Date().toISOString()))
 
 const eventTypeLabel = (value: string) => t(paymentTypeKey(value))
 
