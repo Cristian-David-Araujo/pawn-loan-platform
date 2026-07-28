@@ -287,7 +287,7 @@ def test_closed_loan_is_absent_from_the_statement(
     closed = client.post(
         f"/api/v1/loans/{loan['id']}/close",
         headers=auth_headers,
-        json={"force": True},
+        json={"force": True, "reason": "settled by agreement with the customer"},
     )
     assert closed.status_code == 200
 

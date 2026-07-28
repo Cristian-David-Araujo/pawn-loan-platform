@@ -105,7 +105,7 @@ def test_terminal_loan_statuses_are_not_touched(
     closed = client.post(
         f"/api/v1/loans/{loan['id']}/close",
         headers=auth_headers,
-        json={"force": True},
+        json={"force": True, "reason": "settled by agreement with the customer"},
     )
     assert closed.status_code == 200
 

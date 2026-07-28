@@ -82,6 +82,12 @@ class Loan(Base):
     due_day: Mapped[int] = mapped_column(Integer)
     status: Mapped[LoanStatus] = mapped_column(Enum(LoanStatus), default=LoanStatus.active)
     renewal_of: Mapped[int | None] = mapped_column(ForeignKey("loans.id"), nullable=True)
+    # Closing a loan that still owes money forgives that money. Same reasoning as a payment
+    # reversal: the audit table has no read path in the application, so without these you
+    # could see a debt had been written off but not by whom, when, or on what grounds.
+    force_closed_reason: Mapped[str] = mapped_column(Text, default="")
+    force_closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    force_closed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
     

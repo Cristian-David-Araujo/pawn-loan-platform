@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
+from src.modules.finance.allocation import AllocationTarget, allocate_oldest_first
 from src.modules.finance.interest_balance import (
     charge_due_date,
     default_grace_days,
@@ -240,40 +241,42 @@ def pay_interest(
     db.add(payment)
     db.flush()
 
-    remaining = round(payload.total_amount, 2)
+    # Oldest period first, penalty before interest — the shared rule, so money taken here and
+    # money coming out of a foreclosure sale can never credit the same debt differently.
+    targets = [
+        AllocationTarget(
+            interest_charge_id=item.interest_charge_id,
+            loan_id=item.loan_id,
+            billing_period=item.billing_period,
+            outstanding=item.current_outstanding_balance,
+            pending_penalty=item.penalty_amount,
+            overdue=item.overdue,
+            due_date=item.due_date,
+        )
+        for item in selected_items
+        if item.interest_charge_id in charge_map
+    ]
+    interest_slices, remaining = allocate_oldest_first(targets, payload.total_amount)
     allocations: list[InterestPaymentAllocation] = []
 
-    for item in selected_items:
-        if remaining <= 0:
-            break
-
-        charge = charge_map.get(item.interest_charge_id)
-        if charge is None:
-            continue
-
-        max_allocatable = item.current_outstanding_balance
-        allocated_total = round(min(max_allocatable, remaining), 2)
-        if allocated_total <= 0:
-            continue
-
-        allocated_penalty = round(min(item.penalty_amount, allocated_total), 2)
-        allocated_interest = round(max(0.0, allocated_total - allocated_penalty), 2)
+    for item_slice in interest_slices:
+        target = item_slice.target
 
         payment_type = "interest_payment"
-        if allocated_total < max_allocatable:
+        if not item_slice.fully_covered:
             payment_type = "partial_interest_payment"
-        elif not item.overdue and item.due_date > payment_date:
+        elif not target.overdue and target.due_date > payment_date:
             payment_type = "interest_advance_payment"
 
         event = PaymentEvent(
             payment_type=payment_type,
             payment_id=payment.id,
-            loan_id=item.loan_id,
-            interest_charge_id=item.interest_charge_id,
-            billing_period=item.billing_period,
-            total_entered_amount=allocated_total,
-            allocated_to_interest=allocated_interest,
-            allocated_to_penalty=allocated_penalty,
+            loan_id=target.loan_id,
+            interest_charge_id=target.interest_charge_id,
+            billing_period=target.billing_period,
+            total_entered_amount=item_slice.allocated_total,
+            allocated_to_interest=item_slice.allocated_interest,
+            allocated_to_penalty=item_slice.allocated_penalty,
             allocated_to_principal=0,
             payment_date=payment_date,
             operator_user_id=current_user.id,
@@ -287,17 +290,15 @@ def pay_interest(
             InterestPaymentAllocation(
                 payment_event_id=event.id,
                 payment_id=payment.id,
-                loan_id=item.loan_id,
-                interest_charge_id=item.interest_charge_id,
+                loan_id=target.loan_id,
+                interest_charge_id=target.interest_charge_id,
                 payment_type=payment_type,
-                billing_period=item.billing_period,
-                allocated_to_interest=allocated_interest,
-                allocated_to_penalty=allocated_penalty,
-                allocated_total=allocated_total,
+                billing_period=target.billing_period,
+                allocated_to_interest=item_slice.allocated_interest,
+                allocated_to_penalty=item_slice.allocated_penalty,
+                allocated_total=item_slice.allocated_total,
             )
         )
-
-        remaining = round(remaining - allocated_total, 2)
 
     if remaining > 0:
         target_loan_id = selected_items[0].loan_id
