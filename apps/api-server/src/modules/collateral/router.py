@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -20,16 +22,23 @@ from src.shared.utils.audit import write_audit
 router = APIRouter(prefix="/collateral-items", tags=["collateral"])
 
 
-def _next_custody_code(db: Session) -> str:
-    count = db.query(CollateralItem).count() + 1
-    return f"CUST-{count:05d}"
+def _custody_code_for(item_id: int) -> str:
+    """The vault label of a pledge, derived from its own row id.
+
+    It used to be ``count() + 1``, which breaks the moment a pledge is deleted — and deleting
+    a loan cascades to its pledges. With the counter behind, the next code either lands on one
+    that still exists, and the unique index turns every further registration into a 500, or it
+    lands on a gap and **reuses a label already printed on a customer's document**. Row ids are
+    never reused, so neither can happen.
+    """
+    return f"CUST-{item_id:05d}"
 
 
 @router.post("", response_model=CollateralRead, status_code=status.HTTP_201_CREATED)
 def create_collateral_item(
     payload: CollateralCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> CollateralItem:
     loan = db.get(Loan, payload.loan_id)
     if loan is None:
@@ -41,10 +50,14 @@ def create_collateral_item(
 
     item = CollateralItem(
         **payload.model_dump(),
-        custody_code=_next_custody_code(db),
+        # A placeholder only until the row has an id: the column is unique and not nullable,
+        # and the code is derived from that id so it can never collide with a retired one.
+        custody_code=f"pending-{uuid4().hex}",
         status="in_custody",
     )
     db.add(item)
+    db.flush()
+    item.custody_code = _custody_code_for(item.id)
     db.commit()
     db.refresh(item)
 
@@ -89,7 +102,7 @@ def update_collateral_item(
     item_id: int,
     payload: CollateralUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> CollateralItem:
     item = db.get(CollateralItem, item_id)
     if item is None:
@@ -157,7 +170,9 @@ def _release_item(db: Session, item: CollateralItem, current_user: User) -> None
 def release_collateral(
     item_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)
+    ),
 ) -> CollateralItem:
     item = db.get(CollateralItem, item_id)
     if item is None:
@@ -179,7 +194,9 @@ def release_collateral(
 def release_collateral_for_loan(
     loan_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(
+        require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)
+    ),
 ) -> list[CollateralItem]:
     """Hand back every item still in custody for a settled loan, in one transaction.
 
@@ -216,11 +233,22 @@ def release_collateral_for_loan(
 def liquidate_collateral(
     item_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_roles(UserRole.administrator)),
 ) -> CollateralItem:
+    """Write a pledge off as unsellable. Only ever a pledge foreclosure already released.
+
+    This used to flip the status with no check at all, so a pledge held for a loan the
+    customer was paying on time could be written off — the goods are the customer's until a
+    foreclosure says otherwise, and `for_sale` is the only state that says so.
+    """
     item = db.get(CollateralItem, item_id)
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collateral item not found")
+    if item.status != "for_sale":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only a foreclosed item can be liquidated",
+        )
 
     item.status = "liquidated"
     db.commit()
@@ -242,7 +270,7 @@ def sell_collateral(
     item_id: int,
     payload: CollateralSell,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
+    current_user: User = Depends(require_roles(UserRole.administrator)),
 ) -> CollateralItem:
     """Apply the proceeds of a foreclosure sale to everything the loan owes.
 

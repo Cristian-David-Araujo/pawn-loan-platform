@@ -20,8 +20,10 @@ class UserSummary(BaseModel):
     full_name: str
 
 class UserCreate(BaseModel):
-    username: str
-    password: str
+    username: str = Field(..., min_length=3, max_length=50)
+    # Same floor as a password reset: it made no sense to enforce eight characters when a
+    # user replaces their own password and accept a single one when an admin sets it.
+    password: str = Field(..., min_length=8)
     full_name: str | None = ""
     email: str | None = ""
     phone: str | None = ""
@@ -52,7 +54,7 @@ class UserUpdate(BaseModel):
     address: str | None = None
     role: UserRole | None = None
     is_active: bool | None = None
-    password: str | None = None
+    password: str | None = Field(default=None, min_length=8)
 
 
 class ForgotPasswordRequest(BaseModel):

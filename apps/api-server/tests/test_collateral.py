@@ -234,6 +234,14 @@ def test_liquidate_collateral_updates_status(client: TestClient, auth_headers: d
     assert item_response.status_code == 201
     item_id = item_response.json()["id"]
 
+    # An item in custody belongs to the customer: writing it off takes a foreclosure first.
+    too_early = client.post(f"/api/v1/collateral-items/{item_id}/liquidate", headers=auth_headers)
+    assert too_early.status_code == 400
+    assert "foreclosed" in too_early.json()["detail"].lower()
+
+    foreclose_response = client.post(f"/api/v1/loans/{loan_id}/foreclose", headers=auth_headers)
+    assert foreclose_response.status_code == 200
+
     liquidate_response = client.post(f"/api/v1/collateral-items/{item_id}/liquidate", headers=auth_headers)
     assert liquidate_response.status_code == 200
     assert liquidate_response.json()["status"] == "liquidated"
