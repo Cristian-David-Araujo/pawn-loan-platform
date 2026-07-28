@@ -160,14 +160,14 @@ interface CreatePaymentPayload {
   notes: string
 }
 
+/**
+ * Correcting how a payment was recorded, never how much money it moved: the amounts come
+ * off the ledger, and editing them here left the receipt and the customer's balance
+ * describing different money. A wrong amount is corrected by reversing the payment.
+ */
 interface UpdatePaymentPayload {
   id: number
   paymentDate: string
-  totalAmount: number
-  allocatedToPenalty: number
-  allocatedToInterest: number
-  allocatedToFees: number
-  allocatedToPrincipal: number
   paymentMethod: 'cash' | 'bank-transfer' | 'other'
   notes: string
 }
@@ -494,25 +494,10 @@ const createPayment = async (payload: CreatePaymentPayload) => {
 }
 
 const updatePayment = async (payload: UpdatePaymentPayload) => {
-  const allocationSum =
-    payload.allocatedToPenalty +
-    payload.allocatedToInterest +
-    payload.allocatedToFees +
-    payload.allocatedToPrincipal
-
-  if (Math.round(allocationSum * 100) !== Math.round(payload.totalAmount * 100)) {
-    return { ok: false, messageKey: 'messages.allocationMustEqualTotal' }
-  }
-
   await apiClient.request<BackendPayment>(`/payments/${payload.id}`, {
     method: 'PUT',
     body: JSON.stringify({
       payment_date: payload.paymentDate,
-      total_amount: payload.totalAmount,
-      allocated_to_penalty: payload.allocatedToPenalty,
-      allocated_to_interest: payload.allocatedToInterest,
-      allocated_to_fees: payload.allocatedToFees,
-      allocated_to_principal: payload.allocatedToPrincipal,
       payment_method: payload.paymentMethod,
       notes: payload.notes
     })

@@ -185,6 +185,13 @@ class InterestCharge(Base):
     charge_date: Mapped[date] = mapped_column(Date)
     amount: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(20), default="generated")
+    # The late penalty is a fact, not a formula. It used to be derived on every read from
+    # the interest still pending, so it shrank as the customer paid and a change of
+    # `default_grace_days` erased it from the whole portfolio retroactively. It is fixed
+    # once, when the period falls due, and then it is history: NULL until that happens.
+    penalty_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    penalty_rate_applied: Mapped[float | None] = mapped_column(Float, nullable=True)
+    penalty_applied_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 

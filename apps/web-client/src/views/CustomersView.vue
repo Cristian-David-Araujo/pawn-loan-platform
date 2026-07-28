@@ -760,26 +760,17 @@
               {{ t('payments.paymentMethod') }}
               <CustomSelect v-model="paymentEditForm.paymentMethod" :options="paymentMethodOptions" />
             </label>
-            <label>
-              {{ t('common.total') }}
-              <CurrencyInput v-model="paymentEditForm.totalAmount" :required="true" />
-            </label>
-            <label>
-              {{ t('common.interest') }}
-              <CurrencyInput v-model="paymentEditForm.allocatedToInterest" :required="true" />
-            </label>
-            <label>
-              {{ t('payments.penalty') }}
-              <CurrencyInput v-model="paymentEditForm.allocatedToPenalty" :required="true" />
-            </label>
-            <label>
-              {{ t('common.fees') }}
-              <CurrencyInput v-model="paymentEditForm.allocatedToFees" :required="true" />
-            </label>
-            <label>
-              {{ t('common.principal') }}
-              <CurrencyInput v-model="paymentEditForm.allocatedToPrincipal" :required="true" />
-            </label>
+          </div>
+          <!-- Read only on purpose: the amounts belong to the ledger. A wrong figure is
+               corrected by reversing the payment, which asks for a reason. -->
+          <p class="muted mt-8">
+            {{ t('payments.editAmountsAreFixed') }}
+          </p>
+          <div class="stats-inline mt-8">
+            <span class="pill">{{ t('common.total') }}: {{ formatCurrency(paymentEditForm.totalAmount) }}</span>
+            <span class="pill">{{ t('common.interest') }}: {{ formatCurrency(paymentEditForm.allocatedToInterest) }}</span>
+            <span class="pill">{{ t('payments.penalty') }}: {{ formatCurrency(paymentEditForm.allocatedToPenalty) }}</span>
+            <span class="pill">{{ t('common.principal') }}: {{ formatCurrency(paymentEditForm.allocatedToPrincipal) }}</span>
           </div>
           <label class="mt-8">
             {{ t('payments.notes') }}
@@ -1575,11 +1566,6 @@ const handleUpdatePayment = async () => {
     const result = await updatePayment({
       id: selectedPaymentForEditId.value,
       paymentDate,
-      totalAmount: paymentEditForm.totalAmount,
-      allocatedToPenalty: paymentEditForm.allocatedToPenalty,
-      allocatedToInterest: paymentEditForm.allocatedToInterest,
-      allocatedToFees: paymentEditForm.allocatedToFees,
-      allocatedToPrincipal: paymentEditForm.allocatedToPrincipal,
       paymentMethod: paymentEditForm.paymentMethod,
       notes: paymentEditForm.notes
     })

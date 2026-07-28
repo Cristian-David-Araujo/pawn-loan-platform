@@ -17,12 +17,16 @@ class PaymentCreate(BaseModel):
 
 
 class PaymentUpdate(BaseModel):
+    """Correcting how a payment was recorded, never how much money it moved.
+
+    The amounts used to be editable here, and the edit reached the `Payment` row without
+    reaching the ledger it was derived from: a collection of 100.000 spread over two
+    billing periods, edited down to 50.000, left the receipt saying 50.000 while the debt
+    stayed reduced by 100.000. Money that was taken in wrongly is corrected by reversing
+    the payment, which asks for a reason and keeps both sides in step.
+    """
+
     payment_date: date
-    total_amount: float
-    allocated_to_penalty: float = 0
-    allocated_to_interest: float = 0
-    allocated_to_fees: float = 0
-    allocated_to_principal: float = 0
     payment_method: str = "cash"
     notes: str = ""
 

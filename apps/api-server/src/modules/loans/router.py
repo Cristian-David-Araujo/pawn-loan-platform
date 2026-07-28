@@ -9,6 +9,7 @@ from src.infrastructure.persistence.models import AuditLog, CollateralItem, Glob
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_balance import default_grace_days
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan, recalculate_interest_charges_for_loan
+from src.modules.finance.penalties import freeze_due_penalties
 from src.modules.loans.schemas import (
     CloseLoanRequest,
     LoanApplicationCreate,
@@ -128,6 +129,10 @@ def create_loan(
         charge_date=local_today,
     )
     if generated_interest:
+        # A loan registered with a backdated disbursement is born with periods that already
+        # fell due. Their penalty is fixed here rather than left for the nightly cycle, so
+        # an operator who collects right after registering it is not quoted a debt short.
+        freeze_due_penalties(db, local_today)
         db.commit()
         for charge in generated_interest:
             db.refresh(charge)
@@ -190,11 +195,13 @@ def update_loan(
     loan.description = payload.description if payload.description is not None else loan.description
     loan.principal_amount = next_principal_amount
     loan.outstanding_principal = next_outstanding_principal
-    loan.monthly_interest_rate = payload.monthly_interest_rate
+    loan.monthly_interest_rate = (
+        payload.monthly_interest_rate if payload.monthly_interest_rate is not None else loan.monthly_interest_rate
+    )
     loan.late_penalty_rate = payload.late_penalty_rate if payload.late_penalty_rate is not None else loan.late_penalty_rate
     loan.disbursement_date = payload.disbursement_date if payload.disbursement_date is not None else loan.disbursement_date
     loan.due_day = default_grace_days(db)
-    loan.status = payload.status
+    loan.status = payload.status if payload.status is not None else loan.status
 
     settings = db.get(GlobalSettings, 1)
     lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0

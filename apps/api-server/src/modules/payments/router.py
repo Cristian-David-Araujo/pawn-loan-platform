@@ -702,69 +702,23 @@ def update_payment(
     if payment.is_reversed:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reversed payments cannot be edited")
 
-    loan = db.get(Loan, payment.loan_id)
-    if loan is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked loan not found")
-
-    allocated_sum = (
-        payload.allocated_to_penalty
-        + payload.allocated_to_interest
-        + payload.allocated_to_fees
-        + payload.allocated_to_principal
-    )
-    if round(allocated_sum, 2) != round(payload.total_amount, 2):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Allocation sum must match total amount")
-
-    old_allocated_principal = payment.allocated_to_principal
     old_payment_snapshot = {
         "payment_date": payment.payment_date,
-        "total_amount": payment.total_amount,
-        "allocated_to_interest": payment.allocated_to_interest,
-        "allocated_to_penalty": payment.allocated_to_penalty,
-        "allocated_to_principal": payment.allocated_to_principal,
         "payment_method": payment.payment_method,
+        "notes": payment.notes,
     }
 
     payment.payment_date = payload.payment_date
-    payment.total_amount = round(payload.total_amount, 2)
-    payment.allocated_to_penalty = round(payload.allocated_to_penalty, 2)
-    payment.allocated_to_interest = round(payload.allocated_to_interest, 2)
-    payment.allocated_to_fees = round(payload.allocated_to_fees, 2)
-    payment.allocated_to_principal = round(payload.allocated_to_principal, 2)
     payment.payment_method = payload.payment_method
     payment.notes = payload.notes
 
-    principal_delta = round(payment.allocated_to_principal - old_allocated_principal, 2)
-    loan.outstanding_principal = round(max(0.0, loan.outstanding_principal - principal_delta), 2)
-    if loan.outstanding_principal == 0:
-        loan.status = LoanStatus.closed
-    elif loan.status == LoanStatus.closed:
-        loan.status = LoanStatus.active
-
-    matching_events = list(
-        db.scalars(
-            select(PaymentEvent).where(
-                PaymentEvent.loan_id == payment.loan_id,
-                PaymentEvent.payment_date == old_payment_snapshot["payment_date"],
-                PaymentEvent.total_entered_amount == old_payment_snapshot["total_amount"],
-                PaymentEvent.allocated_to_interest == old_payment_snapshot["allocated_to_interest"],
-                PaymentEvent.allocated_to_penalty == old_payment_snapshot["allocated_to_penalty"],
-                PaymentEvent.allocated_to_principal == old_payment_snapshot["allocated_to_principal"],
-                PaymentEvent.payment_method == old_payment_snapshot["payment_method"],
-            )
-        ).all()
-    )
-    if len(matching_events) == 1:
-        event = matching_events[0]
-        event.total_entered_amount = payment.total_amount
-        event.allocated_to_interest = payment.allocated_to_interest
-        event.allocated_to_penalty = payment.allocated_to_penalty
-        event.allocated_to_principal = payment.allocated_to_principal
+    # Located by `payment_id`, not by matching six fields for an exact value: that lookup
+    # updated a single row only when precisely one matched, so a collection spread over
+    # several periods — or two identical payments on the same day — silently updated none.
+    for event in db.scalars(select(PaymentEvent).where(PaymentEvent.payment_id == payment.id)).all():
         event.payment_date = payment.payment_date
         event.payment_method = payment.payment_method
-
-    db.flush()
-    sync_interest_charge_statuses(db, payment.loan_id)
+        event.notes = payment.notes
 
     db.commit()
     db.refresh(payment)
@@ -776,14 +730,10 @@ def update_payment(
         entity_id=str(payment.id),
         user=current_user,
         old_data=(
-            f"total={old_payment_snapshot['total_amount']},principal={old_payment_snapshot['allocated_to_principal']},"
-            f"date={old_payment_snapshot['payment_date']},method={old_payment_snapshot['payment_method']}"
+            f"date={old_payment_snapshot['payment_date']},method={old_payment_snapshot['payment_method']},"
+            f"notes={old_payment_snapshot['notes']}"
         ),
-        new_data=(
-            f"total={payment.total_amount},principal={payment.allocated_to_principal},"
-            f"date={payment.payment_date},method={payment.payment_method},"
-            f"linked_event_updated={len(matching_events) == 1}"
-        ),
+        new_data=f"date={payment.payment_date},method={payment.payment_method},notes={payment.notes}",
     )
 
     return payment
