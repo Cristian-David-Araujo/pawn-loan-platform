@@ -138,6 +138,94 @@ def test_an_edit_only_reaches_periods_that_have_not_ended(
     assert after[1].amount == 30000, "the open period must follow the new principal"
 
 
+def test_a_penalty_does_not_shrink_when_the_customer_pays_part_of_the_interest(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """The penalty is fixed against what the period owed at its due date, and stays there.
+
+    It used to be `pending interest x rate` evaluated on every read, so a partial payment
+    lowered the very base it was computed from and the figure moved under the operator.
+    """
+    _configure(db_session)
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=40)
+
+    charges = _charges(db_session, loan["id"])
+    assert len(charges) == 1
+    assert charges[0].penalty_amount == 5000, "10% of the 50.000 the period owed when it fell due"
+    assert charges[0].penalty_rate_applied == 10
+
+    payment = client.post(
+        "/api/v1/payments/interest",
+        headers=auth_headers,
+        json={"customer_id": customer["id"], "total_amount": 30000, "payment_method": "cash"},
+    )
+    assert payment.status_code == 200, payment.text
+
+    assert _charges(db_session, loan["id"])[0].penalty_amount == 5000, "the recorded penalty moved"
+
+
+def test_changing_grace_days_or_the_rate_leaves_recorded_penalties_alone(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Policy reaches the periods that fall due after it, never the ones already settled.
+
+    Raising `default_grace_days` used to push every past due date forward and wipe the
+    penalty off the whole portfolio backwards, with no record that anything had changed.
+    """
+    _configure(db_session)
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=40)
+
+    def recorded_penalty() -> float:
+        return _charges(db_session, loan["id"])[0].penalty_amount
+
+    def reported_penalty() -> float:
+        response = client.get(
+            f"/api/v1/payments/customers/{customer['id']}/interest-pending", headers=auth_headers
+        )
+        assert response.status_code == 200, response.text
+        return response.json()["total_pending_penalty"]
+
+    assert recorded_penalty() == 5000
+    assert reported_penalty() == 5000
+
+    _configure(db_session, grace_days=45)
+    assert recorded_penalty() == 5000
+    assert reported_penalty() == 5000
+
+    _configure(db_session, grace_days=5)
+    edit = client.put(
+        f"/api/v1/loans/{loan['id']}", headers=auth_headers, json={"late_penalty_rate": 2}
+    )
+    assert edit.status_code == 200, edit.text
+    assert recorded_penalty() == 5000
+    assert reported_penalty() == 5000
+
+
+def test_a_loan_with_no_penalty_rate_records_a_zero_instead_of_nothing(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """A settled question, not an open one: the cycle must not revisit it every night."""
+    _configure(db_session)
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=40, penalty_rate=0)
+
+    charge = _charges(db_session, loan["id"])[0]
+    assert charge.penalty_amount == 0
+    assert charge.penalty_rate_applied == 0
+    assert charge.penalty_applied_at is not None
+
+
 def test_editing_a_loan_no_longer_requires_resending_rate_and_status(
     client: TestClient,
     auth_headers: dict[str, str],

@@ -9,6 +9,7 @@ from src.infrastructure.persistence.models import GlobalSettings, InterestCharge
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
 from src.infrastructure.tasks.interest_scheduler import release_cycle_lock, try_acquire_cycle_lock
 from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
+from src.modules.finance.penalties import describe_frozen_penalties, freeze_due_penalties
 from src.modules.finance.schemas import InterestChargeRead, InterestGenerationRequest, LoanBalanceRead
 from src.shared.dependencies.auth import get_current_user
 from src.shared.dependencies.db import get_db
@@ -50,12 +51,23 @@ def generate_interest(
                 )
             )
 
+        frozen = freeze_due_penalties(db, payload.as_of_date)
         db.commit()
     finally:
         release_cycle_lock(db)
 
     for charge in generated:
         db.refresh(charge)
+
+    if frozen:
+        write_audit(
+            db,
+            action="freeze_late_penalties",
+            entity_type="InterestCharge",
+            entity_id=f"count={len(frozen)}",
+            user=current_user,
+            new_data=f"as_of_date={payload.as_of_date},{describe_frozen_penalties(frozen)}",
+        )
 
     write_audit(
         db,

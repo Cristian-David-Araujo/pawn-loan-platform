@@ -125,6 +125,33 @@ def _charges_for_loans(db: Session, loan_ids: list[int]) -> list[InterestCharge]
     )
 
 
+def _pending_interest_by_charge(
+    charges: list[InterestCharge],
+    events_by_charge: dict[int, list[PaymentEvent]],
+    advance_events: list[PaymentEvent],
+) -> tuple[dict[int, float], float]:
+    """Interest still owed by each charge, plus whatever is left of the advance pool.
+
+    Settled charges are kept in the mapping with a zero, because the penalty freeze needs
+    to tell "this period owed nothing when it fell due" from "this period is not listed".
+    """
+    advance_pool = _sum_interest(advance_events)
+    pending_by_charge: dict[int, float] = {}
+
+    for charge in charges:
+        pending = round(max(0.0, charge.amount - _sum_interest(events_by_charge.get(charge.id, []))), 2)
+
+        # Advances are consumed oldest period first, mirroring the allocation order.
+        if advance_pool > 0 and pending > 0:
+            applied = round(min(advance_pool, pending), 2)
+            pending = round(pending - applied, 2)
+            advance_pool = round(advance_pool - applied, 2)
+
+        pending_by_charge[charge.id] = pending
+
+    return pending_by_charge, advance_pool
+
+
 def _build_loan_balance(
     loan: Loan,
     charges: list[InterestCharge],
@@ -133,26 +160,20 @@ def _build_loan_balance(
     as_of_date: date,
     configured_grace_days: int,
 ) -> LoanInterestBalance:
-    advance_pool = _sum_interest(advance_events)
+    pending_by_charge, advance_pool = _pending_interest_by_charge(charges, events_by_charge, advance_events)
     items: list[PendingInterestItem] = []
 
     for charge in charges:
         charge_events = events_by_charge.get(charge.id, [])
-        pending_interest = round(max(0.0, charge.amount - _sum_interest(charge_events)), 2)
-
-        # Advances are consumed oldest period first, mirroring the allocation order.
-        if advance_pool > 0 and pending_interest > 0:
-            applied = round(min(advance_pool, pending_interest), 2)
-            pending_interest = round(pending_interest - applied, 2)
-            advance_pool = round(advance_pool - applied, 2)
+        pending_interest = pending_by_charge[charge.id]
 
         due_date = charge_due_date(charge.period_end, grace_days_for_loan(loan, configured_grace_days))
         overdue = due_date < as_of_date
-        penalty_amount = (
-            round(pending_interest * (loan.late_penalty_rate / 100), 2)
-            if overdue and pending_interest > 0
-            else 0.0
-        )
+        # Read, never recompute: the penalty was fixed by `freeze_due_penalties` on the day
+        # this period fell due, against the balance it owed then and the rate in force then.
+        # A period past its due date with nothing recorded yet is one the cycle has not
+        # reached; it shows no penalty rather than an amount that would move on the next read.
+        penalty_amount = round(charge.penalty_amount, 2) if charge.penalty_amount is not None else 0.0
         pending_penalty = round(max(0.0, penalty_amount - _sum_penalty(charge_events)), 2)
         outstanding = round(pending_interest + pending_penalty, 2)
         if outstanding <= 0:
@@ -215,6 +236,41 @@ def pending_interest_for_loans(
         )
         for loan in loans
     }
+
+
+def pending_interest_by_charge_for_loans(db: Session, loans: list[Loan]) -> dict[int, float]:
+    """Interest still owed by every charge of these loans, keyed by charge id.
+
+    Same derivation as the balances above — it is what the penalty freeze uses as its base,
+    so a frozen penalty and the screen it came from can never disagree.
+    """
+    loan_ids = [loan.id for loan in loans]
+    charges = _charges_for_loans(db, loan_ids)
+    events = _active_events_for_loans(db, loan_ids)
+
+    charges_by_loan: dict[int, list[InterestCharge]] = {}
+    for charge in charges:
+        charges_by_loan.setdefault(charge.loan_id, []).append(charge)
+
+    events_by_charge: dict[int, list[PaymentEvent]] = {}
+    advances_by_loan: dict[int, list[PaymentEvent]] = {}
+    for event in events:
+        if event.interest_charge_id is None:
+            if event.payment_type == ADVANCE_PAYMENT_TYPE:
+                advances_by_loan.setdefault(event.loan_id, []).append(event)
+            continue
+        events_by_charge.setdefault(event.interest_charge_id, []).append(event)
+
+    pending: dict[int, float] = {}
+    for loan in loans:
+        by_charge, _ = _pending_interest_by_charge(
+            charges_by_loan.get(loan.id, []),
+            events_by_charge,
+            advances_by_loan.get(loan.id, []),
+        )
+        pending.update(by_charge)
+
+    return pending
 
 
 def pending_interest_for_loan(db: Session, loan: Loan, as_of_date: date) -> LoanInterestBalance:

@@ -11,6 +11,7 @@ from src.infrastructure.persistence.models import GlobalSettings, Loan
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan
 from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
+from src.modules.finance.penalties import describe_frozen_penalties, freeze_due_penalties
 from src.shared.utils.audit import write_audit
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,19 @@ def run_interest_generation_cycle(
             entity_id=f"count={len(generated)}",
             new_data=f"as_of_date={reference_date}",
         )
+
+        # Periods that crossed their due date get their penalty fixed before anything reads
+        # a balance, so the figure the collection screens show is the one that was recorded.
+        frozen = freeze_due_penalties(db, reference_date)
+        if frozen:
+            db.commit()
+            write_audit(
+                db,
+                action="auto_freeze_late_penalties",
+                entity_type="InterestCharge",
+                entity_id=f"count={len(frozen)}",
+                new_data=f"as_of_date={reference_date},{describe_frozen_penalties(frozen)}",
+            )
 
         # Newly generated charges can push loans past their grace period, so statuses
         # are refreshed in the same cycle.

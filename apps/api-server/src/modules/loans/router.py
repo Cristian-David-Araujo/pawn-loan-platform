@@ -9,6 +9,7 @@ from src.infrastructure.persistence.models import AuditLog, CollateralItem, Glob
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_balance import default_grace_days
 from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan, recalculate_interest_charges_for_loan
+from src.modules.finance.penalties import freeze_due_penalties
 from src.modules.loans.schemas import (
     CloseLoanRequest,
     LoanApplicationCreate,
@@ -128,6 +129,10 @@ def create_loan(
         charge_date=local_today,
     )
     if generated_interest:
+        # A loan registered with a backdated disbursement is born with periods that already
+        # fell due. Their penalty is fixed here rather than left for the nightly cycle, so
+        # an operator who collects right after registering it is not quoted a debt short.
+        freeze_due_penalties(db, local_today)
         db.commit()
         for charge in generated_interest:
             db.refresh(charge)

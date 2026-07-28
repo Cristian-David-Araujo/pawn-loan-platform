@@ -17,6 +17,9 @@ class InterestChargeRead(BaseModel):
     charge_date: date
     amount: float
     status: str
+    penalty_amount: float | None = None
+    penalty_rate_applied: float | None = None
+    penalty_applied_at: date | None = None
     created_at: datetime
 
 
