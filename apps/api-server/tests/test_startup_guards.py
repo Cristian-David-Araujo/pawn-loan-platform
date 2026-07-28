@@ -1,8 +1,13 @@
-"""Refusing to serve production with the credentials printed in the README.
+"""Refusing to serve production with the signing key printed in the README.
 
-`admin` / `admin123` and the JWT key `change_this_in_production` appear in `.env.example`, in
-the README and in the seed. Convenient in development, an unlocked front door in production —
-and a published signing key means anyone can mint their own token for any user.
+`change_this_in_production` is in `.env.example` and in the README, so keeping it means anyone
+can mint a token for any user. There is no safe way to serve with it, the fix is a config
+change the operator already controls, and no data is at stake — which is what makes a fatal
+guard the right shape here.
+
+The counter-example matters just as much and has its own test below: `ADMIN_PASSWORD` only
+seeds the admin on first boot, so it goes stale the moment the operator changes their password
+in the app. Refusing to start over a stale value takes a deployment down for nothing.
 """
 
 import pytest
@@ -23,13 +28,7 @@ def _settings(**overrides) -> Settings:
 def test_development_is_left_alone() -> None:
     """The defaults exist so a clone runs with no setup; that must keep working."""
     assert_production_secrets(_settings(app_env="development", admin_password="admin123",
-                                       jwt_secret_key="change_this_in_production"))
-
-
-def test_production_refuses_the_default_admin_password() -> None:
-    with pytest.raises(RuntimeError) as error:
-        assert_production_secrets(_settings(admin_password="admin123"))
-    assert "ADMIN_PASSWORD" in str(error.value)
+                                        jwt_secret_key="change_this_in_production"))
 
 
 def test_production_refuses_the_default_signing_key() -> None:
@@ -38,21 +37,23 @@ def test_production_refuses_the_default_signing_key() -> None:
     assert "JWT_SECRET_KEY" in str(error.value)
 
 
-def test_production_names_every_value_still_unset() -> None:
-    """One restart, one message, not a game of whack-a-mole."""
-    with pytest.raises(RuntimeError) as error:
-        assert_production_secrets(
-            _settings(admin_password="admin123", jwt_secret_key="change_this_in_production")
-        )
-    message = str(error.value)
-    assert "ADMIN_PASSWORD" in message and "JWT_SECRET_KEY" in message
+def test_a_stale_admin_password_variable_never_blocks_a_deployment() -> None:
+    """The stored password is the real credential, and the operator owns it.
+
+    This guard used to reject `ADMIN_PASSWORD=admin123` and stopped a production deployment
+    whose admin had long since set a strong password from the users screen — a false positive
+    with no security benefit, and blind to the case that actually matters.
+    """
+    assert_production_secrets(_settings(admin_password="admin123"))
 
 
-def test_production_with_real_secrets_starts() -> None:
+def test_production_with_a_real_signing_key_starts() -> None:
     assert_production_secrets(_settings())
 
 
 def test_the_env_name_is_matched_loosely() -> None:
     """Deployments spell it `Production` or with stray whitespace; the guard still applies."""
     with pytest.raises(RuntimeError):
-        assert_production_secrets(_settings(app_env=" Production ", admin_password="admin123"))
+        assert_production_secrets(
+            _settings(app_env=" Production ", jwt_secret_key="change_this_in_production")
+        )

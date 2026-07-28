@@ -43,22 +43,29 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=str(ROOT_ENV_FILE), extra="ignore")
 
 
-# The values shipped in `.env.example` and printed in the README. Convenient in development,
-# and an unlocked front door in production.
+# Settings whose value the running application *uses*, shipped with a published default.
+#
+# `ADMIN_PASSWORD` is deliberately **not** here. It only seeds the admin user the first time
+# an installation boots; from then on the password lives in the database and the operator
+# changes it from the users screen, so the variable goes stale by design. Refusing to start
+# over a stale value took production down for no security gain — and it would have missed the
+# case that actually matters, a strong variable over a weak stored password.
 DEVELOPMENT_DEFAULTS = {
-    "admin_password": "admin123",
     "jwt_secret_key": "change_this_in_production",
 }
 
 
 def assert_production_secrets(settings: Settings) -> None:
-    """Refuse to serve production with the documented development credentials.
+    """Refuse to serve production with a published signing key.
 
-    Only the literal defaults are rejected, so an installation that already set its own
-    values is never affected. It fails at startup rather than warning, because a warning in a
-    container log is a warning nobody reads: `admin` / `admin123` appears in the README, in
-    `.env.example` and in the seed, and a public deployment keeping it is an open door — and
-    the JWT signing key being the published string means anyone can mint their own token.
+    Only the literal default is rejected, so an installation that set its own value is never
+    affected. It fails at startup rather than warning because there is no safe way to serve
+    with this one: `change_this_in_production` is in the README and in `.env.example`, so
+    anyone can mint a token for any user, administrator included. The fix is a config change
+    the operator already controls, and no data is at stake either way.
+
+    Nothing else belongs in this check. A guard that can stop a deployment has to be limited
+    to values that are both genuinely unsafe and fixable from the environment alone.
     """
     if settings.app_env.strip().lower() != "production":
         return
