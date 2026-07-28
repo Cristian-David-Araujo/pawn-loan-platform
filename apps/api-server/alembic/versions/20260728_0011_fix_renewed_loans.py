@@ -35,17 +35,24 @@ def upgrade() -> None:
 
     # Pledges first: once the source principal is zero the loan looks settled, and moving
     # the goods afterwards would leave a window where the debt has no security at all.
-    conn.execute(
-        text(
-            """
-            UPDATE collateral_items c
-               SET loan_id = r.id
-              FROM loans r
-             WHERE r.renewal_of = c.loan_id
-               AND c.status = 'in_custody'
-            """
-        )
-    )
+    #
+    # One hop at a time, until nothing moves: a loan renewed repeatedly leaves a chain
+    # (1 -> 2 -> 3), and a single pass would park the pledge on loan 2, which is just as
+    # closed as loan 1 was. The loop walks each chain to the loan that is actually alive.
+    while True:
+        moved = conn.execute(
+            text(
+                """
+                UPDATE collateral_items c
+                   SET loan_id = r.id
+                  FROM loans r
+                 WHERE r.renewal_of = c.loan_id
+                   AND c.status = 'in_custody'
+                """
+            )
+        ).rowcount
+        if not moved:
+            break
 
     conn.execute(
         text(
