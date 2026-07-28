@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan
+from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, PaymentEvent
 
 
 def _configure(db_session: Session, *, grace_days: int = 5, lead_days: int = 0) -> None:
@@ -350,6 +350,65 @@ def test_a_loan_with_no_penalty_rate_records_a_zero_instead_of_nothing(
     assert charge.penalty_amount == 0
     assert charge.penalty_rate_applied == 0
     assert charge.penalty_applied_at is not None
+
+
+def test_editing_a_payment_corrects_how_it_was_recorded_not_how_much_it_moved(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Amounts sent to the edit endpoint are ignored, and every ledger row follows the rest.
+
+    A collection of 100.000 covering two periods, edited down to 50.000, used to leave the
+    `Payment` row saying 50.000 while the ledger kept 100.000 and the customer's debt stayed
+    reduced by the larger figure — the receipt and the balance describing different money.
+    The ledger rows were found by matching six fields on their exact old values, so a
+    payment split across periods matched more than one and none of them was updated.
+    """
+    _configure(db_session)
+    customer = create_customer()
+    _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=65, penalty_rate=0)
+
+    collected = client.post(
+        "/api/v1/payments/interest",
+        headers=auth_headers,
+        json={"customer_id": customer["id"], "total_amount": 100000, "payment_method": "cash"},
+    )
+    assert collected.status_code == 200, collected.text
+    payment_id = collected.json()["allocations"][0]["payment_id"]
+    assert len({item["payment_event_id"] for item in collected.json()["allocations"]}) == 2
+
+    def pending() -> float:
+        response = client.get(
+            f"/api/v1/payments/customers/{customer['id']}/interest-pending", headers=auth_headers
+        )
+        return response.json()["total_pending_interest"]
+
+    assert pending() == 0
+
+    edited = client.put(
+        f"/api/v1/payments/{payment_id}",
+        headers=auth_headers,
+        json={
+            "payment_date": date.today().isoformat(),
+            "payment_method": "transfer",
+            "notes": "was a transfer, not cash",
+            # Sent by an old client; must not move a peso.
+            "total_amount": 50000,
+            "allocated_to_interest": 50000,
+        },
+    )
+    assert edited.status_code == 200, edited.text
+    assert edited.json()["total_amount"] == 100000, "an edit changed the amount collected"
+    assert edited.json()["payment_method"] == "transfer"
+    assert pending() == 0, "an edit moved the customer's debt"
+
+    db_session.expire_all()
+    events = list(db_session.scalars(select(PaymentEvent).where(PaymentEvent.payment_id == payment_id)).all())
+    assert len(events) == 2
+    assert all(item.payment_method == "transfer" for item in events), "a ledger row kept the old method"
+    assert sum(item.allocated_to_interest for item in events) == 100000
 
 
 def test_editing_a_loan_no_longer_requires_resending_rate_and_status(

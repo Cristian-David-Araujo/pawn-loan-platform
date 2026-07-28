@@ -427,26 +427,17 @@
               {{ t('payments.paymentMethod') }}
               <CustomSelect v-model="paymentEditForm.paymentMethod" :options="paymentMethodOptions" />
             </label>
-            <label>
-              {{ t('common.total') }}
-              <CurrencyInput v-model="paymentEditForm.totalAmount" :required="true" />
-            </label>
-            <label>
-              {{ t('common.interest') }}
-              <CurrencyInput v-model="paymentEditForm.allocatedToInterest" :required="true" />
-            </label>
-            <label>
-              {{ t('payments.penalty') }}
-              <CurrencyInput v-model="paymentEditForm.allocatedToPenalty" :required="true" />
-            </label>
-            <label>
-              {{ t('common.fees') }}
-              <CurrencyInput v-model="paymentEditForm.allocatedToFees" :required="true" />
-            </label>
-            <label>
-              {{ t('common.principal') }}
-              <CurrencyInput v-model="paymentEditForm.allocatedToPrincipal" :required="true" />
-            </label>
+          </div>
+          <!-- Read only on purpose: the amounts belong to the ledger. A wrong figure is
+               corrected by reversing the payment, which asks for a reason. -->
+          <p class="muted mt-8">
+            {{ t('payments.editAmountsAreFixed') }}
+          </p>
+          <div class="stats-inline mt-8">
+            <span class="pill">{{ t('common.total') }}: {{ formatCurrency(paymentEditForm.totalAmount) }}</span>
+            <span class="pill">{{ t('common.interest') }}: {{ formatCurrency(paymentEditForm.allocatedToInterest) }}</span>
+            <span class="pill">{{ t('payments.penalty') }}: {{ formatCurrency(paymentEditForm.allocatedToPenalty) }}</span>
+            <span class="pill">{{ t('common.principal') }}: {{ formatCurrency(paymentEditForm.allocatedToPrincipal) }}</span>
           </div>
           <label class="mt-8">
             {{ t('payments.notes') }}
@@ -478,7 +469,6 @@ import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { CircleDollarSign, ChevronDown, ChevronRight, FilterX, Pencil, ReceiptText, Save, Trash2, WalletCards, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
-import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient, apiErrorMessage } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
@@ -928,11 +918,6 @@ const handleUpdatePayment = async () => {
     const result = await updatePayment({
       id: selectedPaymentEditId.value,
       paymentDate,
-      totalAmount: paymentEditForm.value.totalAmount,
-      allocatedToPenalty: paymentEditForm.value.allocatedToPenalty,
-      allocatedToInterest: paymentEditForm.value.allocatedToInterest,
-      allocatedToFees: paymentEditForm.value.allocatedToFees,
-      allocatedToPrincipal: paymentEditForm.value.allocatedToPrincipal,
       paymentMethod: paymentEditForm.value.paymentMethod,
       notes: paymentEditForm.value.notes
     })
