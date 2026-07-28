@@ -111,3 +111,21 @@ export const toIsoDate = (value: string | Date | null | undefined): string | nul
 
   return `${parts.year}-${parts.month}-${parts.day}`
 }
+
+/**
+ * Day of the month a loan bills on, taken from its disbursement date.
+ *
+ * The interest cycle is anchored on that day: a loan disbursed on the 25th bills 25th to
+ * 25th. It has nothing to do with the grace days, which are portfolio policy — printing
+ * `dueDay` here made the document read "Payment day: 0 of each month" once grace moved to
+ * a global setting.
+ */
+export const billingAnchorDay = (disbursementDate: string | null | undefined): number | null => {
+  const iso = toIsoDate(disbursementDate)
+  if (!iso) {
+    return null
+  }
+
+  const day = Number(iso.split('-')[2])
+  return Number.isFinite(day) ? day : null
+}
