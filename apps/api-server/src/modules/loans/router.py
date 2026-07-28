@@ -337,21 +337,54 @@ def renew_loan(
     source = db.get(Loan, loan_id)
     if source is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+    if source.status == LoanStatus.closed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Loan is already closed")
+
+    carried_principal = round(source.outstanding_principal, 2)
 
     renewed = Loan(
         customer_id=source.customer_id,
         application_id=source.application_id,
         loan_type=source.loan_type,
-        principal_amount=source.outstanding_principal,
-        outstanding_principal=source.outstanding_principal,
+        # The pledge description and the penalty policy belong to the debt, not to the row
+        # that happened to carry it: leaving them out started the new loan with an empty
+        # description and a penalty rate of 0, which also silently zeroed its grace days.
+        description=source.description,
+        principal_amount=carried_principal,
+        outstanding_principal=carried_principal,
         monthly_interest_rate=payload.monthly_interest_rate or source.monthly_interest_rate,
+        late_penalty_rate=source.late_penalty_rate,
         disbursement_date=get_local_date(db),
         due_day=default_grace_days(db),
         status=LoanStatus.active,
         renewal_of=source.id,
     )
-    source.status = LoanStatus.closed
     db.add(renewed)
+    db.flush()
+
+    # The principal moved to the new loan, so the source must stop carrying it. It used to
+    # keep its full outstanding while being closed, and `principal-context` reports any loan
+    # that still owes — so one 1.000.000 loan renewed once showed the customer owing
+    # 2.000.000 on screen and on the printed statement, while `_resolve_principal_targets`
+    # refused to collect the closed half. The interest already accrued stays where it was
+    # accrued: the source keeps owing it, and it is collected from the interest screen.
+    source.outstanding_principal = 0.0
+    source.status = LoanStatus.closed
+
+    # A pawn loan without its pledge has no security. The items used to stay pointed at the
+    # closed loan, which left the live debt with nothing behind it and made the custody
+    # report attribute the goods to a loan that no longer existed for anyone.
+    moved_pledges = list(
+        db.scalars(
+            select(CollateralItem).where(
+                CollateralItem.loan_id == source.id,
+                CollateralItem.status == "in_custody",
+            )
+        ).all()
+    )
+    for item in moved_pledges:
+        item.loan_id = renewed.id
+
     db.commit()
     db.refresh(renewed)
 
@@ -361,8 +394,12 @@ def renew_loan(
         entity_type="Loan",
         entity_id=str(renewed.id),
         user=current_user,
-        old_data=f"source_loan={source.id}",
-        new_data=f"renewal_of={source.id}",
+        old_data=f"source_loan={source.id},source_outstanding={carried_principal}",
+        new_data=(
+            f"renewal_of={source.id},principal={carried_principal},"
+            f"rate={renewed.monthly_interest_rate},late_penalty={renewed.late_penalty_rate},"
+            f"pledges_moved={[item.id for item in moved_pledges]}"
+        ),
     )
 
     return renewed
