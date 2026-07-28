@@ -125,42 +125,136 @@ def _charges_for_loans(db: Session, loan_ids: list[int]) -> list[InterestCharge]
     )
 
 
-def _pending_interest_by_charge(
-    charges: list[InterestCharge],
-    events_by_charge: dict[int, list[PaymentEvent]],
-    advance_events: list[PaymentEvent],
-) -> tuple[dict[int, float], float]:
-    """Interest still owed by each charge, plus whatever is left of the advance pool.
+@dataclass(frozen=True)
+class _NettedBook:
+    """A customer's charges with their advance pool already applied."""
 
-    Settled charges are kept in the mapping with a zero, because the penalty freeze needs
-    to tell "this period owed nothing when it fell due" from "this period is not listed".
+    loans_by_id: dict[int, Loan]
+    charges_by_loan: dict[int, list[InterestCharge]]
+    events_by_charge: dict[int, list[PaymentEvent]]
+    pending_by_charge: dict[int, float]
+    advance_left_by_loan: dict[int, float]
+
+
+def _split_events(
+    events: list[PaymentEvent],
+) -> tuple[dict[int, list[PaymentEvent]], dict[int, float]]:
+    events_by_charge: dict[int, list[PaymentEvent]] = {}
+    advances_by_loan: dict[int, float] = {}
+
+    for event in events:
+        if event.interest_charge_id is None:
+            if event.payment_type == ADVANCE_PAYMENT_TYPE:
+                advances_by_loan[event.loan_id] = round(
+                    advances_by_loan.get(event.loan_id, 0.0) + event.allocated_to_interest, 2
+                )
+            continue
+        events_by_charge.setdefault(event.interest_charge_id, []).append(event)
+
+    return events_by_charge, advances_by_loan
+
+
+def _customers_hold_advances(db: Session, loans: list[Loan]) -> bool:
+    """Whether any customer behind these loans has unapplied advance money anywhere.
+
+    One indexed lookup, so the answer is cheap enough to ask on every balance read.
     """
-    advance_pool = _sum_interest(advance_events)
-    pending_by_charge: dict[int, float] = {}
+    customer_ids = {loan.customer_id for loan in loans}
+    if not customer_ids:
+        return False
 
+    return db.scalar(
+        select(PaymentEvent.id)
+        .join(Loan, Loan.id == PaymentEvent.loan_id)
+        .where(
+            Loan.customer_id.in_(customer_ids),
+            PaymentEvent.payment_type == ADVANCE_PAYMENT_TYPE,
+            PaymentEvent.is_reversed.is_(False),
+        )
+        .limit(1)
+    ) is not None
+
+
+def _net_customer_book(db: Session, loans: list[Loan], configured_grace_days: int) -> _NettedBook:
+    """Work out what each period still owes once the customer's advances are applied.
+
+    **An advance belongs to the customer, not to the loan it was filed against.** It is
+    recorded against one loan only because a ledger row needs a loan, and the netting used to
+    happen inside that loan: a customer with loans #7 and #12 who paid 200.000 ahead had it
+    all parked on #7, so when #12 was billed 50.000 a month later it found no advance of its
+    own, went overdue and started accruing a penalty while the customer's own money sat
+    unused next door — the statement showing "200.000 in credit" and "50.000 overdue" at once.
+
+    So the pool is pooled across every loan of the customers involved, and consumed in the
+    same order money is applied at the counter: oldest due date first, across loans.
+    """
+    loans_by_id = {loan.id: loan for loan in loans}
+
+    # Expanding to the whole book costs three more queries, and `Loan.interest_due` evaluates
+    # this once per row of a listing. With no advance to share there is nothing to net across
+    # loans and per-loan arithmetic gives the identical answer, so the expansion is bought
+    # only when a pool actually exists — which is rare, since an advance is only created when
+    # a customer pays interest with no period pending.
+    if _customers_hold_advances(db, loans):
+        customer_ids = {loan.customer_id for loan in loans}
+        for loan in db.scalars(select(Loan).where(Loan.customer_id.in_(customer_ids))).all():
+            # A caller can hand us a loan in a different session state; keep theirs authoritative.
+            loans_by_id.setdefault(loan.id, loan)
+
+    charges = _charges_for_loans(db, list(loans_by_id))
+    events_by_charge, advances_by_loan = _split_events(_active_events_for_loans(db, list(loans_by_id)))
+
+    pending_by_charge = {
+        charge.id: round(max(0.0, charge.amount - _sum_interest(events_by_charge.get(charge.id, []))), 2)
+        for charge in charges
+    }
+
+    def _due(charge: InterestCharge) -> date:
+        loan = loans_by_id[charge.loan_id]
+        return charge_due_date(charge.period_end, grace_days_for_loan(loan, configured_grace_days))
+
+    pool = round(sum(advances_by_loan.values()), 2)
+    for charge in sorted(charges, key=lambda item: (_due(item), item.loan_id, item.id)):
+        if pool <= 0:
+            break
+        owed = pending_by_charge[charge.id]
+        if owed <= 0:
+            continue
+        applied = round(min(pool, owed), 2)
+        pending_by_charge[charge.id] = round(owed - applied, 2)
+        pool = round(pool - applied, 2)
+
+    # Hand the unused remainder back to the loans that hold the advance rows, so summing it
+    # across a customer's loans still equals their one credit balance.
+    advance_left_by_loan: dict[int, float] = {}
+    remaining = pool
+    for loan_id in sorted(advances_by_loan):
+        share = round(min(advances_by_loan[loan_id], remaining), 2)
+        advance_left_by_loan[loan_id] = share
+        remaining = round(remaining - share, 2)
+
+    charges_by_loan: dict[int, list[InterestCharge]] = {}
     for charge in charges:
-        pending = round(max(0.0, charge.amount - _sum_interest(events_by_charge.get(charge.id, []))), 2)
+        charges_by_loan.setdefault(charge.loan_id, []).append(charge)
 
-        # Advances are consumed oldest period first, mirroring the allocation order.
-        if advance_pool > 0 and pending > 0:
-            applied = round(min(advance_pool, pending), 2)
-            pending = round(pending - applied, 2)
-            advance_pool = round(advance_pool - applied, 2)
-
-        pending_by_charge[charge.id] = pending
-
-    return pending_by_charge, advance_pool
+    return _NettedBook(
+        loans_by_id=loans_by_id,
+        charges_by_loan=charges_by_loan,
+        events_by_charge=events_by_charge,
+        pending_by_charge=pending_by_charge,
+        advance_left_by_loan=advance_left_by_loan,
+    )
 
 
 def _build_loan_balance(
     loan: Loan,
     charges: list[InterestCharge],
     events_by_charge: dict[int, list[PaymentEvent]],
-    advance_events: list[PaymentEvent],
+    pending_by_charge: dict[int, float],
+    advance_pool: float,
     as_of_date: date,
     configured_grace_days: int,
 ) -> LoanInterestBalance:
-    pending_by_charge, advance_pool = _pending_interest_by_charge(charges, events_by_charge, advance_events)
     items: list[PendingInterestItem] = []
 
     for charge in charges:
@@ -206,31 +300,24 @@ def pending_interest_for_loans(
     loans: list[Loan],
     as_of_date: date,
 ) -> dict[int, LoanInterestBalance]:
-    """Pending interest for several loans using a fixed number of queries."""
-    loan_ids = [loan.id for loan in loans]
+    """Pending interest for several loans using a fixed number of queries.
+
+    The netting spans the whole book of the customers involved, so asking about one loan and
+    asking about all of them can never report that loan differently.
+    """
+    if not loans:
+        return {}
+
     configured_grace_days = default_grace_days(db)
-    charges = _charges_for_loans(db, loan_ids)
-    events = _active_events_for_loans(db, loan_ids)
-
-    charges_by_loan: dict[int, list[InterestCharge]] = {}
-    for charge in charges:
-        charges_by_loan.setdefault(charge.loan_id, []).append(charge)
-
-    events_by_charge: dict[int, list[PaymentEvent]] = {}
-    advances_by_loan: dict[int, list[PaymentEvent]] = {}
-    for event in events:
-        if event.interest_charge_id is None:
-            if event.payment_type == ADVANCE_PAYMENT_TYPE:
-                advances_by_loan.setdefault(event.loan_id, []).append(event)
-            continue
-        events_by_charge.setdefault(event.interest_charge_id, []).append(event)
+    book = _net_customer_book(db, loans, configured_grace_days)
 
     return {
         loan.id: _build_loan_balance(
-            loan=loan,
-            charges=charges_by_loan.get(loan.id, []),
-            events_by_charge=events_by_charge,
-            advance_events=advances_by_loan.get(loan.id, []),
+            loan=book.loans_by_id.get(loan.id, loan),
+            charges=book.charges_by_loan.get(loan.id, []),
+            events_by_charge=book.events_by_charge,
+            pending_by_charge=book.pending_by_charge,
+            advance_pool=book.advance_left_by_loan.get(loan.id, 0.0),
             as_of_date=as_of_date,
             configured_grace_days=configured_grace_days,
         )
@@ -244,33 +331,15 @@ def pending_interest_by_charge_for_loans(db: Session, loans: list[Loan]) -> dict
     Same derivation as the balances above — it is what the penalty freeze uses as its base,
     so a frozen penalty and the screen it came from can never disagree.
     """
-    loan_ids = [loan.id for loan in loans]
-    charges = _charges_for_loans(db, loan_ids)
-    events = _active_events_for_loans(db, loan_ids)
+    if not loans:
+        return {}
 
-    charges_by_loan: dict[int, list[InterestCharge]] = {}
-    for charge in charges:
-        charges_by_loan.setdefault(charge.loan_id, []).append(charge)
-
-    events_by_charge: dict[int, list[PaymentEvent]] = {}
-    advances_by_loan: dict[int, list[PaymentEvent]] = {}
-    for event in events:
-        if event.interest_charge_id is None:
-            if event.payment_type == ADVANCE_PAYMENT_TYPE:
-                advances_by_loan.setdefault(event.loan_id, []).append(event)
-            continue
-        events_by_charge.setdefault(event.interest_charge_id, []).append(event)
-
-    pending: dict[int, float] = {}
-    for loan in loans:
-        by_charge, _ = _pending_interest_by_charge(
-            charges_by_loan.get(loan.id, []),
-            events_by_charge,
-            advances_by_loan.get(loan.id, []),
-        )
-        pending.update(by_charge)
-
-    return pending
+    book = _net_customer_book(db, loans, default_grace_days(db))
+    return {
+        charge.id: book.pending_by_charge[charge.id]
+        for loan in loans
+        for charge in book.charges_by_loan.get(loan.id, [])
+    }
 
 
 def pending_interest_for_loan(db: Session, loan: Loan, as_of_date: date) -> LoanInterestBalance:
@@ -320,26 +389,29 @@ def pending_interest_total_for_loan(db: Session, loan: Loan, as_of_date: date) -
 
 
 def sync_interest_charge_statuses(db: Session, loan_id: int) -> None:
-    """Refresh the cached ``InterestCharge.status`` from the active ledger rows."""
-    charges = _charges_for_loans(db, [loan_id])
-    events = _active_events_for_loans(db, [loan_id])
+    """Refresh the cached ``InterestCharge.status`` from what the period actually still owes.
 
-    events_by_charge: dict[int, list[PaymentEvent]] = {}
-    for event in events:
-        if event.interest_charge_id is not None:
-            events_by_charge.setdefault(event.interest_charge_id, []).append(event)
+    Derived from the netted balance rather than from the charge's own ledger rows, so a
+    period covered by the customer's advance reads as ``paid`` instead of sitting at
+    ``generated`` while every balance in the system agreed it owed nothing.
+    """
+    loan = db.get(Loan, loan_id)
+    if loan is None:
+        return
 
-    for charge in charges:
+    book = _net_customer_book(db, [loan], default_grace_days(db))
+
+    for charge in book.charges_by_loan.get(loan_id, []):
         # A zero charge is a period that was never billed, marked as such so the generator
         # does not decide to bill it years later. There is nothing to keep in sync, and
         # overwriting its status would erase the only record of why the month is missing.
         if charge.amount <= 0:
             continue
 
-        paid_interest = _sum_interest(events_by_charge.get(charge.id, []))
-        if paid_interest <= 0:
-            charge.status = "generated"
-        elif paid_interest >= round(charge.amount, 2):
+        pending = book.pending_by_charge.get(charge.id, 0.0)
+        if pending <= 0:
             charge.status = "paid"
+        elif pending >= round(charge.amount, 2):
+            charge.status = "generated"
         else:
             charge.status = "partially_paid"

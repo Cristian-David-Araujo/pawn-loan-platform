@@ -9,6 +9,7 @@ from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.finance.allocation import AllocationTarget, allocate_oldest_first
+from src.modules.finance.locks import lock_customer_loans, lock_loans
 from src.modules.finance.interest_balance import (
     charge_due_date,
     default_grace_days,
@@ -144,6 +145,10 @@ def pay_interest(
 
     payment_date = payload.payment_date or get_local_date(db)
 
+    # Allocation and the advance pool both span the customer's whole book, so the book is
+    # what has to hold still between reading the balances and writing the ledger rows.
+    lock_customer_loans(db, payload.customer_id)
+
     items = _pending_interest_items_for_customer(db, payload.customer_id, payment_date)
     if not items:
         loan = db.scalar(
@@ -185,9 +190,7 @@ def pay_interest(
             notes=payload.notes,
         )
         db.add(event)
-        db.commit()
-        db.refresh(event)
-
+        db.flush()
         write_audit(
             db,
             action="interest_advance_payment",
@@ -195,7 +198,10 @@ def pay_interest(
             entity_id=str(event.id),
             user=current_user,
             new_data=f"customer={payload.customer_id},amount={advance_amount}",
+            commit=False,
         )
+        db.commit()
+        db.refresh(event)
 
         return InterestPaymentResponse(
             customer_id=payload.customer_id,
@@ -350,8 +356,9 @@ def pay_interest(
     for loan_id in {item.loan_id for item in allocations}:
         sync_interest_charge_statuses(db, loan_id)
 
-    db.commit()
-
+    # Same transaction as the money: written after the commit, this row is a second
+    # transaction that can fail while the payment stands, leaving a collection nobody
+    # appears to have taken.
     write_audit(
         db,
         action="interest_payment",
@@ -359,7 +366,9 @@ def pay_interest(
         entity_id=f"customer={payload.customer_id}",
         user=current_user,
         new_data=f"entered={payload.total_amount},allocated={total_allocated}",
+        commit=False,
     )
+    db.commit()
 
     return InterestPaymentResponse(
         customer_id=payload.customer_id,
@@ -503,6 +512,7 @@ def pay_principal(
 
     payment_date = payload.payment_date or get_local_date(db)
     targets = _resolve_principal_targets(db, payload)
+    lock_loans(db, targets)
 
     total_capacity = round(sum(loan.outstanding_principal for loan in targets), 2)
     if round(payload.total_amount, 2) > total_capacity:
@@ -588,11 +598,10 @@ def pay_principal(
     if not allocations:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to allocate payment")
 
-    db.commit()
-
     total_allocated = round(sum(item.allocated_to_principal for item in allocations), 2)
     write_audit(
         db,
+        commit=False,
         action="principal_payment",
         entity_type="PaymentEvent",
         entity_id=str(allocations[0].payment_event_id),
@@ -602,6 +611,7 @@ def pay_principal(
             f"amount={total_allocated}"
         ),
     )
+    db.commit()
 
     first = allocations[0]
     return PrincipalPaymentResponse(
@@ -806,11 +816,9 @@ def reverse_payment(
     for loan_id in affected_loan_ids:
         sync_interest_charge_statuses(db, loan_id)
 
-    db.commit()
-    db.refresh(payment)
-
     write_audit(
         db,
+        commit=False,
         action="reverse_payment",
         entity_type="Payment",
         entity_id=str(payment.id),
@@ -825,6 +833,9 @@ def reverse_payment(
             f"principal_restored={restored_by_loan},reason={payment.reversal_reason}"
         ),
     )
+
+    db.commit()
+    db.refresh(payment)
 
     return payment
 

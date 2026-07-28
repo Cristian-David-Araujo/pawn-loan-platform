@@ -9,6 +9,7 @@ from src.infrastructure.persistence.models import CollateralItem, Loan, Payment,
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.collateral.schemas import CollateralCreate, CollateralRead, CollateralUpdate, CollateralSell
 from src.modules.finance.allocation import AllocationTarget, allocate_oldest_first
+from src.modules.finance.locks import lock_loans
 from src.modules.finance.interest_balance import (
     pending_interest_for_loan,
     pending_interest_total_for_loan,
@@ -292,6 +293,8 @@ def sell_collateral(
     loan = db.get(Loan, item.loan_id)
     if loan is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Linked loan not found")
+
+    lock_loans(db, [loan])
 
     today = get_local_date(db)
     balance = pending_interest_for_loan(db, loan, today)
