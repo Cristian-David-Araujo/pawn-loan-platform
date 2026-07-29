@@ -13,7 +13,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, PaymentEvent
+from src.infrastructure.persistence.models import (
+    Customer,
+    GlobalSettings,
+    InterestCharge,
+    Loan,
+    PaymentEvent,
+)
+from src.infrastructure.tasks.interest_scheduler import run_interest_generation_cycle
 
 
 def _configure(db_session: Session, *, grace_days: int = 5, lead_days: int = 0) -> None:
@@ -487,3 +494,120 @@ def test_editing_a_loan_no_longer_requires_resending_rate_and_status(
     body = response.json()
     assert body["monthly_interest_rate"] == loan["monthly_interest_rate"]
     assert body["status"] == loan["status"]
+
+
+def test_a_backlogged_period_is_billed_on_the_principal_it_carried(db_session: Session) -> None:
+    """A cycle catching up must not bill old periods on today's balance.
+
+    The amount used to be `outstanding_principal * rate` against the balance at the moment
+    the cycle ran, which is the balance the period carried only while the cycle is on time.
+    Stopped for three months over a 700.000 principal payment, it billed all three backlogged
+    periods on the remaining 300.000 — two of them at a third of what was owed, silently.
+    """
+    db_session.add(GlobalSettings(id=1, default_grace_days=0, interest_generation_lead_days=0))
+    customer = Customer(first_name="Ana", last_name="Perez", document_type="ID", document_number="DOC-BASE")
+    db_session.add(customer)
+    db_session.commit()
+
+    disbursed = date.today() - timedelta(days=95)
+    loan = Loan(
+        customer_id=customer.id, loan_type="personal", principal_amount=1000000,
+        outstanding_principal=300000, monthly_interest_rate=3, late_penalty_rate=0,
+        disbursement_date=disbursed, due_day=0,
+    )
+    db_session.add(loan)
+    db_session.commit()
+
+    # Paid on day 40: after the first period ended, before the other two.
+    db_session.add(
+        PaymentEvent(
+            payment_type="principal_payment", loan_id=loan.id, total_entered_amount=700000,
+            allocated_to_principal=700000, payment_date=disbursed + timedelta(days=40),
+        )
+    )
+    db_session.commit()
+
+    run_interest_generation_cycle(as_of_date=date.today(), db_session=db_session)
+
+    charges = _charges(db_session, loan.id)
+    assert [charge.amount for charge in charges] == [30000.0, 9000.0, 9000.0]
+    assert [charge.principal_base for charge in charges] == [1000000.0, 300000.0, 300000.0]
+
+
+def test_moving_the_disbursement_date_keeps_every_invoiced_period(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Re-anchoring a loan may not delete what has already been invoiced.
+
+    `PUT /loans/{id}` re-derives every period from the disbursement date, and used to delete
+    each charge that no longer matched and carried no payment — taking with it the late
+    penalties frozen on those periods and the zero-amount markers that record a month which
+    was deliberately never billed. A two-day correction rewrote months of history.
+    """
+    _configure(db_session, grace_days=0)
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=95)
+
+    before = _charges(db_session, loan["id"])
+    assert len(before) == 3
+    assert all(charge.penalty_applied_at is not None for charge in before)
+    frozen_penalty = round(sum(charge.penalty_amount for charge in before), 2)
+    assert frozen_penalty > 0
+
+    marker = InterestCharge(
+        loan_id=loan["id"],
+        period_start=date.today() - timedelta(days=400),
+        period_end=date.today() - timedelta(days=370),
+        charge_date=date.today() - timedelta(days=370),
+        amount=0.0,
+        status="not_billed",
+    )
+    db_session.add(marker)
+    db_session.commit()
+    marker_id = marker.id
+
+    shifted = (date.today() - timedelta(days=93)).isoformat()
+    response = client.put(f"/api/v1/loans/{loan['id']}", headers=auth_headers, json={"disbursement_date": shifted})
+    assert response.status_code == 200, response.text
+
+    after = _charges(db_session, loan["id"])
+    assert {charge.id for charge in before} <= {charge.id for charge in after}, "an invoiced period was deleted"
+    assert round(sum(charge.penalty_amount or 0 for charge in after), 2) == frozen_penalty
+    assert db_session.get(InterestCharge, marker_id) is not None, "the not_billed marker was deleted"
+    # The new anchor may not bill a stretch of time an existing invoice already covers.
+    spans = sorted((charge.period_start, charge.period_end) for charge in after if charge.amount > 0)
+    assert all(spans[index][1] <= spans[index + 1][0] for index in range(len(spans) - 1)), "periods overlap"
+
+
+def test_a_defaulted_loan_stops_accruing_late_penalties(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """Foreclosing stops interest; the late penalty is interest by another name.
+
+    Accrual already excluded `defaulted` — collecting through the pledge is the decision not
+    to keep charging — but the freeze ran off `penalty_applied_at IS NULL` alone, so a period
+    billed before the foreclosure still grew a penalty afterwards.
+    """
+    _configure(db_session, grace_days=0, lead_days=15)
+    customer = create_customer()
+    loan = _open_loan(client, auth_headers, customer["id"], disbursed_days_ago=0)
+
+    # Billed early thanks to the lead days, but not due yet, so no penalty is frozen.
+    run_interest_generation_cycle(as_of_date=date.today() + timedelta(days=20), db_session=db_session)
+    charges = _charges(db_session, loan["id"])
+    assert len(charges) == 1
+    assert charges[0].penalty_applied_at is None
+
+    assert client.post(f"/api/v1/loans/{loan['id']}/foreclose", headers=auth_headers, json={}).status_code == 200
+
+    run_interest_generation_cycle(as_of_date=date.today() + timedelta(days=40), db_session=db_session)
+
+    charges = _charges(db_session, loan["id"])
+    assert len(charges) == 1, "a defaulted loan kept accruing interest"
+    assert charges[0].penalty_amount is None, "a defaulted loan was charged a late penalty"

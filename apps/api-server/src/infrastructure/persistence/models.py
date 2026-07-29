@@ -190,6 +190,11 @@ class InterestCharge(Base):
     period_end: Mapped[date] = mapped_column(Date)
     charge_date: Mapped[date] = mapped_column(Date)
     amount: Mapped[float] = mapped_column(Float)
+    # The principal this period was billed on. `amount` is derived from the loan's balance
+    # at the time the cycle runs, which is only the balance the period actually carried
+    # while the cycle is on time; recording the base is what makes a backdated generation
+    # auditable instead of a number nobody can reconstruct. NULL on rows that predate it.
+    principal_base: Mapped[float | None] = mapped_column(Float, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="generated")
     # The late penalty is a fact, not a formula. It used to be derived on every read from
     # the interest still pending, so it shrank as the customer paid and a change of
