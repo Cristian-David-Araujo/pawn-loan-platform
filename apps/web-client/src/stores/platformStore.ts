@@ -146,7 +146,6 @@ interface UpdateCollateralPayload {
   description: string
   appraisedValue: number
   storageLocation: string
-  status: CollateralItem['status']
 }
 
 interface CreatePaymentPayload {
@@ -588,11 +587,12 @@ const updateCollateral = async (payload: UpdateCollateralPayload) => {
   await apiClient.request<BackendCollateral>(`/collateral-items/${payload.id}`, {
     method: 'PUT',
     body: JSON.stringify({
+      // No status: custody moves through release / foreclose / liquidate / sell, each of
+      // which checks the loan first. The API rejects a change sent through this route.
       loan_id: payload.loanId,
       description: payload.description,
       appraised_value: payload.appraisedValue,
-      storage_location: payload.storageLocation,
-      status: payload.status === 'in-custody' ? 'in_custody' : payload.status
+      storage_location: payload.storageLocation
     })
   })
 

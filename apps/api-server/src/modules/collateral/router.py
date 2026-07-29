@@ -117,11 +117,22 @@ def update_collateral_item(
     if loan.status == LoanStatus.closed:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Cannot register collateral for closed loan")
 
+    # Custody transitions are not an editable field. `release` checks the loan owes nothing
+    # (`_assert_loan_fully_settled`), `for_sale` is what a foreclosure decides, and only an
+    # administrator may `liquidate` or `sell`. Writing `status` through here walked past all
+    # of it: a loan officer could set "released" on a pledge backing a loan with its whole
+    # principal outstanding — handing back the only security on the debt — and any string at
+    # all was accepted, so a typo became a status no screen knows how to render.
+    if payload.status is not None and payload.status != item.status:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Collateral status changes through the release, foreclosure, liquidation and sale endpoints",
+        )
+
     item.loan_id = payload.loan_id
     item.description = payload.description
     item.appraised_value = payload.appraised_value
     item.storage_location = payload.storage_location
-    item.status = payload.status
     db.commit()
     db.refresh(item)
 

@@ -6,10 +6,7 @@ from sqlalchemy.orm import Session
 
 from src.domain.enums.user import UserRole
 from src.infrastructure.persistence.models import User
-from src.infrastructure.tasks.interest_scheduler import (
-    release_cycle_lock,
-    try_acquire_cycle_lock,
-)
+from src.infrastructure.tasks.interest_scheduler import interest_cycle_lock
 from src.modules.backup.restore import (
     IMPORT_CONFIRMATION,
     ArchiveImportError,
@@ -113,18 +110,17 @@ async def import_all_data(
         )
 
     # The interest scheduler must not write while the tables are being replaced.
-    if not try_acquire_cycle_lock(db):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A background interest job is running. Try again in a moment.",
-        )
+    with interest_cycle_lock(db) as acquired:
+        if not acquired:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A background interest job is running. Try again in a moment.",
+            )
 
-    try:
-        analysis = restore_archive(db, content)
-    except ArchiveImportError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    finally:
-        release_cycle_lock(db)
+        try:
+            analysis = restore_archive(db, content)
+        except ArchiveImportError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     write_audit(
         db,

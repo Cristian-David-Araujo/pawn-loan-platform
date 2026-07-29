@@ -226,3 +226,44 @@ def test_reversing_the_advance_puts_the_debt_back(
     after = _pending(client, auth_headers, customer["id"])
     assert after["total_pending_interest"] == 150000
     assert after["available_advance_balance"] == 0
+
+
+def test_an_advance_never_reaches_another_customers_debt(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """The pool is a customer's own money, and the batch it is netted in spans the book.
+
+    `freeze_due_penalties`, `refresh_overdue_loan_statuses` and `/reports/overdue-loans` all
+    net every loan they are looking at in one call. Pooling advances across that whole batch
+    let one customer's credit settle another customer's period: the second customer's late
+    penalty was frozen at zero for good, their loan never turned `overdue`, and they dropped
+    out of the arrears report — while their own screen still showed the debt.
+    """
+    _configure(db_session)
+    ana = create_customer(document_number="ANA-POOL")
+    beto = create_customer(document_number="BETO-POOL")
+    _loan(client, auth_headers, ana["id"], principal=1000000, penalty=5)
+    beto_loan = _loan(client, auth_headers, beto["id"], principal=1000000, penalty=5)
+
+    paid = client.post(
+        "/api/v1/payments/interest",
+        headers=auth_headers,
+        json={"customer_id": ana["id"], "total_amount": 200000, "payment_method": "cash"},
+    )
+    assert paid.status_code == 200, paid.text
+
+    run_interest_generation_cycle(as_of_date=date.today() + timedelta(days=35), db_session=db_session)
+    db_session.expire_all()
+
+    charge = db_session.scalar(select(InterestCharge).where(InterestCharge.loan_id == beto_loan["id"]))
+    assert charge.penalty_amount == 2500, "another customer's advance paid Beto's penalty"
+    assert db_session.get(Loan, beto_loan["id"]).status == LoanStatus.overdue
+
+    report = client.get("/api/v1/reports/overdue-loans", headers=auth_headers).json()
+    assert beto_loan["id"] in [item["id"] for item in report["items"]], "Beto vanished from the arrears report"
+
+    # Ana keeps her own credit: 50.000 of the 200.000 went to her period.
+    assert _pending(client, auth_headers, ana["id"])["available_advance_balance"] == 150000
