@@ -185,8 +185,14 @@ def _net_customer_book(db: Session, loans: list[Loan], configured_grace_days: in
     own, went overdue and started accruing a penalty while the customer's own money sat
     unused next door — the statement showing "200.000 in credit" and "50.000 overdue" at once.
 
-    So the pool is pooled across every loan of the customers involved, and consumed in the
-    same order money is applied at the counter: oldest due date first, across loans.
+    So the pool is pooled across every loan of **one** customer, and consumed in the same
+    order money is applied at the counter: oldest due date first, across their loans. It is
+    never pooled further than that: the batch handed in here routinely spans the whole
+    portfolio (the penalty freeze, the overdue transition job and the arrears report all
+    call this with every loan they are looking at), and a single global pool meant one
+    customer's credit silently settled another customer's period — erasing the second
+    customer's late penalty for good, keeping their loan out of `overdue`, and dropping
+    them from the arrears report, while their own screen still showed the debt.
     """
     loans_by_id = {loan.id: loan for loan in loans}
 
@@ -213,25 +219,32 @@ def _net_customer_book(db: Session, loans: list[Loan], configured_grace_days: in
         loan = loans_by_id[charge.loan_id]
         return charge_due_date(charge.period_end, grace_days_for_loan(loan, configured_grace_days))
 
-    pool = round(sum(advances_by_loan.values()), 2)
-    for charge in sorted(charges, key=lambda item: (_due(item), item.loan_id, item.id)):
-        if pool <= 0:
-            break
-        owed = pending_by_charge[charge.id]
-        if owed <= 0:
-            continue
-        applied = round(min(pool, owed), 2)
-        pending_by_charge[charge.id] = round(owed - applied, 2)
-        pool = round(pool - applied, 2)
+    loan_ids_by_customer: dict[int, set[int]] = {}
+    for loan in loans_by_id.values():
+        loan_ids_by_customer.setdefault(loan.customer_id, set()).add(loan.id)
 
-    # Hand the unused remainder back to the loans that hold the advance rows, so summing it
-    # across a customer's loans still equals their one credit balance.
     advance_left_by_loan: dict[int, float] = {}
-    remaining = pool
-    for loan_id in sorted(advances_by_loan):
-        share = round(min(advances_by_loan[loan_id], remaining), 2)
-        advance_left_by_loan[loan_id] = share
-        remaining = round(remaining - share, 2)
+    for customer_loan_ids in loan_ids_by_customer.values():
+        pool = round(sum(advances_by_loan.get(loan_id, 0.0) for loan_id in customer_loan_ids), 2)
+        if pool > 0:
+            customer_charges = [charge for charge in charges if charge.loan_id in customer_loan_ids]
+            for charge in sorted(customer_charges, key=lambda item: (_due(item), item.loan_id, item.id)):
+                if pool <= 0:
+                    break
+                owed = pending_by_charge[charge.id]
+                if owed <= 0:
+                    continue
+                applied = round(min(pool, owed), 2)
+                pending_by_charge[charge.id] = round(owed - applied, 2)
+                pool = round(pool - applied, 2)
+
+        # Hand the unused remainder back to the loans that hold the advance rows, so summing
+        # it across a customer's loans still equals their one credit balance.
+        remaining = pool
+        for loan_id in sorted(loan_id for loan_id in customer_loan_ids if loan_id in advances_by_loan):
+            share = round(min(advances_by_loan[loan_id], remaining), 2)
+            advance_left_by_loan[loan_id] = share
+            remaining = round(remaining - share, 2)
 
     charges_by_loan: dict[int, list[InterestCharge]] = {}
     for charge in charges:
