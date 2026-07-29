@@ -722,9 +722,11 @@
               {{ t('collateral.storageLocation') }}
               <input v-model="collateralEditForm.storageLocation" required />
             </label>
+            <!-- Custody state is not an editable field: handing a pledge back, foreclosing
+                 it or selling it each have their own action, and each checks the debt first. -->
             <label>
               {{ t('common.status') }}
-              <CustomSelect v-model="collateralEditForm.status" :options="collateralStatusOptions" />
+              <p class="form-static-value">{{ collateralStatusLabel(collateralEditForm.status) }}</p>
             </label>
           </div>
           <button class="btn" type="submit" :disabled="isSaving">
@@ -1516,8 +1518,7 @@ const handleUpdateCollateral = async () => {
       loanId: collateralEditForm.loanId,
       description: collateralEditForm.description,
       appraisedValue: collateralEditForm.appraisedValue,
-      storageLocation: collateralEditForm.storageLocation,
-      status: collateralEditForm.status
+      storageLocation: collateralEditForm.storageLocation
     })
 
     message.value = t(result.messageKey)
@@ -1768,11 +1769,23 @@ const collateralLoanIdOptions = computed(() =>
   selectedCustomerLoans.value.map(l => ({ value: l.id, label: '#' + l.id }))
 )
 
-const collateralStatusOptions = computed(() => [
-  { value: 'in-custody', label: t('common.inCustody') },
-  { value: 'released', label: t('common.released') },
-  { value: 'liquidated', label: t('common.liquidated') }
-])
+const collateralStatusLabel = (status: string) => {
+  switch (status) {
+    case 'in-custody':
+    case 'in_custody':
+      return t('common.inCustody')
+    case 'released':
+      return t('common.released')
+    case 'liquidated':
+      return t('common.liquidated')
+    case 'for_sale':
+      return t('collaterals.statusForSale')
+    case 'sold':
+      return t('collaterals.statusSold')
+    default:
+      return status
+  }
+}
 
 const paymentMethodOptions = computed(() => [
   { value: 'cash', label: t('common.cash') },

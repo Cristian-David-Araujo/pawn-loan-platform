@@ -288,3 +288,54 @@ def test_a_new_user_needs_a_password_worth_the_name(
         json={"username": "solid", "password": "longenough1", "role": "collector"},
     )
     assert ok.status_code == 201, ok.text
+
+
+def test_editing_a_pledge_cannot_change_its_custody_status(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_customer,
+    db_session: Session,
+) -> None:
+    """`PUT /collateral-items/{id}` edits the description, never the custody state.
+
+    Every route that moves a pledge checks something first: `release` refuses while the loan
+    owes anything, `for_sale` is what a foreclosure decides, and writing one off or selling
+    it is administrator-only. The edit endpoint wrote `payload.status` straight through, so a
+    loan officer could set "released" on the security of a loan with its full principal
+    outstanding — and any string at all was accepted, including ones no screen can render.
+    """
+    _configure(db_session)
+    officer = _headers_for(client, db_session, "officer-status", UserRole.loan_officer)
+    customer = create_customer()
+    loan = _pawn_loan(client, auth_headers, customer["id"])
+    item_id = _pledge(client, auth_headers, loan["id"], "gold ring").json()["id"]
+
+    guarded = client.post(f"/api/v1/collateral-items/{item_id}/release", headers=officer)
+    assert guarded.status_code == 400, "the guarded route should refuse while the loan owes"
+
+    body = {
+        "loan_id": loan["id"], "description": "gold ring", "appraised_value": 500000,
+        "storage_location": "box 1",
+    }
+    bypass = client.put(f"/api/v1/collateral-items/{item_id}", headers=officer, json={**body, "status": "released"})
+    assert bypass.status_code == 400, "the edit endpoint released a pledge of an indebted loan"
+
+    junk = client.put(f"/api/v1/collateral-items/{item_id}", headers=officer, json={**body, "status": "banana"})
+    assert junk.status_code == 400
+
+    db_session.expire_all()
+    assert db_session.get(CollateralItem, item_id).status == "in_custody"
+
+    # Editing the descriptive fields still works, with or without echoing the status back.
+    renamed = client.put(
+        f"/api/v1/collateral-items/{item_id}",
+        headers=officer,
+        json={**body, "description": "gold ring, engraved", "status": "in_custody"},
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert client.put(f"/api/v1/collateral-items/{item_id}", headers=officer, json=body).status_code == 200
+
+    db_session.expire_all()
+    item = db_session.get(CollateralItem, item_id)
+    assert item.description == "gold ring"
+    assert item.status == "in_custody"
