@@ -1,4 +1,6 @@
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date, timedelta
 from threading import Event, Thread
 
@@ -10,7 +12,7 @@ from src.infrastructure.persistence.models import GlobalSettings, Loan
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_generation import (
     ACCRUING_STATUSES,
-    generate_missing_interest_charges_for_loan,
+    generate_missing_interest_charges,
 )
 from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.modules.finance.penalties import describe_frozen_penalties, freeze_due_penalties
@@ -24,21 +26,50 @@ logger = logging.getLogger(__name__)
 INTEREST_CYCLE_LOCK_ID = 9021002
 
 
-def try_acquire_cycle_lock(db: Session) -> bool:
+@contextmanager
+def interest_cycle_lock(db: Session) -> Iterator[bool]:
+    """Hold the cycle lock on a connection of its own, for the whole block.
+
+    ``pg_try_advisory_lock`` is session level: it lives on the *connection*, not on the
+    transaction. This used to be taken on the caller's ``Session``, which commits up to
+    three times before releasing — and a Session hands its connection back to the pool on
+    every commit. Any request served in between could check that connection out, leaving
+    the cycle on a different one: ``pg_advisory_unlock`` then ran where the lock had never
+    been taken, returned ``false`` (a value nobody looked at), and the lock stayed on a
+    pooled connection forever. From the next cycle on, every worker read "another worker is
+    already running it" and interest generation silently stopped until a restart.
+
+    Taking a dedicated connection makes the unlock run where the lock is, by construction.
+    Yields whether the lock was acquired; the caller decides what to do when it was not.
+    """
     if db.get_bind().dialect.name != "postgresql":
-        return True
-
-    return bool(db.scalar(text("SELECT pg_try_advisory_lock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID}))
-
-
-def release_cycle_lock(db: Session) -> None:
-    if db.get_bind().dialect.name != "postgresql":
+        # SQLite has no advisory locks and serialises writes anyway — the same
+        # short-circuit the money-path row locks take.
+        yield True
         return
 
+    connection = db.get_bind().connect()
+    acquired = False
     try:
-        db.execute(text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID})
-    except Exception:
-        logger.exception("Could not release the interest generation lock")
+        acquired = bool(
+            connection.scalar(text("SELECT pg_try_advisory_lock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID})
+        )
+        yield acquired
+    finally:
+        try:
+            if acquired:
+                released = connection.scalar(
+                    text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID}
+                )
+                if not released:
+                    # Cannot happen while the lock is held on this very connection, but a
+                    # lock that leaks stops the whole portfolio from being billed, so it
+                    # must never fail silently again.
+                    logger.error("The interest generation lock was not held by its own connection")
+        except Exception:
+            logger.exception("Could not release the interest generation lock")
+        finally:
+            connection.close()
 
 
 def run_interest_generation_cycle(
@@ -48,12 +79,19 @@ def run_interest_generation_cycle(
     db = db_session or SessionLocal()
     should_close_session = db_session is None
 
-    if not try_acquire_cycle_lock(db):
-        logger.info("Interest generation cycle skipped: another worker is already running it")
+    try:
+        with interest_cycle_lock(db) as acquired:
+            if not acquired:
+                logger.info("Interest generation cycle skipped: another worker is already running it")
+                return 0
+
+            return _run_cycle_body(db, as_of_date)
+    finally:
         if should_close_session:
             db.close()
-        return 0
 
+
+def _run_cycle_body(db: Session, as_of_date: date | None) -> int:
     try:
         settings = db.get(GlobalSettings, 1)
         lead_days = max(0, settings.interest_generation_lead_days) if settings is not None else 0
@@ -61,16 +99,12 @@ def run_interest_generation_cycle(
         effective_as_of_date = reference_date + timedelta(days=lead_days)
 
         loans = list(db.scalars(select(Loan).where(Loan.status.in_(ACCRUING_STATUSES))).all())
-        generated = []
-        for loan in loans:
-            generated.extend(
-                generate_missing_interest_charges_for_loan(
-                    db=db,
-                    loan=loan,
-                    as_of_date=effective_as_of_date,
-                    charge_date=reference_date,
-                )
-            )
+        generated = generate_missing_interest_charges(
+            db=db,
+            loans=loans,
+            as_of_date=effective_as_of_date,
+            charge_date=reference_date,
+        )
 
         if generated:
             db.commit()
@@ -87,26 +121,30 @@ def run_interest_generation_cycle(
         # a balance, so the figure the collection screens show is the one that was recorded.
         frozen = freeze_due_penalties(db, reference_date)
         if frozen:
+            # Described before the commit: committing expires every instance, and reading
+            # the amounts back afterwards reloaded them one row at a time.
+            summary = describe_frozen_penalties(frozen)
             db.commit()
             write_audit(
                 db,
                 action="auto_freeze_late_penalties",
                 entity_type="InterestCharge",
                 entity_id=f"count={len(frozen)}",
-                new_data=f"as_of_date={reference_date},{describe_frozen_penalties(frozen)}",
+                new_data=f"as_of_date={reference_date},{summary}",
             )
 
         # Newly generated charges can push loans past their grace period, so statuses
         # are refreshed in the same cycle.
         transitions = refresh_overdue_loan_statuses(db, reference_date)
         if transitions:
+            summary = describe_transitions(transitions)
             db.commit()
             write_audit(
                 db,
                 action="auto_refresh_loan_statuses",
                 entity_type="Loan",
                 entity_id=f"count={len(transitions)}",
-                new_data=f"as_of_date={reference_date},{describe_transitions(transitions)}",
+                new_data=f"as_of_date={reference_date},{summary}",
             )
 
         return len(generated)
@@ -114,10 +152,6 @@ def run_interest_generation_cycle(
         db.rollback()
         logger.exception("Automatic interest generation cycle failed")
         return 0
-    finally:
-        release_cycle_lock(db)
-        if should_close_session:
-            db.close()
 
 
 class InterestGenerationScheduler:
