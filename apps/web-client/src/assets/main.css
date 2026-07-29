@@ -646,6 +646,18 @@ input[type="radio"] {
   font-size: 0.95rem;
 }
 
+/* A field the form shows but does not own: the value is set elsewhere, by an action that
+   has its own checks (a pledge's custody state, for instance). Reads as an input so the
+   layout holds, without inviting an edit that the API would refuse. */
+.form-static-value {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line-light);
+  border-radius: var(--radius-sm);
+  background: var(--surface-soft);
+  color: var(--muted);
+}
+
 .form-actions {
   display: flex;
   justify-content: flex-end;

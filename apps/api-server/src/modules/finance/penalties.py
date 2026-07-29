@@ -19,6 +19,7 @@ from datetime import date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan
 from src.modules.finance.interest_balance import (
     charge_due_date,
@@ -63,6 +64,14 @@ def freeze_due_penalties(db: Session, as_of_date: date) -> list[InterestCharge]:
     for charge in unfrozen:
         loan = loans_by_id.get(charge.loan_id)
         if loan is None:
+            continue
+
+        # Foreclosing is the decision to collect through the pledge instead of through more
+        # interest — which is why `ACCRUING_STATUSES` leaves `defaulted` out. A late penalty
+        # is more interest by another name, so it stops at the same line. A `closed` loan
+        # does keep accruing penalties: it can still owe (see `allow_with_unpaid_interest`),
+        # and that debt is collected at the counter like any other.
+        if loan.status == LoanStatus.defaulted:
             continue
 
         due_date = charge_due_date(charge.period_end, grace_days_for_loan(loan, configured_grace_days))

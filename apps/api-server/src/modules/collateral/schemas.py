@@ -18,7 +18,10 @@ class CollateralUpdate(BaseModel):
     description: str
     appraised_value: float
     storage_location: str
-    status: str
+    # Accepted so a client can round-trip the item it loaded, but it may only carry the
+    # status the pledge already has: custody moves through the dedicated endpoints, which
+    # are the ones that check the debt first.
+    status: str | None = None
 
 
 class CollateralRead(BaseModel):
