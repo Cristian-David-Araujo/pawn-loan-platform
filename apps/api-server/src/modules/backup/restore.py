@@ -179,6 +179,25 @@ def _check_administrator_access(users: list[dict[str, Any]], analysis: ImportAna
         )
 
 
+def _check_backup_destination(rows: list[dict[str, Any]], analysis: ImportAnalysis) -> None:
+    """Say out loud that a restore leaves Google Drive disconnected.
+
+    The export redacts the OAuth secret and refresh token on purpose — an archive carrying them
+    hands over the destination the archives are kept in — so a restore reloads a schedule that
+    is switched on and points at a Drive it can no longer reach. Left unsaid, the recurring
+    backup stops working at the exact moment the installation has just proved it needs one.
+    """
+    reconnect_needed = any(
+        row.get("destination") == "google_drive" or row.get("drive_client_id") for row in rows
+    )
+
+    if reconnect_needed:
+        analysis.warnings.append(
+            "The Google Drive credentials are not included in an export. Reconnect the Google "
+            "account from the settings screen after restoring, or the recurring backup will fail."
+        )
+
+
 def analyze_archive(db: Session, content: bytes) -> ImportAnalysis:
     """Inspect an archive against the live schema without writing anything."""
     analysis = ImportAnalysis()
@@ -212,6 +231,7 @@ def analyze_archive(db: Session, content: bytes) -> ImportAnalysis:
 
     entries = set(archive.namelist())
     users_rows: list[dict[str, Any]] = []
+    backup_settings_rows: list[dict[str, Any]] = []
 
     for table in Base.metadata.sorted_tables:
         current_rows = db.scalar(select(func.count()).select_from(table)) or 0
@@ -226,10 +246,13 @@ def analyze_archive(db: Session, content: bytes) -> ImportAnalysis:
 
         if table.name == "users":
             users_rows = rows
+        elif table.name == "backup_settings":
+            backup_settings_rows = rows
 
         analysis.tables.append(TablePlan(table.name, current_rows, len(rows)))
 
     _check_administrator_access(users_rows, analysis)
+    _check_backup_destination(backup_settings_rows, analysis)
 
     analysis.warnings.append(
         "Every table will be replaced. Export the current data first if you need a way back."

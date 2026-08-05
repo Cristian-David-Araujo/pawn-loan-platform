@@ -27,6 +27,8 @@
       </button>
     </article>
 
+    <ScheduledBackupCard />
+
     <article class="card mt-16">
       <h3>{{ t('settings.importDataTitle') }}</h3>
       <p class="muted">{{ t('settings.importDataHint') }}</p>
@@ -235,6 +237,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Download, Save, Settings, Sparkles, Upload } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
+import ScheduledBackupCard from '../components/ScheduledBackupCard.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY } from '../utils/date'
