@@ -154,7 +154,6 @@ jobs:
           user: ${{ secrets.DO_USER }}
           ssh_key_b64: ${{ secrets.DO_SSH_KEY_B64 }}
           ssh_key: ${{ secrets.DO_SSH_KEY }}
-          app_dir: ${{ secrets.DO_APP_DIR }}
           image_tag: ${{ steps.version.outputs.tag }}
           ghcr_user: ${{ github.actor }}
           ghcr_token: ${{ secrets.GITHUB_TOKEN }}
