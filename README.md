@@ -116,8 +116,12 @@ Required GitHub repository secrets:
 
 - `DO_HOST`: Droplet public IP or hostname.
 - `DO_USER`: SSH user (for example `root`).
-- `DO_SSH_KEY`: Private SSH key with access to the droplet.
-- `DO_APP_DIR` (optional): Repository directory in droplet. Defaults to `/opt/pawn-loan-platform`.
+- `DO_SSH_KEY_B64` (preferred) or `DO_SSH_KEY`: Private SSH key with access to the droplet.
+- `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, `ADMIN_PASSWORD`: the only production values not
+  versioned in `deploy/digitalocean/production.env`.
+
+The deploy path is not a secret: it is the `app_dir` input of
+`.github/actions/deploy-to-droplet`, defaulting to `/opt/pawn-loan-platform`.
 
 For a full step-by-step DigitalOcean guide, see:
 

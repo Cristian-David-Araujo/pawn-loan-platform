@@ -23,9 +23,12 @@ inputs:
     required: false
     default: ''
   app_dir:
-    description: Repository path on the droplet (secrets.DO_APP_DIR); defaults to /opt/pawn-loan-platform
+    # Deliberately a versioned input and not a secret. A deploy path is not sensitive, and
+    # masking it cost a failed release: a wrong value printed as `cd: ***: No such file or
+    # directory`, which says nothing about what it tried to enter. Override it here, in the diff.
+    description: Repository path on the droplet
     required: false
-    default: ''
+    default: /opt/pawn-loan-platform
   image_tag:
     description: Image tag to deploy (a release tag, or latest)
     required: true
@@ -106,7 +109,8 @@ runs:
         host: ${{ inputs.host }}
         username: ${{ inputs.user }}
         key_path: /tmp/do_key
-        script_stop: true
+        # No `script_stop`: this action version does not accept it and warns on every run. The
+        # `set -euo pipefail` below is what actually aborts the deploy on the first failure.
         envs: IMAGE_TAG,GHCR_USER,GHCR_TOKEN,POSTGRES_PASSWORD,JWT_SECRET_KEY,ADMIN_PASSWORD,DO_APP_DIR
         script: |
           set -euo pipefail
