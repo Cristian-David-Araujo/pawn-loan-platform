@@ -61,40 +61,80 @@ systemctl enable docker
 systemctl start docker
 ```
 
+## 5.1) Add Swap on a Small Droplet
+
+Skip this on 4 GB or more. On a 1–2 GB droplet, add swap before deploying: PostgreSQL, two
+uvicorn workers, nginx and Caddy fit, but with no headroom, and the kernel kills whichever
+process asks for memory at the wrong moment — usually Postgres, mid-write.
+
+```bash
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+sysctl -w vm.swappiness=10 && echo 'vm.swappiness=10' >> /etc/sysctl.conf
+```
+
+Images are never built on the droplet (they are pulled pre-built from GHCR), which is what makes
+a 1 GB box viable at all — `npm run build` on this hardware would be killed.
+
 ## 6) Clone Project and Configure Environment
 
 ```bash
 cd /opt
 git clone https://github.com/Cristian-David-Araujo/pawn-loan-platform.git
 cd pawn-loan-platform
-cp .env.production.example .env.production
 ```
 
-Edit `.env.production` and set secure values:
+That is the whole configuration step: **`.env.production` is not written by hand.** It is
+generated on every deploy by [remote_deploy.sh](../deploy/digitalocean/remote_deploy.sh) from
+two sources, so what production runs is reviewable in a diff instead of living only in a file
+someone edited over SSH:
 
-- `DOMAIN` (for example `app.example.com`)
-- `POSTGRES_PASSWORD`
-- `DATABASE_URL`
-- `JWT_SECRET_KEY` — **required**: the API refuses to start in production while this holds the
-  published development default. Generate one with `openssl rand -base64 48`.
-- `ADMIN_PASSWORD` — only seeds the admin account on the very first boot
-- `VITE_API_BASE_URL` (for example `https://app.example.com/api/v1`)
+| Source | Holds | Where to change it |
+| --- | --- | --- |
+| [deploy/digitalocean/production.env](../deploy/digitalocean/production.env) — versioned | every non-secret value: `DOMAIN`, `APP_ENV`, `POSTGRES_DB`/`USER`, admin username, bootstrap and interest-cycle flags, `VITE_API_BASE_URL` | edit the file, open a PR — it reaches production on the next deploy |
+| GitHub Actions secrets | `POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, `ADMIN_PASSWORD` only | Settings → Secrets and variables → Actions |
 
-Important: `DATABASE_URL` credentials must match `POSTGRES_USER` and `POSTGRES_PASSWORD`.
+`DATABASE_URL` is **composed** by the script from `POSTGRES_USER`, `POSTGRES_DB` and the
+password secret, so the credentials exist in exactly one place — a second literal copy inside a
+URL is how the two silently stop matching. Anything hand-edited into `.env.production` on the
+droplet is overwritten by the next deploy; the repository is the source of truth.
 
-`ADMIN_PASSWORD` is not the live credential. Once the account exists, the password lives in the
-database and the operator changes it from the users screen, so this variable goes stale by
-design — editing it later changes nothing. If the admin is ever locked out, set
-`ADMIN_PASSWORD_RESET_ON_STARTUP=true` for one boot and turn it back off; be aware that this
-overwrites whatever password the operator had set.
+Never put a secret in `production.env`: this repository is public.
+
+Two values deserve attention:
+
+- `JWT_SECRET_KEY` — the API refuses to start in production while this holds the published
+  development default, and the deploy script refuses even earlier. Generate one with
+  `openssl rand -hex 48`. Changing it later invalidates every open session, which is expected.
+- `ADMIN_PASSWORD` is not the live credential. Once the account exists the password lives in the
+  database and the operator changes it from the users screen, so this secret goes stale by
+  design — editing it later changes nothing. If the admin is ever locked out, set
+  `ADMIN_PASSWORD_RESET_ON_STARTUP=true` in `production.env` for one boot and turn it back off;
+  it overwrites whatever password the operator had set.
+
+`DOMAIN` must already resolve to the droplet before the deploy that uses it. Caddy asks
+Let's Encrypt for a certificate for exactly that name, and issuance fails on a name that does not
+point here yet — so create the A record first, then change `DOMAIN`. Behind Cloudflare, keep the
+record on **DNS only** (grey cloud) at least until the certificate is issued: the orange cloud
+terminates TLS itself and the HTTP-01 challenge has to reach Caddy.
 
 ## 7) Deploy the Stack
 
-From repository root:
+Normally you never run this: merging into `main` deploys (see
+[ci-cd-digitalocean.md](ci-cd-digitalocean.md)). To bring a fresh droplet up by hand before the
+first merge, run the same script CI runs, with the three secrets in the environment:
 
 ```bash
-docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
+cd /opt/pawn-loan-platform
+POSTGRES_PASSWORD='...' JWT_SECRET_KEY='...' ADMIN_PASSWORD='...' \
+  IMAGE_TAG=latest ./deploy/digitalocean/remote_deploy.sh
 ```
+
+It renders `.env.production` (mode 600), logs into GHCR if given a token, pulls the pre-built
+images and starts the stack. There is deliberately no `--build`: the images come from the
+release pipeline, so the droplet never compiles anything.
 
 Production compose includes a one-shot `db-bootstrap` service that initializes schema/admin data before the API starts. The API also keeps `DB_INIT_ON_STARTUP=true` as a safe fallback, so deployments remain automatic without manual DB bootstrap commands.
 
@@ -172,13 +212,19 @@ Optional: remove unused Docker resources system-wide (use with caution):
 docker system prune -af --volumes
 ```
 
-Update to latest code:
+Update to latest code — merge into `main` and let the pipeline do it, or run the
+**Deploy To Droplet (manual)** workflow with an image tag. The equivalent by hand:
 
 ```bash
 cd /opt/pawn-loan-platform
-git pull
-docker compose --env-file .env.production -f docker-compose.prod.yml up --build -d
+git fetch --all --tags --prune && git checkout main && git reset --hard origin/main
+POSTGRES_PASSWORD='...' JWT_SECRET_KEY='...' ADMIN_PASSWORD='...' \
+  IMAGE_TAG=latest ./deploy/digitalocean/remote_deploy.sh
 ```
+
+`git reset --hard` rather than `git pull`: the droplet's checkout is a copy of `main`, not a place
+to edit, and a stray local change there would otherwise block every deploy with a merge
+conflict. Untracked files — including the generated `.env.production` — are left alone.
 
 ## 10) Backup and Restore (PostgreSQL)
 
