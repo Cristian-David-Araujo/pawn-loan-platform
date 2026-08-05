@@ -1,0 +1,6 @@
+# Files the Linux droplet executes or parses must arrive with LF endings regardless of who
+# committed them from Windows: bash exits with "bad interpreter" on a CRLF shebang, and Docker
+# Compose reads a trailing \r as part of an env value — which silently corrupts a password.
+*.sh text eol=lf
+*.env text eol=lf
+Caddyfile text eol=lf

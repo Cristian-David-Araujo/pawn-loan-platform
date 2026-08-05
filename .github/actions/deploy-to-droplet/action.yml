@@ -1,0 +1,128 @@
+name: Deploy to DigitalOcean droplet
+description: >
+  Connects to the droplet over SSH and runs deploy/digitalocean/remote_deploy.sh, which renders
+  .env.production from the versioned config plus these secrets and rolls the stack to image_tag.
+
+# Shared by release-tag-and-deploy.yml (on merge to main) and deploy-droplet.yml (manual /
+# rollback) so there is one copy of the connection and one copy of the deploy procedure. Two
+# workflows carrying their own SSH block is how a rollback path stops matching the release path.
+
+inputs:
+  host:
+    description: Droplet host or IP (secrets.DO_HOST)
+    required: true
+  user:
+    description: SSH user (secrets.DO_USER)
+    required: true
+  ssh_key_b64:
+    description: Base64-encoded private key, preferred (secrets.DO_SSH_KEY_B64)
+    required: false
+    default: ''
+  ssh_key:
+    description: Plain multi-line private key, fallback (secrets.DO_SSH_KEY)
+    required: false
+    default: ''
+  app_dir:
+    description: Repository path on the droplet (secrets.DO_APP_DIR); defaults to /opt/pawn-loan-platform
+    required: false
+    default: ''
+  image_tag:
+    description: Image tag to deploy (a release tag, or latest)
+    required: true
+  ghcr_user:
+    description: Registry user for private packages
+    required: false
+    default: ''
+  ghcr_token:
+    description: Registry token for private packages
+    required: false
+    default: ''
+  postgres_password:
+    description: secrets.POSTGRES_PASSWORD
+    required: true
+  jwt_secret_key:
+    description: secrets.JWT_SECRET_KEY
+    required: true
+  admin_password:
+    description: secrets.ADMIN_PASSWORD
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Validate deployment secrets
+      shell: bash
+      env:
+        DO_HOST: ${{ inputs.host }}
+        DO_USER: ${{ inputs.user }}
+        DO_SSH_KEY_B64: ${{ inputs.ssh_key_b64 }}
+        DO_SSH_KEY: ${{ inputs.ssh_key }}
+        POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
+        JWT_SECRET_KEY: ${{ inputs.jwt_secret_key }}
+        ADMIN_PASSWORD: ${{ inputs.admin_password }}
+      run: |
+        test -n "$DO_HOST" || (echo "Missing secret: DO_HOST" && exit 1)
+        test -n "$DO_USER" || (echo "Missing secret: DO_USER" && exit 1)
+        if [[ -z "$DO_SSH_KEY_B64" && -z "$DO_SSH_KEY" ]]; then
+          echo "Missing SSH key secret: set DO_SSH_KEY_B64 (preferred) or DO_SSH_KEY." >&2
+          exit 1
+        fi
+        # Checked here as well as on the droplet so a missing secret fails before we connect.
+        test -n "$POSTGRES_PASSWORD" || (echo "Missing secret: POSTGRES_PASSWORD" && exit 1)
+        test -n "$JWT_SECRET_KEY" || (echo "Missing secret: JWT_SECRET_KEY" && exit 1)
+        test -n "$ADMIN_PASSWORD" || (echo "Missing secret: ADMIN_PASSWORD" && exit 1)
+
+    - name: Prepare SSH key file
+      shell: bash
+      env:
+        DO_SSH_KEY_B64: ${{ inputs.ssh_key_b64 }}
+        DO_SSH_KEY: ${{ inputs.ssh_key }}
+      run: |
+        set -euo pipefail
+
+        if [[ -n "$DO_SSH_KEY_B64" ]]; then
+          printf '%s' "$DO_SSH_KEY_B64" | base64 -d > /tmp/do_key
+        else
+          # Fallback for plain multi-line secret.
+          printf '%s\n' "$DO_SSH_KEY" > /tmp/do_key
+        fi
+
+        chmod 600 /tmp/do_key
+
+        # Fails early for malformed key, wrong key type, or passphrase-protected key.
+        ssh-keygen -y -f /tmp/do_key >/dev/null
+
+    - name: Roll the stack forward on the droplet
+      uses: appleboy/ssh-action@v1.2.2
+      env:
+        IMAGE_TAG: ${{ inputs.image_tag }}
+        GHCR_USER: ${{ inputs.ghcr_user }}
+        GHCR_TOKEN: ${{ inputs.ghcr_token }}
+        POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
+        JWT_SECRET_KEY: ${{ inputs.jwt_secret_key }}
+        ADMIN_PASSWORD: ${{ inputs.admin_password }}
+        DO_APP_DIR: ${{ inputs.app_dir }}
+      with:
+        host: ${{ inputs.host }}
+        username: ${{ inputs.user }}
+        key_path: /tmp/do_key
+        script_stop: true
+        envs: IMAGE_TAG,GHCR_USER,GHCR_TOKEN,POSTGRES_PASSWORD,JWT_SECRET_KEY,ADMIN_PASSWORD,DO_APP_DIR
+        script: |
+          set -euo pipefail
+
+          cd "${DO_APP_DIR:-/opt/pawn-loan-platform}"
+
+          # Only config travels this way — compose file, Caddyfile, versioned env, this script.
+          # The application itself arrives as a pre-built image, so nothing is compiled here.
+          git fetch --all --tags --prune
+          git checkout main
+          git reset --hard origin/main
+
+          chmod +x deploy/digitalocean/remote_deploy.sh
+          ./deploy/digitalocean/remote_deploy.sh
+
+    - name: Cleanup SSH key file
+      if: always()
+      shell: bash
+      run: rm -f /tmp/do_key

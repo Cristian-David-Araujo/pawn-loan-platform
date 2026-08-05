@@ -1,0 +1,46 @@
+name: Deploy To Droplet (manual)
+
+# Deploys an already-published image tag without cutting a release. Two jobs it exists for:
+#   * the first deploy of a fresh droplet, before any new merge to main;
+#   * a rollback — run it with a previous tag (v0.31.1) and the stack goes back to that image.
+# It never builds or tags anything, so the tag must already exist in GHCR. The release flow on
+# merge to main remains the normal path; both share the same deploy action and script.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Published image tag to deploy (e.g. v0.32.0, or latest)
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # A deploy replaces what is serving; queue them instead of racing two onto one droplet.
+    concurrency:
+      group: droplet-deploy
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to DigitalOcean droplet
+        uses: ./.github/actions/deploy-to-droplet
+        with:
+          host: ${{ secrets.DO_HOST }}
+          user: ${{ secrets.DO_USER }}
+          ssh_key_b64: ${{ secrets.DO_SSH_KEY_B64 }}
+          ssh_key: ${{ secrets.DO_SSH_KEY }}
+          app_dir: ${{ secrets.DO_APP_DIR }}
+          image_tag: ${{ inputs.image_tag }}
+          ghcr_user: ${{ github.actor }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+          postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+          jwt_secret_key: ${{ secrets.JWT_SECRET_KEY }}
+          admin_password: ${{ secrets.ADMIN_PASSWORD }}

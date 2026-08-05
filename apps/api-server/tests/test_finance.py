@@ -67,12 +67,33 @@ def test_loan_balance_and_ledger(client: TestClient, auth_headers: dict[str, str
     assert len(ledger["payments"]) == 1
 
 
+def _unbilled_cycle() -> tuple[date, date]:
+    """A billing period that creating the loan cannot have billed yet.
+
+    Loan creation generates charges up to `today + interest_generation_lead_days`, so a period
+    that has already ended by the time the suite runs is billed on create and
+    `POST /interest/generate` then correctly returns nothing new for it. These two tests used a
+    fixed 2026-07-05 disbursement and 2026-08-05 cycle, which meant they only tested the
+    endpoint while the real calendar was still short of that date: from ten days before it they
+    failed on behaviour that was right. Anchoring two months ahead keeps the period out of
+    reach of the lead window, and anchoring on the 1st makes "one month later" the same
+    arithmetic in every month, including February.
+    """
+    today = date.today()
+    start_index = today.month - 1 + 2
+    period_start = date(today.year + start_index // 12, start_index % 12 + 1, 1)
+    end_index = start_index + 1
+    period_end = date(today.year + end_index // 12, end_index % 12 + 1, 1)
+    return period_start, period_end
+
+
 def test_generate_interest_uses_due_day_calendar_cycle(
     client: TestClient,
     auth_headers: dict[str, str],
     create_customer,
 ) -> None:
     customer = create_customer(document_number="LOAN-CYCLE-1")
+    period_start, period_end = _unbilled_cycle()
     loan_response = client.post(
         "/api/v1/loans",
         headers=auth_headers,
@@ -81,8 +102,8 @@ def test_generate_interest_uses_due_day_calendar_cycle(
             "loan_type": "pawn",
             "principal_amount": 1000,
             "monthly_interest_rate": 8,
-            "disbursement_date": "2026-07-05",
-            "due_day": 5,
+            "disbursement_date": str(period_start),
+            "due_day": period_start.day,
         },
     )
     assert loan_response.status_code == 201
@@ -90,13 +111,13 @@ def test_generate_interest_uses_due_day_calendar_cycle(
     response = client.post(
         "/api/v1/interest/generate",
         headers=auth_headers,
-        json={"as_of_date": "2026-08-05"},
+        json={"as_of_date": str(period_end)},
     )
     assert response.status_code == 200
     charges = response.json()
     assert len(charges) == 1
-    assert charges[0]["period_start"] == "2026-07-05"
-    assert charges[0]["period_end"] == "2026-08-05"
+    assert charges[0]["period_start"] == str(period_start)
+    assert charges[0]["period_end"] == str(period_end)
 
 
 def test_generate_interest_skips_duplicate_period(
@@ -105,6 +126,7 @@ def test_generate_interest_skips_duplicate_period(
     create_customer,
 ) -> None:
     customer = create_customer(document_number="LOAN-CYCLE-2")
+    period_start, period_end = _unbilled_cycle()
     loan_response = client.post(
         "/api/v1/loans",
         headers=auth_headers,
@@ -113,8 +135,8 @@ def test_generate_interest_skips_duplicate_period(
             "loan_type": "pawn",
             "principal_amount": 1000,
             "monthly_interest_rate": 8,
-            "disbursement_date": "2026-07-05",
-            "due_day": 5,
+            "disbursement_date": str(period_start),
+            "due_day": period_start.day,
         },
     )
     assert loan_response.status_code == 201
@@ -122,7 +144,7 @@ def test_generate_interest_skips_duplicate_period(
     first = client.post(
         "/api/v1/interest/generate",
         headers=auth_headers,
-        json={"as_of_date": "2026-08-05"},
+        json={"as_of_date": str(period_end)},
     )
     assert first.status_code == 200
     assert len(first.json()) == 1
@@ -130,7 +152,7 @@ def test_generate_interest_skips_duplicate_period(
     second = client.post(
         "/api/v1/interest/generate",
         headers=auth_headers,
-        json={"as_of_date": "2026-08-06"},
+        json={"as_of_date": str(period_end + timedelta(days=1))},
     )
     assert second.status_code == 200
     assert len(second.json()) == 0
