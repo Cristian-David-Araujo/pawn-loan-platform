@@ -1,8 +1,19 @@
+# Docker's json-file driver keeps no bound by default: a container log grows until the disk is
+# full, and this droplet has 24 GB shared with the database. Turning on access logging without
+# this is how a deploy that fixed observability takes the box down a month later. Anchored so
+# every service gets the same cap rather than three that drift.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   reverse-proxy:
     image: caddy:2.9-alpine
     container_name: pawn-reverse-proxy
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - ./.env.production
     ports:
@@ -22,6 +33,7 @@ services:
     image: ghcr.io/cristian-david-araujo/pawn-loan-platform/web-client:${IMAGE_TAG:-latest}
     container_name: pawn-web-client-prod
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "nginx -t -q || exit 1"]
       interval: 10s
@@ -33,6 +45,7 @@ services:
     image: ghcr.io/cristian-david-araujo/pawn-loan-platform/api-server:${IMAGE_TAG:-latest}
     container_name: pawn-db-bootstrap-prod
     restart: "no"
+    logging: *default-logging
     env_file:
       - ./.env.production
     environment:
@@ -54,6 +67,7 @@ services:
     image: ghcr.io/cristian-david-araujo/pawn-loan-platform/api-server:${IMAGE_TAG:-latest}
     container_name: pawn-api-server-prod
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - ./.env.production
     environment:
@@ -89,6 +103,7 @@ services:
     image: postgres:16-alpine
     container_name: pawn-postgres-prod
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - ./.env.production
     environment:
