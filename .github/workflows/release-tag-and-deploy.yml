@@ -100,6 +100,19 @@ jobs:
           npm ci
           npm run typecheck
 
+      # Vite inlines this into the bundle, so it is a *build* input and cannot be changed on the
+      # droplet afterwards. It is read from the versioned production config rather than from a
+      # secret because it is not one, and because the value the image was built with should be
+      # visible in the same diff as the deploy that shipped it.
+      - name: Read VITE_API_BASE_URL from versioned production config
+        id: prod_config
+        run: |
+          set -euo pipefail
+          VALUE="$(sed -n 's/^VITE_API_BASE_URL=//p' deploy/digitalocean/production.env | tail -n 1)"
+          test -n "$VALUE" || (echo "VITE_API_BASE_URL missing from deploy/digitalocean/production.env" >&2 && exit 1)
+          echo "vite_api_base_url=$VALUE" >> "$GITHUB_OUTPUT"
+          echo "Building web-client against API base URL: $VALUE"
+
       - name: Build and push web-client image
         uses: docker/build-push-action@v6
         with:
@@ -107,7 +120,7 @@ jobs:
           file: ./apps/web-client/Dockerfile.prod
           push: true
           build-args: |
-            VITE_API_BASE_URL=${{ secrets.VITE_API_BASE_URL }}
+            VITE_API_BASE_URL=${{ steps.prod_config.outputs.vite_api_base_url }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/web-client:${{ steps.version.outputs.tag }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/web-client:latest
@@ -131,84 +144,20 @@ jobs:
 
       # ─── SSH deploy: pull pre-built images on the droplet ────────────────────
 
-      - name: Validate deployment secrets
-        env:
-          DO_HOST: ${{ secrets.DO_HOST }}
-          DO_USER: ${{ secrets.DO_USER }}
-          DO_SSH_KEY_B64: ${{ secrets.DO_SSH_KEY_B64 }}
-          DO_SSH_KEY: ${{ secrets.DO_SSH_KEY }}
-        run: |
-          test -n "$DO_HOST" || (echo "Missing secret: DO_HOST" && exit 1)
-          test -n "$DO_USER" || (echo "Missing secret: DO_USER" && exit 1)
-          if [[ -z "$DO_SSH_KEY_B64" && -z "$DO_SSH_KEY" ]]; then
-            echo "Missing SSH key secret: set DO_SSH_KEY_B64 (preferred) or DO_SSH_KEY." >&2
-            exit 1
-          fi
-
-      - name: Prepare SSH key file
-        env:
-          DO_SSH_KEY_B64: ${{ secrets.DO_SSH_KEY_B64 }}
-          DO_SSH_KEY: ${{ secrets.DO_SSH_KEY }}
-        run: |
-          set -euo pipefail
-
-          if [[ -n "$DO_SSH_KEY_B64" ]]; then
-            printf '%s' "$DO_SSH_KEY_B64" | base64 -d > /tmp/do_key
-          else
-            # Fallback for plain multi-line secret.
-            printf '%s\n' "$DO_SSH_KEY" > /tmp/do_key
-          fi
-
-          chmod 600 /tmp/do_key
-
-          # Fails early for malformed key, wrong key type, or passphrase-protected key.
-          ssh-keygen -y -f /tmp/do_key >/dev/null
-
-      - name: Deploy — pull pre-built images on DigitalOcean droplet
-        uses: appleboy/ssh-action@v1.2.2
-        env:
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHCR_USER: ${{ github.actor }}
+      # The connection, the rendered environment and the compose commands live in the shared
+      # action and in deploy/digitalocean/remote_deploy.sh, which the manual deploy workflow
+      # runs too — a release and a rollback must not be able to do different things.
+      - name: Deploy to DigitalOcean droplet
+        uses: ./.github/actions/deploy-to-droplet
         with:
           host: ${{ secrets.DO_HOST }}
-          username: ${{ secrets.DO_USER }}
-          key_path: /tmp/do_key
-          script_stop: true
-          envs: RELEASE_TAG,GHCR_TOKEN,GHCR_USER
-          script: |
-            set -euo pipefail
-
-            APP_DIR="${DO_APP_DIR:-/opt/pawn-loan-platform}"
-            cd "$APP_DIR"
-
-            # Pull latest code (only config files, compose, etc. — no source build needed)
-            git fetch --all --tags --prune
-            git checkout main
-            git pull origin main
-
-            # Login to GHCR so the droplet can pull private images
-            # (No-op if the repo/packages are public, but safe to always run)
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-
-            # Pull the pre-built images (fast: just downloading layers)
-            IMAGE_TAG="$RELEASE_TAG" docker compose \
-              --env-file .env.production \
-              -f docker-compose.prod.yml \
-              pull
-
-            # Restart services with the new images (zero downtime: existing containers
-            # keep running until the new ones are healthy)
-            IMAGE_TAG="$RELEASE_TAG" docker compose \
-              --env-file .env.production \
-              -f docker-compose.prod.yml \
-              up -d --remove-orphans
-
-            # Clean up dangling images to reclaim disk space
-            docker image prune -f
-
-            echo "Deployment completed from tag ${RELEASE_TAG}"
-
-      - name: Cleanup SSH key file
-        if: always()
-        run: rm -f /tmp/do_key
+          user: ${{ secrets.DO_USER }}
+          ssh_key_b64: ${{ secrets.DO_SSH_KEY_B64 }}
+          ssh_key: ${{ secrets.DO_SSH_KEY }}
+          app_dir: ${{ secrets.DO_APP_DIR }}
+          image_tag: ${{ steps.version.outputs.tag }}
+          ghcr_user: ${{ github.actor }}
+          ghcr_token: ${{ secrets.GITHUB_TOKEN }}
+          postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
+          jwt_secret_key: ${{ secrets.JWT_SECRET_KEY }}
+          admin_password: ${{ secrets.ADMIN_PASSWORD }}

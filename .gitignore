@@ -7,8 +7,11 @@
 **/.env.*
 !.env.example
 !**/.env.example
-!.env.production.example
-!**/.env.production.example
+
+# Production configuration is versioned, but only its non-secret half: this file holds no
+# credentials (see the header in it) and the droplet's generated `.env.production` — which does
+# hold them — stays ignored by the rules above.
+!deploy/digitalocean/production.env
 
 # Secret files and private keys
 *.pem

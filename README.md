@@ -68,10 +68,16 @@ docker compose up --build -d
 Production deployment files are included in this repository:
 
 - `docker-compose.prod.yml`
-- `.env.production.example`
+- `deploy/digitalocean/production.env` — every non-secret production value, versioned
+- `deploy/digitalocean/remote_deploy.sh` — renders `.env.production` and rolls the stack forward
 - `deploy/digitalocean/Caddyfile`
 - `apps/api-server/Dockerfile.prod`
 - `apps/web-client/Dockerfile.prod`
+
+`.env.production` is generated on the droplet by the deploy script from `production.env` plus
+three GitHub secrets (`POSTGRES_PASSWORD`, `JWT_SECRET_KEY`, `ADMIN_PASSWORD`); it is not written
+by hand and editing it on the server is overwritten by the next deploy. See
+[docs/deployment-digitalocean.md](docs/deployment-digitalocean.md).
 
 ### GitFlow + Auto Release + Auto Deploy
 
@@ -80,6 +86,8 @@ This repository includes GitHub Actions workflows to automate release and deploy
 - Workflow: `.github/workflows/pr-gitflow-guard.yml`
 - Workflow: `.github/workflows/alembic-migration-guard.yml`
 - Workflow: `.github/workflows/release-tag-and-deploy.yml`
+- Workflow: `.github/workflows/deploy-droplet.yml` — manual deploy / rollback to a published tag
+- Action: `.github/actions/deploy-to-droplet/` — the single SSH deploy path, shared by both
 - Script: `.github/scripts/calculate_version.sh`
 
 Rules for pull requests targeting `main`:
