@@ -12,7 +12,13 @@ from src.infrastructure.persistence import models as _models  # noqa: F401
 config = context.config
 
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # `disable_existing_loggers=False` is load-bearing, not tidiness. `fileConfig` defaults to
+    # True, which switches off every logger configured before it runs — and this file is not
+    # only executed by the `alembic` CLI: `run_database_migrations()` calls it **in-process** on
+    # API startup, after uvicorn has set up its own. Production served with `uvicorn.access`
+    # silenced from the first boot, so there was no request log at all: a login that never
+    # reached the server and one rejected by it looked exactly the same from the outside.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)

@@ -1,6 +1,16 @@
 {$DOMAIN} {
   encode gzip zstd
 
+  # Access log for the whole edge, in JSON on stdout so `docker compose logs reverse-proxy`
+  # shows it and the json-file driver rotates it (see docker-compose.prod.yml). This is the only
+  # place that sees every request with its real client IP: nginx and the API both sit behind
+  # this proxy. Without it, "did that request even arrive?" had no answer — the question that
+  # matters first whenever a browser reports a failure the server has no record of.
+  log {
+    output stdout
+    format json
+  }
+
   @api path /api/* /docs* /redoc* /openapi.json /health
 
   handle @api {

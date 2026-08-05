@@ -45,7 +45,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { Shield, LogIn } from 'lucide-vue-next'
 import PasswordInput from '../components/PasswordInput.vue'
-import { useAuthState } from '../modules/authentication/authState'
+import { AuthRequestError, useAuthState } from '../modules/authentication/authState'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -89,8 +89,12 @@ const handleSubmit = async () => {
     await login({ username: form.username, password: form.password })
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
     await router.replace(redirect)
-  } catch {
-    error.value = t('auth.invalidCredentials')
+  } catch (err) {
+    // Only 401 means the credentials were wrong. A network failure or a 5xx used to print the
+    // same line, which sent an operator hunting for a typo while the request was not arriving
+    // at all — the browser was running a cached bundle aimed at a hostname that had been retired.
+    const rejectedByServer = err instanceof AuthRequestError && err.status === 401
+    error.value = rejectedByServer ? t('auth.invalidCredentials') : t('auth.serviceUnreachable')
   } finally {
     isSubmitting.value = false
   }
