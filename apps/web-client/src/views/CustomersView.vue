@@ -149,11 +149,11 @@
               <Trash2 :size="16" />
               {{ t('customers.deleteCustomer') }}
             </button>
-            <a :href="'/print/invoice/customer/' + selectedCustomer.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+            <a :href="'/print/invoice/customer/' + selectedCustomer.id" target="_blank" class="btn btn-secondary">
               <Printer :size="16" />
               {{ t('common.printStatement') }}
             </a>
-            <a :href="'/print/invoice/history/' + selectedCustomer.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+            <a :href="'/print/invoice/history/' + selectedCustomer.id" target="_blank" class="btn btn-secondary">
               <Printer :size="16" />
               {{ t('common.printHistory') }}
             </a>
@@ -467,7 +467,7 @@
                     <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.editLoan')" @click.stop="openLoanEditModal(loan)">
                       <Pencil :size="14" />
                     </button>
-                    <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
+                    <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" @click.stop>
                       <Printer :size="16" />
                     </a>
                     <button v-if="hasRole([UserRole.Administrator])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
@@ -486,7 +486,7 @@
         <!-- ── Tab: Payments (customer payments) continues ── -->
         <template v-if="detailTab === 'payments'">
         <div class="mt-16">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div class="section-head-split">
             <div>
               <h3>{{ t('customers.customerPayments') }}</h3>
               <p class="muted">{{ t('customers.totalPaid', { amount: formatCurrency(totalCustomerPaid) }) }}</p>
@@ -539,7 +539,7 @@
                 </td>
                 <td>
                   <div class="form-inline">
-                    <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
+                    <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')">
                       <Printer :size="16" />
                     </a>
                     <button
@@ -809,7 +809,7 @@ import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
 import { formatCurrency } from '../utils/currency'
-import { formatDateDMY, toIsoDate } from '../utils/date'
+import { formatDateDMY, formatDateTime, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
 
 interface InterestPendingItem {
@@ -878,7 +878,7 @@ const {
   ensureInitialized
 } =
   usePlatformStore()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { confirm } = useConfirmDialog()
 const route = useRoute()
 const { hasRole } = useAuthState()
@@ -1155,24 +1155,13 @@ const firstLoanDisbursementDate = computed(() => {
     .disbursementDate
 })
 
-const formatDateTime = (value: string) => {
-  if (!value) {
-    return '-'
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return '-'
-  }
-
-  return new Intl.DateTimeFormat(locale.value === 'es' ? 'es-CO' : 'en-US', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(parsed)
-}
+/* The third local copy of a shared formatter, and the only one that was also wrong about
+   the clock. It hard-coded a DD/MM/YYYY order, so this screen ignored
+   GlobalSettings.dateFormat like the other two did — but it also parsed with `new Date()`,
+   which reads a timestamp carrying no offset as *local* time. The API stores them as UTC,
+   so every audit entry was stamped with the viewer's own offset: the same action read five
+   hours apart on a laptop in Bogotá and a laptop set to UTC. utils/date's formatDateTime
+   appends the Z for exactly this reason. */
 
 const syncEditForm = () => {
   if (!selectedCustomer.value) {

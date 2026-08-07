@@ -1,8 +1,14 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-07T00:00:00.000Z",
+  "generatedAt": "2026-08-07T06:00:00.000Z",
   "title": "Design System: Pawn Loan Platform",
   "extensions": {
+    "themes": {
+      "default": "system",
+      "light": { "canvas": "#faf9f7", "surface": "#ffffff", "text": "#1c1a17", "ink": "#232019", "accent": "#0d5c53", "sidebar": "#1a1815" },
+      "dark": { "canvas": "#171612", "surface": "#1f1d19", "text": "#f2f0eb", "ink": "#ece8e0", "accent": "#4ba599", "sidebar": "#100f0c" },
+      "notes": "Selected by `data-theme` on <html>, written before first paint by an inline script in index.html. Ink inverts to paper in dark; the sidebar drops below the canvas rather than rising above it. The four printed documents pin themselves to the light tokens because browsers drop backgrounds when printing."
+    },
     "colorMeta": {
       "ink": {
         "role": "primary",
@@ -173,6 +179,11 @@
         "name": "The No-Halo Rule",
         "body": "A zero-offset glow is decoration, not depth. Every shadow here has an offset and a soft blur.",
         "section": "elevation"
+      },
+      {
+        "name": "The Both-Themes Rule",
+        "body": "A colour is not done until it has been measured in both themes. `npm run check:contrast` checks every foreground/background pair in both against WCAG AA and CI runs it — that check is what caught --placeholder shipping at 3.4:1 behind a comment that claimed 4.6:1.",
+        "section": "colors"
       }
     ],
     "dos": [

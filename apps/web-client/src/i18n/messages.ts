@@ -295,11 +295,13 @@ export const messages = {
       lentThisMonth: 'Lent This Month',
       interestCollectedMonth: 'Interest Collected (Month)',
       cashCollectedMonth: 'Cash Collected (Month)',
-      quickActions: 'Quick actions',
-      goCustomers: 'Go to customers',
-      goLoans: 'Go to loans',
-      goPayments: 'Go to payments',
-      goReporting: 'Go to reporting'
+      // Group headings. The old quickActions block and its four "Go to ..." labels are gone
+      // with the card that duplicated the sidebar.
+      theBook: 'The book',
+      thisMonth: 'This month',
+      portfolio: 'Portfolio',
+      overdueAmount: '{amount} outstanding',
+      nothingOverdue: 'Nothing overdue'
     },
     customers: {
       title: 'Customers',
@@ -1078,11 +1080,11 @@ export const messages = {
       lentThisMonth: 'Prestado este mes',
       interestCollectedMonth: 'Interés cobrado (mes)',
       cashCollectedMonth: 'Recaudado (mes)',
-      quickActions: 'Acciones rapidas',
-      goCustomers: 'Ir a clientes',
-      goLoans: 'Ir a prestamos',
-      goPayments: 'Ir a pagos',
-      goReporting: 'Ir a reportes'
+      theBook: 'La cartera',
+      thisMonth: 'Este mes',
+      portfolio: 'Portafolio',
+      overdueAmount: '{amount} pendiente',
+      nothingOverdue: 'Nada vencido'
     },
     customers: {
       title: 'Clientes',

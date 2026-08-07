@@ -6,7 +6,7 @@
       </template>
     </PageHeader>
 
-    <div class="card mt-16 form-inline" style="position: relative; z-index: 50;">
+    <div class="card customer-gate mt-16">
       <label>
         {{ t('reporting.fromDate') }}
         <DateInputField v-model="fromDate" :label="t('reporting.fromDate')" :placeholder="datePlaceholder" :title="t('reporting.fromDate')" />
@@ -422,10 +422,12 @@ import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
+import { useCustomerLabel } from '../composables/useCustomerLabel'
 import { formatCompactNumber, formatCurrency, formatInteger } from '../utils/currency'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 
-const { state, getCustomerName, ensureInitialized } = usePlatformStore()
+const { state, ensureInitialized } = usePlatformStore()
+const { customerLabel: getCustomerLabel } = useCustomerLabel()
 const { t, locale } = useI18n()
 
 interface ChartEntry {
@@ -874,11 +876,6 @@ const createBarChartModel = (series: ChartEntry[]): ChartModel => {
 }
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`
-
-const getCustomerLabel = (customerId: number) => {
-  const value = getCustomerName(customerId)
-  return value === '__UNKNOWN_CUSTOMER__' ? t('messages.unknownCustomer') : value
-}
 
 const resetDates = () => {
   fromDate.value = formatDateDMY(firstDayOfMonth)

@@ -351,9 +351,17 @@ const ensureInitialized = async () => {
   }
 }
 
-const getCustomerName = (customerId: number) => {
+/**
+ * Returns `null` when the customer is not in the cache, not a sentinel string.
+ *
+ * This used to answer `'__UNKNOWN_CUSTOMER__'`, which every caller had to know to translate
+ * — LoansView and ReportingView each carried the same guard, and a third caller that forgot
+ * would have rendered that literal to an operator. `null` makes the absent case a type
+ * error instead of a screen defect. Callers go through `useCustomerLabel`.
+ */
+const getCustomerName = (customerId: number): string | null => {
   const customer = state.customers.find((item) => item.id === customerId)
-  return customer?.fullName ?? '__UNKNOWN_CUSTOMER__'
+  return customer?.fullName ?? null
 }
 
 const getCustomerById = (customerId: number) => state.customers.find((item) => item.id === customerId) ?? null

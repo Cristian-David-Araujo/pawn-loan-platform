@@ -6,8 +6,8 @@
       </template>
     </PageHeader>
 
-    <div class="card mt-16 form-inline" style="position: relative; z-index: 50;">
-      <label style="width: 100%; max-width: 400px;">
+    <div class="card customer-gate mt-16">
+      <label>
         {{ t('common.customer') }}
         <CustomerAutocomplete v-model="selectedCustomerId" :customers="sortedCustomers" :placeholder="t('common.searchPlaceholder')" />
       </label>
@@ -30,7 +30,7 @@
       <h3>{{ t('payments.pendingInterestTitle') }}</h3>
       <p class="muted">{{ t('common.breakdownNote') }}</p>
 
-      <div class="table-toolbar mt-16" style="justify-content: flex-end;">
+      <div class="table-toolbar toolbar-end mt-16">
         <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedSelectedAmount) }) }}</span>
       </div>
 
@@ -128,7 +128,7 @@
       <h3>{{ t('payments.principalTitle') }}</h3>
       <p class="muted">{{ t('payments.principalOrderHint') }}</p>
 
-      <div class="table-toolbar mt-16" style="justify-content: flex-end;">
+      <div class="table-toolbar toolbar-end mt-16">
         <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedPrincipalAmount) }) }}</span>
       </div>
 
@@ -328,7 +328,7 @@
               </td>
               <td>
                 <div class="form-inline">
-                  <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
+                  <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')">
                     <Printer :size="16" />
                   </a>
                   <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('payments.editPayment')" :disabled="payment.isReversed || processing" @click="openPaymentEditModal(payment)">

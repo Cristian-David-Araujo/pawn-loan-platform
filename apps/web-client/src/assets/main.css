@@ -169,6 +169,8 @@
   --z-dropdown: 1000;
   /* Above everything: a keyboard user must be able to reach it from any state. */
   --z-skip-link: 1100;
+  /* A panel whose child popover must not be covered by the panels below it. */
+  --z-raised: 50;
 
   font-family: var(--font-ui);
   color: var(--text);
@@ -741,6 +743,58 @@ th.text-right {
   gap: 0.5rem;
 }
 
+/* ═══════════════════════════════════════════════
+   CUSTOMER GATE
+
+   Payments and Reporting do nothing until a customer is chosen, so the picker
+   is not another card in the stack — it is the question the page is asking.
+   Raised above its siblings because the autocomplete list would otherwise be
+   painted under the panel below it.
+   ═══════════════════════════════════════════════ */
+.customer-gate {
+  position: relative;
+  z-index: var(--z-raised);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  border-color: var(--line-strong);
+}
+
+.customer-gate label {
+  width: 100%;
+  max-width: 24rem;
+}
+
+/* A toolbar carrying only a summary, with nothing to align against on the left. */
+.toolbar-end {
+  justify-content: flex-end;
+}
+
+/* A heading and its one action, on the same line. */
+.section-head-split {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* A form footer where a per-submit option sits opposite the submit itself —
+   "print the receipt when this saves" belongs beside the button that saves. */
+.form-actions-split {
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* A sort control in a right-aligned (money) column. */
+.sort-header-end {
+  justify-content: flex-end;
+  width: 100%;
+}
+
 .sidebar-backdrop {
   display: none;
 }
@@ -854,6 +908,14 @@ th.text-right {
 }
 .stat-accent-indigo .stat-icon {
   background: var(--accent-soft);
+}
+
+/* Reserved for a figure that is asking for something to be done about it. */
+.stat-accent-danger {
+  color: var(--danger-text);
+}
+.stat-accent-danger .stat-icon {
+  background: var(--danger-soft);
 }
 
 .stat-label {

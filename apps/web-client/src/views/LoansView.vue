@@ -165,8 +165,8 @@
       </div>
 
       <p v-if="formError" class="notice notice-warning mt-16">{{ formError }}</p>
-      <div class="form-actions" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-        <label class="checkbox-row" style="margin-bottom: 0;">
+      <div class="form-actions form-actions-split">
+        <label class="checkbox-row">
           <input v-model="printInvoiceOnSave" type="checkbox" />
           {{ t('common.printInvoiceOnSave') }}
         </label>
@@ -238,7 +238,7 @@
               </button>
             </th>
             <th class="text-right">
-              <button class="sort-header-btn" type="button" style="justify-content: flex-end" @click="toggleLoanSort('interest')">
+              <button class="sort-header-btn sort-header-end" type="button" @click="toggleLoanSort('interest')">
                 {{ t('common.interest', 'Interés') }}
                 <span v-if="getLoanSortBadge('interest')" class="sort-indicator">{{ getLoanSortBadge('interest') }}</span>
               </button>
@@ -277,7 +277,7 @@
             </td>
             <td>{{ loan?.created_by?.full_name || loan?.created_by?.username || '-' }}</td>
             <td>
-              <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
+              <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" @click.stop>
                 <Printer :size="16" />
               </a>
             </td>
@@ -314,7 +314,7 @@ import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
@@ -326,6 +326,7 @@ import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
+import { useCustomerLabel } from '../composables/useCustomerLabel'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 import { apiClient } from '../services/api'
@@ -366,9 +367,11 @@ interface InterestPendingResponse {
 }
 
 
-const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = usePlatformStore()
+const { state, createLoan, createCollateral, ensureInitialized } = usePlatformStore()
+const { customerLabel: getCustomerLabel } = useCustomerLabel()
 const { hasRole } = useAuthState()
 const router = useRouter()
+const route = useRoute()
 const { t } = useI18n()
   const { confirm } = useConfirmDialog()
 
@@ -400,7 +403,20 @@ const getLoanStatusClass = (status: string) => {
 const applyLatePenalty = ref(false)
 const applyCollateralAssociation = ref(false)
 const printInvoiceOnSave = ref(true)
-const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
+/* Seeded from `?status=`, so the dashboard's overdue tile lands on the overdue loans rather
+   than on the full list with the operator left to filter it themselves. Only the values the
+   filter actually offers are honoured; anything else falls back to "all". */
+const STATUS_FILTERS = ['all', 'active', 'overdue', 'closed'] as const
+type StatusFilter = (typeof STATUS_FILTERS)[number]
+
+const statusFromQuery = (): StatusFilter => {
+  const value = route.query.status
+  return typeof value === 'string' && (STATUS_FILTERS as readonly string[]).includes(value)
+    ? (value as StatusFilter)
+    : 'all'
+}
+
+const statusFilter = ref<StatusFilter>(statusFromQuery())
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
@@ -554,11 +570,6 @@ const addCollateralToQueue = () => {
 
 const removeCollateralFromQueue = (index: number) => {
   collateralQueue.value = collateralQueue.value.filter((_, itemIndex) => itemIndex !== index)
-}
-
-const getCustomerLabel = (customerId: number) => {
-  const value = getCustomerName(customerId)
-  return value === '__UNKNOWN_CUSTOMER__' ? t('messages.unknownCustomer') : value
 }
 
 const getSortDirectionSymbol = (direction: SortDirection) => (direction === 'asc' ? '↑' : '↓')
