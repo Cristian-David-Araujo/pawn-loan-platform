@@ -155,6 +155,17 @@ The import is a **full replace**, not a merge: it wipes every table and reloads 
 - Date display/parsing goes through [utils/date.ts](apps/web-client/src/utils/date.ts), whose global format is set from `GlobalSettings.dateFormat` on load. Send ISO (`YYYY-MM-DD`) to the API via `toIsoDate`.
 - UI conventions from `.agents/skills/`: create/edit forms belong in modals (or a dedicated route), triggered from `PageHeader`'s `#actions` slot — never inline forms above a table; always render an `.empty-state` instead of a bare table header; group fields in `.form-section` with a title; mobile-first with AA contrast and visible focus states.
 
+### Design skills
+
+Two third-party skill packs are vendored under `.claude/skills/`, which is where Claude Code discovers them — the four house skills in `.agents/skills/` stay where they are and remain the authority on *this* project's UI conventions:
+
+- **impeccable** (`/impeccable <command>`, Apache 2.0) — design review and refinement. It also ships a deterministic detector: `npx impeccable detect apps/web-client` scans for 59 anti-patterns with no model in the loop, which makes it the one design check that can run in CI.
+- **taste-skill** (MIT) — four of its thirteen skills are installed: `redesign-existing-projects`, `design-taste-frontend`, `minimalist-ui`, `full-output-enforcement`. The image-generation and alternate-direction skills (brandkit, imagegen-*, brutalist, stitch, gpt-taste, v1) are deliberately **not** installed; they answer questions this repository does not ask. `skills-lock.json` pins what was taken so the set is reproducible.
+
+**This app is an Operate surface, and that is what settles the disagreements between those packs and this repository.** impeccable's own mode table puts admin dashboards and data tables under Operate, where "scanability, consistency, native expectations and the real usage scene outrank expression" — so the parts of taste-skill written for landing pages do not apply here and must not be imported by reflex: no background photography or `picsum.photos` placeholders, no parallax or scroll choreography, no doubled whitespace (density is correct for a ledger), and the left sidebar stays. Where a skill contradicts a decision recorded in this file, **this file wins** — the clearest case is modals, which impeccable calls "usually laziness" while the convention above requires them for create/edit forms. A skill describes a general aesthetic; the notes here describe why this system is shaped the way it is.
+
+Both packs write scratch state to `.impeccable/`; the `# impeccable-ignore-start` block in `.gitignore` keeps the ephemeral half out of the repository and the shared half (`config.json`, `design.json`, `critique/*.md`) in it.
+
 ### Printable documents
 
 All four printable documents are one component, [InvoicePrintView.vue](apps/web-client/src/views/InvoicePrintView.vue), on a single route `/print/invoice/:type/:id` that sits **outside** `AppLayout` (no nav chrome) and calls `window.print()` ~500 ms after mount. `:type` selects the document — `payment` (receipt), `loan` (loan statement), `customer` (customer statement), `history` (payment history) — and the `isLoan` branch is the fallback, so an unknown `:type` renders a loan statement rather than erroring. Callers are plain `<a target="_blank">` links (or `router.push` right after creating a loan/payment) in `LoansView`, `PaymentsView`, `CustomersView`, and `LoanDetailModal`.
