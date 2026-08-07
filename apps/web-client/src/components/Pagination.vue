@@ -1,5 +1,5 @@
 <template>
-  <div v-if="totalPages > 1" class="pagination-wrapper">
+  <nav v-if="totalPages > 1" class="pagination-wrapper" :aria-label="t('common.pagination')">
     <div class="pagination-info">
       {{ t('common.showing') }} {{ startIndex + 1 }} - {{ Math.min(endIndex, totalItems) }} {{ t('common.of') }} {{ totalItems }}
     </div>
@@ -7,19 +7,22 @@
       <button
         class="pagination-btn"
         :disabled="currentPage === 1"
+        :aria-label="t('common.previousPage')"
         @click="goToPage(currentPage - 1)"
         type="button"
       >
-        <ChevronLeft :size="16" />
+        <ChevronLeft :size="16" aria-hidden="true" />
       </button>
 
       <div class="pagination-pages">
-        <template v-for="page in visiblePages" :key="page">
-          <span v-if="page === '...'" class="pagination-ellipsis">...</span>
+        <template v-for="(page, index) in visiblePages" :key="`${page}-${index}`">
+          <span v-if="page === '...'" class="pagination-ellipsis" aria-hidden="true">…</span>
           <button
             v-else
             class="pagination-btn"
             :class="{ active: page === currentPage }"
+            :aria-current="page === currentPage ? 'page' : undefined"
+            :aria-label="t('common.goToPage', { page })"
             @click="goToPage(page as number)"
             type="button"
           >
@@ -31,13 +34,14 @@
       <button
         class="pagination-btn"
         :disabled="currentPage === totalPages"
+        :aria-label="t('common.nextPage')"
         @click="goToPage(currentPage + 1)"
         type="button"
       >
-        <ChevronRight :size="16" />
+        <ChevronRight :size="16" aria-hidden="true" />
       </button>
     </div>
-  </div>
+  </nav>
 </template>
 
 <script setup lang="ts">
@@ -114,8 +118,9 @@ const visiblePages = computed(() => {
 }
 
 .pagination-info {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .pagination-controls {
@@ -137,31 +142,35 @@ const visiblePages = computed(() => {
   min-width: 32px;
   height: 32px;
   padding: 0 0.5rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   background: var(--surface);
   color: var(--text);
-  border-radius: var(--radius-sm);
-  font-size: 0.85rem;
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: background-color var(--transition), border-color var(--transition), color var(--transition);
 }
 
 .pagination-btn:hover:not(:disabled) {
   background: var(--surface-hover);
-  border-color: var(--muted);
+  border-color: #b9b5ab;
 }
 
 .pagination-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
   background: var(--surface-soft);
 }
 
+/* The current page is orientation, which is the accent's job. */
 .pagination-btn.active {
   background: var(--accent);
-  color: #fff;
+  color: #ffffff;
   border-color: var(--accent);
+  font-weight: 700;
 }
 
 .pagination-ellipsis {

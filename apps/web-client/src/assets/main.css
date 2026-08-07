@@ -108,8 +108,12 @@
   --z-backdrop: 90;
   --z-sidebar: 100;
   --z-modal: 200;
-  /* Above the modal: every dropdown in the app is a CustomSelect, and most of
-     them are opened from inside a form in a modal panel. */
+  /* A confirmation is routinely opened from inside a modal, so it sits above
+     one. It does not need to clear --z-dropdown: that value applies inside the
+     modal's own stacking context and cannot escape it. */
+  --z-confirm: 300;
+  /* Above the modal panel: every dropdown in the app is a CustomSelect, and
+     most of them are opened from inside a form in one. */
   --z-dropdown: 1000;
 
   font-family: var(--font-ui);
@@ -571,6 +575,15 @@ th.text-right {
   color: var(--muted);
   font-size: var(--fs-sm);
   margin-top: 0.2rem;
+}
+
+/* PageHeader's #actions slot. The class was in the markup but never had a rule,
+   so two buttons in that slot stacked instead of sitting side by side. */
+.page-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .sidebar-backdrop {

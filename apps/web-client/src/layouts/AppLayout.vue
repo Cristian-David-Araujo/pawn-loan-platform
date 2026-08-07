@@ -1,5 +1,6 @@
 <template>
   <div class="app-shell">
+    <a class="skip-link" href="#main-content">{{ t('app.skipToContent') }}</a>
     <aside class="sidebar" :class="{ 'sidebar-open': mobileMenuOpen }">
       <div class="brand-wrap">
         <span class="brand-logo">
@@ -37,7 +38,7 @@
     </aside>
     <div v-if="mobileMenuOpen" class="sidebar-backdrop" @click="mobileMenuOpen = false"></div>
 
-    <main class="content">
+    <div class="content">
       <header class="topbar">
         <div class="topbar-left">
           <button class="menu-toggle" type="button" @click="mobileMenuOpen = !mobileMenuOpen">
@@ -71,10 +72,10 @@
           </button>
         </div>
       </header>
-      <section class="page fade-in-up">
+      <main id="main-content" class="page fade-in-up" tabindex="-1">
         <RouterView />
-      </section>
-    </main>
+      </main>
+    </div>
   </div>
 </template>
 
@@ -196,17 +197,19 @@ const handleLogout = () => {
   width: 100%;
 }
 
+/* A squircle rather than a circle, and flat rather than the indigo gradient it
+   used to carry: the avatar is an identifier, not a brand mark. */
 .sidebar-user-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--sidebar-text);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   flex-shrink: 0;
 }
 
@@ -218,17 +221,20 @@ const handleLogout = () => {
 }
 
 .sidebar-user-name {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--sidebar-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Lightened from the old #64748b, which sat at 3.3:1 on the sidebar and failed
+   AA for the one label that tells an operator which permissions they hold. */
 .sidebar-user-role {
-  font-size: 0.72rem;
-  color: #64748b;
+  font-size: var(--fs-xs);
+  color: var(--sidebar-muted);
+  text-transform: capitalize;
 }
 </style>
 

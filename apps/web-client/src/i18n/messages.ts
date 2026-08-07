@@ -42,6 +42,7 @@ export const messages = {
       navigation: 'Navigation',
       menu: 'Menu',
       home: 'Home',
+      skipToContent: 'Skip to content',
       searchPlaceholder: 'Search module...',
       dashboard: 'Dashboard',
       customers: 'Customers',
@@ -115,6 +116,14 @@ export const messages = {
       updatedSuccess: 'User updated successfully'
     },
     common: {
+      pagination: 'Pagination',
+      previousPage: 'Previous page',
+      nextPage: 'Next page',
+      goToPage: 'Go to page {page}',
+      previousMonth: 'Previous month',
+      nextMonth: 'Next month',
+      openCalendar: 'Open the calendar for {field}',
+      calendarFor: '{field} calendar',
       id: 'ID',
       name: 'Name',
       createdBy: 'Created by',
@@ -279,6 +288,7 @@ export const messages = {
     customers: {
       title: 'Customers',
       subtitle: 'Create and review customer records.',
+      noMatches: 'No customer matches "{query}"',
       fullName: 'Full name',
       documentType: 'Document type',
       documentNumber: 'Document number',
@@ -803,6 +813,7 @@ export const messages = {
       navigation: 'Navegacion',
       menu: 'Menu',
       home: 'Inicio',
+      skipToContent: 'Ir al contenido',
       searchPlaceholder: 'Buscar modulo...',
       dashboard: 'Panel',
       customers: 'Clientes',
@@ -876,6 +887,14 @@ export const messages = {
       updatedSuccess: 'Usuario actualizado exitosamente'
     },
     common: {
+      pagination: 'Paginación',
+      previousPage: 'Página anterior',
+      nextPage: 'Página siguiente',
+      goToPage: 'Ir a la página {page}',
+      previousMonth: 'Mes anterior',
+      nextMonth: 'Mes siguiente',
+      openCalendar: 'Abrir el calendario de {field}',
+      calendarFor: 'Calendario de {field}',
       id: 'ID',
       name: 'Nombre',
       createdBy: 'Registrado por',
@@ -1040,6 +1059,7 @@ export const messages = {
     customers: {
       title: 'Clientes',
       subtitle: 'Crear y revisar registros de clientes.',
+      noMatches: 'Ningún cliente coincide con "{query}"',
       fullName: 'Nombre completo',
       documentType: 'Tipo de documento',
       documentNumber: 'Numero de documento',
