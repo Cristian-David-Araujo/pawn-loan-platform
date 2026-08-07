@@ -266,9 +266,13 @@
             <td class="text-right" :data-label="t('loans.outstanding')">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
             <td class="text-center" :data-label="t('loans.rate')">{{ loan.monthlyInterestRate }}%</td>
             <td class="text-right" :data-label="t('common.interest', 'Interés')">
-              <span v-if="loan.interestDue !== undefined && loan.interestDue !== null" class="text-warning-dark fw-bold">
+              <!-- The amber emphasis marks a debt to collect, so a zero does not get it:
+                   a loan that owes nothing is the good outcome, not a warning. It was
+                   applied to every loan with a defined value, including the settled ones. -->
+              <span v-if="loan.interestDue" class="text-warning-dark fw-bold">
                 {{ formatCurrency(loan.interestDue) }}
               </span>
+              <span v-else-if="loan.interestDue === 0">{{ formatCurrency(0) }}</span>
               <span v-else>-</span>
             </td>
             <td class="text-center" :data-label="t('common.collaterals')">{{ loan.collateralsCount ?? (loan.loanType === 'personal' ? '-' : 0) }}</td>
