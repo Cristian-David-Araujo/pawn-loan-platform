@@ -2543,6 +2543,14 @@ ul {
     content: none;
   }
 
+  /* A cell spanning the whole row is a message, not a figure — an empty state or a
+     loading line. It was inheriting the right-alignment the money cells need and
+     ending up shoved against the edge of its card. */
+  .table-wrap td[colspan] {
+    justify-content: center;
+    text-align: center !important;
+  }
+
   /* Row-level actions get room to be tapped rather than stacking into a column. */
   .table-wrap td .form-inline {
     flex-direction: row;
@@ -2561,8 +2569,10 @@ ul {
     box-shadow: none;
   }
 
-  /* Mobile Accessibility & Touch Targets */
-  .btn, .btn-icon, .tab-btn, .sort-header-btn {
+  /* Mobile Accessibility & Touch Targets.
+     `.menu-toggle` was missing from this list and rendered at 33px — the control that opens
+     navigation on a phone, and the smallest target on the screen. */
+  .btn, .btn-icon, .tab-btn, .sort-header-btn, .menu-toggle {
     min-height: 44px;
   }
 
