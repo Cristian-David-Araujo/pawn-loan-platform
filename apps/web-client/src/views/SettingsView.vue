@@ -8,98 +8,18 @@
 
     <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
 
-    <article class="card mt-16">
-      <h3>{{ t('settings.colombiaPresetTitle') }}</h3>
-      <p class="muted">{{ t('settings.colombiaPresetHint') }}</p>
-      <button class="btn btn-secondary mt-16" type="button" @click="applyColombiaPreset">
-        <Sparkles :size="16" />
-        {{ t('settings.applyColombiaPreset') }}
-      </button>
-    </article>
+    <!--
+      Order matters on this page more than on any other.
 
-    <article class="card mt-16">
-      <h3>{{ t('settings.exportDataTitle') }}</h3>
-      <p class="muted">{{ t('settings.exportDataHint') }}</p>
-      <p class="muted mt-8">{{ t('settings.exportDataWarning') }}</p>
-      <button class="btn btn-secondary mt-16" type="button" :disabled="exporting" @click="handleExportData">
-        <Download :size="16" />
-        {{ exporting ? t('settings.exportDataInProgress') : t('settings.exportData') }}
-      </button>
-    </article>
+      It used to open with a preset button, then Export, then the scheduled backup, and then
+      the full-replace Import with its row-count table — and only after all of that, the
+      settings the page is named after, with Save at the very bottom. An administrator
+      coming here to change the grace days or the company name printed on receipts had to
+      scroll past a destructive restore tool to reach them.
 
-    <ScheduledBackupCard />
-
-    <article class="card mt-16">
-      <h3>{{ t('settings.importDataTitle') }}</h3>
-      <p class="muted">{{ t('settings.importDataHint') }}</p>
-      <p class="muted mt-8"><strong>{{ t('settings.importDataWarning') }}</strong></p>
-
-      <label class="mt-16">
-        <span class="field-label-row">{{ t('settings.importFile') }}</span>
-        <input type="file" accept=".zip,application/zip" :disabled="importing" @change="handleFileSelected" />
-      </label>
-
-      <p v-if="analyzing" class="muted mt-8">{{ t('settings.importAnalyzing') }}</p>
-
-      <div v-if="analysis" class="mt-16">
-        <p v-if="!analysis.can_import" class="notice">{{ t('settings.importNotPossible') }}</p>
-
-        <ul v-if="analysis.errors.length" class="mt-8">
-          <li v-for="error in analysis.errors" :key="error">{{ error }}</li>
-        </ul>
-        <ul v-if="analysis.warnings.length" class="mt-8">
-          <li v-for="warning in analysis.warnings" :key="warning" class="muted">{{ warning }}</li>
-        </ul>
-
-        <p class="mt-8">
-          {{ t('settings.importArchiveDate') }}: {{ formatDateDMY(analysis.archive_generated_at) }} ·
-          {{ t('settings.importSchemaRevision') }}: {{ analysis.archive_schema_revision ?? '-' }}
-        </p>
-
-        <div class="table-wrap mt-8">
-          <table>
-            <thead>
-              <tr>
-                <th>{{ t('settings.importTable') }}</th>
-                <th class="text-right">{{ t('settings.importCurrentRows') }}</th>
-                <th class="text-right">{{ t('settings.importIncomingRows') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="plan in analysis.tables" :key="plan.name">
-                <td>{{ plan.name }}</td>
-                <td class="text-right">{{ plan.current_rows }}</td>
-                <td class="text-right">{{ plan.incoming_rows }}</td>
-              </tr>
-              <tr>
-                <td><strong>{{ t('settings.importTotal') }}</strong></td>
-                <td class="text-right"><strong>{{ analysis.total_current_rows }}</strong></td>
-                <td class="text-right"><strong>{{ analysis.total_incoming_rows }}</strong></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <label v-if="analysis.can_import" class="mt-16">
-          <span class="field-label-row">
-            {{ t('settings.importConfirmationLabel', { phrase: IMPORT_CONFIRMATION }) }}
-          </span>
-          <input v-model="confirmation" :placeholder="IMPORT_CONFIRMATION" :disabled="importing" />
-        </label>
-
-        <button
-          v-if="analysis.can_import"
-          class="btn btn-danger mt-16"
-          type="button"
-          :disabled="importing || confirmation !== IMPORT_CONFIRMATION"
-          @click="handleImportData"
-        >
-          <Upload :size="16" />
-          {{ importing ? t('settings.importInProgress') : t('settings.importData') }}
-        </button>
-      </div>
-    </article>
-
+      Now: the settings and their Save first, then a Data section, with Import last because
+      it is the most dangerous thing here.
+    -->
     <form class="form mt-16" @submit.prevent="handleSaveSettings">
       <div class="card mb-16">
         <h3>{{ t('settings.companyInfoTitle') }}</h3>
@@ -151,8 +71,23 @@
         </div>
       </div>
 
+      <!-- Six fields sat in an unlabelled card while every other block on the page had a
+           heading and a hint. Two of them — grace days and interest lead days — reach every
+           loan in the book, so the card says so. -->
       <div class="card">
-        <div class="grid grid-2">
+        <div class="section-head-split">
+          <div>
+            <h3>{{ t('settings.portfolioPolicyTitle') }}</h3>
+            <p class="muted">{{ t('settings.portfolioPolicyHint') }}</p>
+          </div>
+          <!-- Moved here from the top of the page, where it was the first control an admin
+               met and silently changed three fields 600px below it. -->
+          <button class="btn btn-secondary" type="button" @click="applyColombiaPreset">
+            <Sparkles :size="16" />
+            {{ t('settings.applyColombiaPreset') }}
+          </button>
+        </div>
+        <div class="grid grid-2 mt-16">
         <label :title="t('settings.currencyCodeHelp')">
           <span class="field-label-row">
             {{ t('settings.currencyCode') }}
@@ -228,6 +163,93 @@
         </button>
       </div>
     </form>
+
+    <h3 class="group-title mt-24">{{ t('settings.dataSectionTitle') }}</h3>
+    <p class="muted">{{ t('settings.dataSectionHint') }}</p>
+
+    <article class="card mt-16">
+      <h3>{{ t('settings.exportDataTitle') }}</h3>
+      <p class="muted">{{ t('settings.exportDataHint') }}</p>
+      <p class="muted mt-8">{{ t('settings.exportDataWarning') }}</p>
+      <button class="btn btn-secondary mt-16" type="button" :disabled="exporting" @click="handleExportData">
+        <Download :size="16" />
+        {{ exporting ? t('settings.exportDataInProgress') : t('settings.exportData') }}
+      </button>
+    </article>
+
+    <ScheduledBackupCard />
+
+    <!-- Last on the page. It wipes every table and reloads from the archive. -->
+    <article class="card mt-16 import-card">
+      <h3>{{ t('settings.importDataTitle') }}</h3>
+      <p class="muted">{{ t('settings.importDataHint') }}</p>
+      <p class="muted mt-8"><strong>{{ t('settings.importDataWarning') }}</strong></p>
+
+      <label class="mt-16">
+        <span class="field-label-row">{{ t('settings.importFile') }}</span>
+        <input type="file" accept=".zip,application/zip" :disabled="importing" @change="handleFileSelected" />
+      </label>
+
+      <p v-if="analyzing" class="muted mt-8">{{ t('settings.importAnalyzing') }}</p>
+
+      <div v-if="analysis" class="mt-16">
+        <p v-if="!analysis.can_import" class="notice">{{ t('settings.importNotPossible') }}</p>
+
+        <ul v-if="analysis.errors.length" class="mt-8">
+          <li v-for="error in analysis.errors" :key="error">{{ error }}</li>
+        </ul>
+        <ul v-if="analysis.warnings.length" class="mt-8">
+          <li v-for="warning in analysis.warnings" :key="warning" class="muted">{{ warning }}</li>
+        </ul>
+
+        <p class="mt-8">
+          {{ t('settings.importArchiveDate') }}: {{ formatDateDMY(analysis.archive_generated_at) }} ·
+          {{ t('settings.importSchemaRevision') }}: {{ analysis.archive_schema_revision ?? '-' }}
+        </p>
+
+        <div class="table-wrap mt-8">
+          <table>
+            <thead>
+              <tr>
+                <th>{{ t('settings.importTable') }}</th>
+                <th class="text-right">{{ t('settings.importCurrentRows') }}</th>
+                <th class="text-right">{{ t('settings.importIncomingRows') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="plan in analysis.tables" :key="plan.name">
+                <td>{{ plan.name }}</td>
+                <td class="text-right">{{ plan.current_rows }}</td>
+                <td class="text-right">{{ plan.incoming_rows }}</td>
+              </tr>
+              <tr>
+                <td><strong>{{ t('settings.importTotal') }}</strong></td>
+                <td class="text-right"><strong>{{ analysis.total_current_rows }}</strong></td>
+                <td class="text-right"><strong>{{ analysis.total_incoming_rows }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <label v-if="analysis.can_import" class="mt-16">
+          <span class="field-label-row">
+            {{ t('settings.importConfirmationLabel', { phrase: IMPORT_CONFIRMATION }) }}
+          </span>
+          <input v-model="confirmation" :placeholder="IMPORT_CONFIRMATION" :disabled="importing" />
+        </label>
+
+        <button
+          v-if="analysis.can_import"
+          class="btn btn-danger mt-16"
+          type="button"
+          :disabled="importing || confirmation !== IMPORT_CONFIRMATION"
+          @click="handleImportData"
+        >
+          <Upload :size="16" />
+          {{ importing ? t('settings.importInProgress') : t('settings.importData') }}
+        </button>
+      </div>
+    </article>
   </section>
 </template>
 
@@ -414,9 +436,13 @@ const handleImportData = async () => {
   }
 }
 
+/* Fills three fields; it does not save. That was invisible before — the button sat at the
+   top of the page and changed values far below it, so pressing it and leaving looked like
+   it had done something and had not. */
 const applyColombiaPreset = () => {
   form.currencyCode = 'COP'
   form.timezone = 'America/Bogota'
   form.dateFormat = 'DD/MM/YYYY'
+  notify(t('settings.presetApplied'))
 }
 </script>

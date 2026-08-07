@@ -9,7 +9,7 @@
     <!-- The book: what is owed to the business right now, and how much of it is late.
          These two are the reason anyone opens this screen, so they lead and they are the
          only tiles that carry a figure at display size. -->
-    <h3 class="dashboard-group-title">{{ t('dashboard.theBook') }}</h3>
+    <h3 class="group-title">{{ t('dashboard.theBook') }}</h3>
     <div class="grid grid-2">
       <StatCard
         :label="t('dashboard.outstandingPortfolio')"
@@ -28,7 +28,7 @@
     </div>
 
     <!-- This month: the pulse. Quieter than the book, because it reports rather than asks. -->
-    <h3 class="dashboard-group-title mt-24">{{ t('dashboard.thisMonth') }}</h3>
+    <h3 class="group-title mt-24">{{ t('dashboard.thisMonth') }}</h3>
     <div class="grid grid-3">
       <StatCard :label="t('dashboard.cashCollectedMonth')" :value="formatCurrency(stats.cashCollectedMonth)" :icon="Wallet" tone="green" />
       <StatCard :label="t('dashboard.interestCollectedMonth')" :value="formatCurrency(stats.interestCollectedMonth)" :icon="TrendingUp" tone="green" />
@@ -36,7 +36,7 @@
     </div>
 
     <!-- Counts, last: they are context, not a call to act. -->
-    <h3 class="dashboard-group-title mt-24">{{ t('dashboard.portfolio') }}</h3>
+    <h3 class="group-title mt-24">{{ t('dashboard.portfolio') }}</h3>
     <div class="grid grid-3">
       <StatCard
         :label="t('dashboard.activeLoans')"
@@ -107,13 +107,5 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped>
-.dashboard-group-title {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin-bottom: 0.6rem;
-}
-</style>
+<!-- `.dashboard-group-title` lived here as a scoped copy until the settings page needed the
+     same thing. It is `.group-title` in main.css now. -->

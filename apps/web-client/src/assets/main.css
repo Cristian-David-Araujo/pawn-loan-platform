@@ -771,6 +771,23 @@ th.text-right {
   justify-content: flex-end;
 }
 
+/* Names a run of cards without competing with the headings inside them. Shared by the
+   dashboard's three groups and the settings page's Data section. */
+.group-title {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 0.6rem;
+}
+
+/* The full-replace restore. It wipes every table, so it does not look like the export
+   card sitting above it. */
+.import-card {
+  border-color: var(--danger-border);
+}
+
 /* A heading and its one action, on the same line. */
 .section-head-split {
   display: flex;
