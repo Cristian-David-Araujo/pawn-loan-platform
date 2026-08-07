@@ -8,7 +8,11 @@
     "",
     "Remove this waiver if the type scale is ever reworked - it is a statement about this scale, not a permanent exemption.",
     "",
-    "The two ignoreValues entries scope design-system-font-size and design-system-radius away from InvoicePrintView.vue only. That file is the four printable documents, which deliberately set their own scale in px and pt because they are laid out for physical paper rather than for a screen, and their restraint is a recorded decision (see the Printable documents section of CLAUDE.md). They do consume this system's colour tokens, so design-system-color still applies there and is not waived."
+    "design-system-font-size=16px is waived globally. It is the threshold below which iOS Safari zooms the whole page when a field takes focus, so it is a platform constant rather than a type step — and dropping it would make every input in the collection flow zoom on a phone. It is deliberately not scoped to a file: if the value appears again it will be for the same reason.",
+    "",
+    "The 2.7px on .chart-x-label / .chart-y-label is NOT waived, on purpose. It is a viewBox unit inside `<svg viewBox='0 0 100 64'>` rather than a CSS pixel, so the rule is measuring the wrong thing — but leaving it reported means the day those charts change scale, someone is made to look at it again. Do not silence it without asking.",
+    "",
+    "The two file-scoped ignoreValues entries scope design-system-font-size and design-system-radius away from InvoicePrintView.vue only. That file is the four printable documents, which deliberately set their own scale in px and pt because they are laid out for physical paper rather than for a screen, and their restraint is a recorded decision (see the Printable documents section of CLAUDE.md). They do consume this system's colour tokens, so design-system-color still applies there and is not waived."
   ],
   "detector": {
     "designSystem": {
@@ -34,6 +38,11 @@
           "apps/web-client/src/views/InvoicePrintView.vue"
         ],
         "createdAt": "2026-08-07T04:11:55.358Z"
+      },
+      {
+        "rule": "design-system-font-size",
+        "value": "16px",
+        "createdAt": "2026-08-07T04:39:44.206Z"
       }
     ]
   }

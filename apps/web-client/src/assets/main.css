@@ -1763,7 +1763,11 @@ tbody tr:hover,
 
 /* Not a CSS pixel and not off the type scale: these labels live inside an SVG
    with `viewBox="0 0 100 64"`, so the unit is a viewBox unit that scales with
-   the chart. At the rendered width it lands near the micro step. */
+   the chart. At the rendered width it lands near the micro step.
+
+   The detector reports this and the waiver was deliberately NOT taken, so the
+   day those charts change scale someone is made to look at it again. Leave the
+   finding standing. */
 .chart-x-label,
 .chart-y-label {
   fill: var(--muted);
