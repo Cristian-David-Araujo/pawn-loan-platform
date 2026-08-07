@@ -278,11 +278,11 @@
             </thead>
             <tbody>
               <tr v-for="debtor in topDebtors" :key="debtor.customerId">
-                <td>{{ debtor.customerName }}</td>
-                <td class="text-center">{{ debtor.loansCount }}</td>
-                <td class="text-right">{{ formatCurrency(debtor.outstanding) }}</td>
-                <td class="text-right">{{ formatCurrency(debtor.pendingInterest) }}</td>
-                <td class="text-right">
+                <td :data-label="t('common.customer')">{{ debtor.customerName }}</td>
+                <td class="text-center" :data-label="t('reporting.loansCount')">{{ debtor.loansCount }}</td>
+                <td class="text-right" :data-label="t('reporting.outstandingBalance')">{{ formatCurrency(debtor.outstanding) }}</td>
+                <td class="text-right" :data-label="t('reporting.pendingInterestLabel')">{{ formatCurrency(debtor.pendingInterest) }}</td>
+                <td class="text-right" :data-label="t('reporting.portfolioShare')">
                   <span :class="['pill', debtor.share > 20 ? 'pill-warning' : 'pill-upcoming']">{{ formatPercent(debtor.share) }}</span>
                 </td>
               </tr>
@@ -309,10 +309,10 @@
             </thead>
             <tbody>
               <tr v-for="loan in topOverdueLoans" :key="loan.id">
-                <td>#{{ loan.id }}</td>
-                <td>{{ getCustomerLabel(loan.customerId) }}</td>
-                <td class="text-right">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
-                <td class="text-right text-warning-dark fw-bold">{{ formatCurrency(loan.interestDue ?? 0) }}</td>
+                <td :data-label="t('common.id')">#{{ loan.id }}</td>
+                <td :data-label="t('common.customer')">{{ getCustomerLabel(loan.customerId) }}</td>
+                <td class="text-right" :data-label="t('reporting.outstandingBalance')">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
+                <td class="text-right text-warning-dark fw-bold" :data-label="t('reporting.pendingInterestLabel')">{{ formatCurrency(loan.interestDue ?? 0) }}</td>
               </tr>
               <tr v-if="!topOverdueLoans.length">
                 <td colspan="4" class="muted">{{ t('reporting.noDataRange') }}</td>
@@ -336,19 +336,19 @@
             </thead>
             <tbody>
               <tr>
-                <td><span class="pill pill-upcoming">{{ t('collaterals.statusInCustody') }}</span></td>
-                <td class="text-center">{{ collateralSummary.custodyCount }}</td>
-                <td class="text-right">{{ formatCurrency(collateralSummary.custodyValue) }}</td>
+                <td :data-label="t('common.status')"><span class="pill pill-upcoming">{{ t('collaterals.statusInCustody') }}</span></td>
+                <td class="text-center" :data-label="t('reporting.itemsCount')">{{ collateralSummary.custodyCount }}</td>
+                <td class="text-right" :data-label="t('reporting.appraisedValue')">{{ formatCurrency(collateralSummary.custodyValue) }}</td>
               </tr>
               <tr>
-                <td><span class="pill pill-warning">{{ t('collaterals.statusForSale') }}</span></td>
-                <td class="text-center">{{ collateralSummary.forSaleCount }}</td>
-                <td class="text-right">{{ formatCurrency(collateralSummary.forSaleValue) }}</td>
+                <td :data-label="t('common.status')"><span class="pill pill-warning">{{ t('collaterals.statusForSale') }}</span></td>
+                <td class="text-center" :data-label="t('reporting.itemsCount')">{{ collateralSummary.forSaleCount }}</td>
+                <td class="text-right" :data-label="t('reporting.appraisedValue')">{{ formatCurrency(collateralSummary.forSaleValue) }}</td>
               </tr>
               <tr>
-                <td><span class="pill pill-current">{{ t('collaterals.statusSold') }}</span></td>
-                <td class="text-center">{{ collateralSummary.soldCount }}</td>
-                <td class="text-right">{{ formatCurrency(collateralSummary.soldRecovered) }}</td>
+                <td :data-label="t('common.status')"><span class="pill pill-current">{{ t('collaterals.statusSold') }}</span></td>
+                <td class="text-center" :data-label="t('reporting.itemsCount')">{{ collateralSummary.soldCount }}</td>
+                <td class="text-right" :data-label="t('reporting.appraisedValue')">{{ formatCurrency(collateralSummary.soldRecovered) }}</td>
               </tr>
             </tbody>
           </table>
@@ -372,9 +372,9 @@
             </thead>
             <tbody>
               <tr v-for="item in topCustomersByCollection" :key="item.customerId">
-                <td>{{ item.customerName }}</td>
-                <td class="text-right">{{ formatCurrency(item.totalCollected) }}</td>
-                <td class="text-right">
+                <td :data-label="t('common.customer')">{{ item.customerName }}</td>
+                <td class="text-right" :data-label="t('reporting.totalCollectedLabel')">{{ formatCurrency(item.totalCollected) }}</td>
+                <td class="text-right" :data-label="t('reporting.collectedShare')">
                   <span class="pill pill-current">{{ formatPercent(totalCollected ? (item.totalCollected / totalCollected) * 100 : 0) }}</span>
                 </td>
               </tr>
@@ -500,6 +500,15 @@ const isInSelectedRange = (isoDate: string) => {
 const filteredPayments = computed(() => {
   return state.payments
     .filter((payment) => {
+      /* A reversed payment is money that was given back, so it was never collected. Every
+         cash figure on this page — total collected, interest, penalties, net flow, realized
+         yield, all five charts, top collecting customers — counted it. The dashboard has
+         always excluded it (platformStore's dashboardStats), so the two screens reported
+         different totals for the same month and the report was the wrong one. */
+      if (payment.isReversed) {
+        return false
+      }
+
       const paymentIso = toIsoDate(payment.paymentDate)
       if (!paymentIso) {
         return false

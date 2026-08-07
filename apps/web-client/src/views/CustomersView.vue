@@ -62,12 +62,12 @@
         </thead>
         <tbody>
           <tr v-for="customer in paginatedCustomers" :key="customer.id" class="clickable-row" @click="openCustomerDetail(customer.id)">
-            <td>{{ customer.id }}</td>
-            <td>{{ customer.fullName }}</td>
-            <td>{{ customer.documentType }} / {{ customer.documentNumber }}</td>
-            <td>{{ customer.phone }}</td>
-            <td>{{ customer.city }}</td>
-            <td>
+            <td :data-label="t('common.id')">{{ customer.id }}</td>
+            <td :data-label="t('common.name')">{{ customer.fullName }}</td>
+            <td :data-label="t('customers.document')">{{ customer.documentType }} / {{ customer.documentNumber }}</td>
+            <td :data-label="t('common.phone')">{{ customer.phone }}</td>
+            <td :data-label="t('common.city')">{{ customer.city }}</td>
+            <td :data-label="t('common.status')">
               <span :class="['pill', customer.status === 'active' ? 'pill-current' : '']">
                 {{ customer.status === 'active' ? t('common.active') : t('common.archived') }}
               </span>
@@ -210,7 +210,7 @@
           <button class="tab-btn" :class="{ active: detailTab === 'loans' }" type="button" @click="detailTab = 'loans'">
             <HandCoins :size="14" />
             {{ t('customers.tabLoans') }}
-            <span v-if="selectedCustomerLoans.length" class="tab-count">{{ selectedCustomerLoans.length }}</span>
+            <span v-if="allSelectedCustomerLoans.length" class="tab-count">{{ allSelectedCustomerLoans.length }}</span>
           </button>
           <button class="tab-btn" :class="{ active: detailTab === 'payments' }" type="button" @click="detailTab = 'payments'">
             <Wallet :size="14" />
@@ -369,13 +369,13 @@
             </thead>
             <tbody>
               <tr v-for="item in paginatedPendingInterestItems" :key="item.interest_charge_id">
-                <td>#{{ item.loan_id }}</td>
-                <td>{{ item.billing_period }}</td>
-                <td>{{ formatDateDMY(item.due_date) }}</td>
-                <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
-                <td>{{ formatCurrency(item.penalty_amount) }}</td>
-                <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
-                <td>
+                <td :data-label="t('common.loan')">#{{ item.loan_id }}</td>
+                <td :data-label="t('payments.period')">{{ item.billing_period }}</td>
+                <td :data-label="t('payments.dueDate')">{{ formatDateDMY(item.due_date) }}</td>
+                <td :data-label="t('payments.pendingInterest')">{{ formatCurrency(item.remaining_pending_amount) }}</td>
+                <td :data-label="t('payments.penalty')">{{ formatCurrency(item.penalty_amount) }}</td>
+                <td :data-label="t('payments.outstandingPeriod')">{{ formatCurrency(item.current_outstanding_balance) }}</td>
+                <td :data-label="t('common.status')">
                   <span class="pill" :class="getPendingStatusClass(item)">
                     {{ t(getPendingStatusKey(item)) }}
                   </span>
@@ -410,15 +410,15 @@
             </thead>
             <tbody>
               <tr v-for="event in paginatedAuditFilteredEvents" :key="event.id">
-                <td>{{ formatDateDMY(event.payment_date) }}</td>
-                <td>{{ paymentTypeLabel(event.payment_type) }}</td>
-                <td>#{{ event.loan_id }}</td>
-                <td>{{ event.billing_period || '-' }}</td>
-                <td>{{ formatCurrency(event.total_entered_amount) }}</td>
-                <td>{{ formatCurrency(event.allocated_to_interest) }}</td>
-                <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
-                <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
-                <td>{{ paymentMethodLabel(event.payment_method) }}</td>
+                <td :data-label="t('common.date')">{{ formatDateDMY(event.payment_date) }}</td>
+                <td :data-label="t('payments.paymentType')">{{ paymentTypeLabel(event.payment_type) }}</td>
+                <td :data-label="t('common.loan')">#{{ event.loan_id }}</td>
+                <td :data-label="t('payments.period')">{{ event.billing_period || '-' }}</td>
+                <td :data-label="t('common.total')">{{ formatCurrency(event.total_entered_amount) }}</td>
+                <td :data-label="t('common.interest')">{{ formatCurrency(event.allocated_to_interest) }}</td>
+                <td :data-label="t('payments.penalty')">{{ formatCurrency(event.allocated_to_penalty) }}</td>
+                <td :data-label="t('common.principal')">{{ formatCurrency(event.allocated_to_principal) }}</td>
+                <td :data-label="t('common.method')">{{ paymentMethodLabel(event.payment_method) }}</td>
               </tr>
             </tbody>
           </table>
@@ -433,7 +433,7 @@
           <div class="flex-between">
             <h3>{{ t('customers.customerLoans') }}</h3>
           </div>
-          <p class="muted" v-if="!selectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
+          <p class="muted" v-if="!allSelectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
           <div v-else class="table-wrap">
           <table>
             <thead>
@@ -455,13 +455,13 @@
                 class="clickable-row"
                 @click="openCustomerLoanDetail(loan.id)"
               >
-                <td>#{{ loan.id }}</td>
-                <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-                <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
-                <td>{{ formatCurrency(loan.principalAmount) }}</td>
-                <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
-                <td>{{ loan.monthlyInterestRate }}%</td>
-                <td>{{ t(`common.${loan.status}`) }}</td>
+                <td :data-label="t('common.id')">#{{ loan.id }}</td>
+                <td :data-label="t('common.type')">{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+                <td :data-label="t('customers.loanDisbursementDate')">{{ formatDateDMY(loan.disbursementDate) }}</td>
+                <td :data-label="t('common.principal')">{{ formatCurrency(loan.principalAmount) }}</td>
+                <td :data-label="t('loans.outstanding')">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
+                <td :data-label="t('loans.rate')">{{ loan.monthlyInterestRate }}%</td>
+                <td :data-label="t('common.status')">{{ t(`common.${loan.status}`) }}</td>
                 <td>
                   <div class="form-inline">
                     <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.editLoan')" @click.stop="openLoanEditModal(loan)">
@@ -478,7 +478,7 @@
               </tr>
             </tbody>
           </table>
-              <Pagination v-model="loansCurrentPage" :totalItems="selectedCustomerLoans.length" :itemsPerPage="10" />
+              <Pagination v-model="loansCurrentPage" :totalItems="allSelectedCustomerLoans.length" :itemsPerPage="10" />
           </div>
         </div>
         </template>
@@ -517,19 +517,19 @@
             </thead>
             <tbody>
               <tr v-for="payment in paginatedCustomerPayments" :key="payment.id">
-                <td>#{{ payment.id }}</td>
-                <td>#{{ payment.loanId }}</td>
-                <td>{{ formatDateDMY(payment.paymentDate) }}</td>
-                <td>{{ formatCurrency(payment.totalAmount) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-                <td>
+                <td :data-label="t('common.id')">#{{ payment.id }}</td>
+                <td :data-label="t('common.loan')">#{{ payment.loanId }}</td>
+                <td :data-label="t('common.date')">{{ formatDateDMY(payment.paymentDate) }}</td>
+                <td :data-label="t('common.total')">{{ formatCurrency(payment.totalAmount) }}</td>
+                <td :data-label="t('payments.penalty')">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                <td :data-label="t('common.interest')">{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                <td :data-label="t('common.fees')">{{ formatCurrency(payment.allocatedToFees) }}</td>
+                <td :data-label="t('common.principal')">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                <td :data-label="t('common.method')">
                   {{ paymentMethodLabel(payment.paymentMethod) }}
                 </td>
-                <td class="muted">{{ payment.notes || '-' }}</td>
-                <td>
+                <td class="muted" :data-label="t('payments.notes')">{{ payment.notes || '-' }}</td>
+                <td :data-label="t('common.status')">
                   <span :class="['pill', payment.isReversed ? 'pill-overdue' : 'pill-current']">
                     {{ payment.isReversed ? t('payments.reversed') : t('common.active') }}
                   </span>
@@ -595,14 +595,14 @@
             </thead>
             <tbody>
               <tr v-for="item in paginatedCustomerCollateral" :key="item.id">
-                <td>#{{ item.id }}</td>
-                <td>#{{ item.loanId }}</td>
-                <td>{{ getLoanTypeLabel(item.loanId) }}</td>
-                <td>{{ getLoanStatusLabel(item.loanId) }}</td>
-                <td>{{ item.description }}</td>
-                <td>{{ formatCurrency(item.appraisedValue) }}</td>
-                <td>{{ item.custodyCode }}</td>
-                <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+                <td :data-label="t('common.id')">#{{ item.id }}</td>
+                <td :data-label="t('common.loan')">#{{ item.loanId }}</td>
+                <td :data-label="t('customers.associatedLoanType')">{{ getLoanTypeLabel(item.loanId) }}</td>
+                <td :data-label="t('customers.associatedLoanStatus')">{{ getLoanStatusLabel(item.loanId) }}</td>
+                <td :data-label="t('common.description')">{{ item.description }}</td>
+                <td :data-label="t('collateral.appraisedValue')">{{ formatCurrency(item.appraisedValue) }}</td>
+                <td :data-label="t('collateral.custodyCode')">{{ item.custodyCode }}</td>
+                <td :data-label="t('common.status')">{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
                 <td>
                   <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary" type="button" @click="openCollateralEditModal(item)">
                     <Pencil :size="16" />
@@ -1007,11 +1007,16 @@ const allSelectedCustomerLoans = computed(() => {
     .sort((a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime())
 })
 
-const selectedCustomerLoans = computed(() => {
-  return allSelectedCustomerLoans.value.filter(
-    (loan: Loan) => isLoanSelectedByAuditFilter(loan.id) && isInAuditDateRange(loan.disbursementDate)
-  )
-})
+/* `selectedCustomerLoans` used to sit here, narrowing the customer's loans by the audit
+   card's date range and loan picker — and then feeding the Loans tab, its count badge, the
+   overview counters, `getLoanById` (which labels loan numbers on payment rows) and the loan
+   dropdown inside the collateral edit modal.
+
+   So setting a date range to read an audit trail made loans vanish from the customer's loan
+   list, dropped the tab badge, blanked loan labels on payment rows, and could leave a
+   pledge's own loan out of the dropdown used to edit that pledge — with nothing on screen
+   saying why. The audit range now scopes only what it is about: the traceability tables,
+   through `selectedCustomerPayments` below. Everything else reads the full list. */
 
 const selectedCustomerLoanIds = computed(
   () => new Set(allSelectedCustomerLoans.value.filter((loan: Loan) => isLoanSelectedByAuditFilter(loan.id)).map((loan) => loan.id))
@@ -1097,9 +1102,9 @@ const totalCustomerPaid = computed(() =>
   selectedCustomerPayments.value.reduce((sum: number, payment: Payment) => sum + payment.totalAmount, 0)
 )
 
-const totalCustomerLoans = computed(() => selectedCustomerLoans.value.length)
-const activeCustomerLoans = computed(() => selectedCustomerLoans.value.filter((loan) => loan.status === 'active').length)
-const overdueCustomerLoans = computed(() => selectedCustomerLoans.value.filter((loan) => loan.status === 'overdue').length)
+const totalCustomerLoans = computed(() => allSelectedCustomerLoans.value.length)
+const activeCustomerLoans = computed(() => allSelectedCustomerLoans.value.filter((loan) => loan.status === 'active').length)
+const overdueCustomerLoans = computed(() => allSelectedCustomerLoans.value.filter((loan) => loan.status === 'overdue').length)
 
 const normalizeToIsoDate = (value: string) => {
   const directMatch = value.match(/^(\d{4}-\d{2}-\d{2})/)
@@ -1566,7 +1571,7 @@ const handleUpdatePayment = async () => {
   }
 }
 
-const getLoanById = (loanId: number) => selectedCustomerLoans.value.find((loan) => loan.id === loanId) ?? null
+const getLoanById = (loanId: number) => allSelectedCustomerLoans.value.find((loan) => loan.id === loanId) ?? null
 
 const getLoanTypeLabel = (loanId: number) => {
   const loan = getLoanById(loanId)
@@ -1576,8 +1581,14 @@ const getLoanTypeLabel = (loanId: number) => {
   return loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal')
 }
 
+/* Was `window.print()`, which printed the application — sidebar, open modal, whatever tab
+   was showing, in the operator's theme — instead of the payment-history document. The
+   button 340 lines above it in the same modal already linked to the right route. */
 const printHistory = () => {
-  window.print()
+  if (!selectedCustomer.value) {
+    return
+  }
+  window.open(`/print/invoice/history/${selectedCustomer.value.id}`, '_blank')
 }
 
 const getLoanStatusLabel = (loanId: number) => {
@@ -1711,7 +1722,7 @@ const filteredCustomers = computed(() => {
 const { currentPage: customerCurrentPage, paginatedArray: paginatedCustomers } = usePagination(filteredCustomers)
 const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingInterestItems } = usePagination(pendingInterestItems)
 const { currentPage: auditCurrentPage, paginatedArray: paginatedAuditFilteredEvents } = usePagination(auditFilteredEvents)
-const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(selectedCustomerLoans)
+const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(allSelectedCustomerLoans)
 const { currentPage: paymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
 const { currentPage: collateralsCurrentPage, paginatedArray: paginatedCustomerCollateral } = usePagination(selectedCustomerCollateral)
 const customerStatusFilterOptions = computed(() => [
@@ -1749,7 +1760,7 @@ const loanStatusOptions = computed(() => [
 ])
 
 const collateralLoanIdOptions = computed(() => 
-  selectedCustomerLoans.value.map(l => ({ value: l.id, label: '#' + l.id }))
+  allSelectedCustomerLoans.value.map(l => ({ value: l.id, label: '#' + l.id }))
 )
 
 const collateralStatusLabel = (status: string) => {

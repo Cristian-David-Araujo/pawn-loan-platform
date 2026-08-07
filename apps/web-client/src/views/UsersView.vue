@@ -30,11 +30,11 @@
           </thead>
           <tbody>
             <tr v-for="user in users" :key="user.id">
-              <td>{{ user.id }}</td>
-              <td>{{ user.username }}</td>
-              <td>{{ user.full_name || user.email }}</td>
-              <td>{{ t('roles.' + user.role, user.role) }}</td>
-              <td>
+              <td :data-label="t('common.id', 'ID')">{{ user.id }}</td>
+              <td :data-label="t('users.username', 'Username')">{{ user.username }}</td>
+              <td :data-label="t('users.fullName', 'Full Name')">{{ user.full_name || user.email }}</td>
+              <td :data-label="t('users.role', 'Role')">{{ t('roles.' + user.role, user.role) }}</td>
+              <td :data-label="t('common.status', 'Status')">
                 <span class="pill" :class="user.is_active ? 'pill-current' : 'pill-overdue'">
                   {{ user.is_active ? t('common.active', 'Active') : t('users.inactive', 'Inactive') }}
                 </span>
@@ -48,10 +48,10 @@
               </td>
             </tr>
             <tr v-if="!users.length && !loading">
-              <td colspan="5">{{ t('users.noUsers', 'No users found.') }}</td>
+              <td colspan="6">{{ t('users.noUsers', 'No users found.') }}</td>
             </tr>
             <tr v-if="loading">
-              <td colspan="5">{{ t('common.loading') }}</td>
+              <td colspan="6">{{ t('common.loading') }}</td>
             </tr>
           </tbody>
         </table>

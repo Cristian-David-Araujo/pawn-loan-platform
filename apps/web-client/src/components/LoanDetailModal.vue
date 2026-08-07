@@ -121,14 +121,14 @@
               </thead>
               <tbody>
                 <tr v-for="payment in paginatedLoanPayments" :key="payment.id">
-                  <td>{{ formatDateDMY(payment.paymentDate) }}</td>
-                  <td>{{ formatCurrency(payment.totalAmount) }}</td>
-                  <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-                  <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
-                  <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
-                  <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-                  <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
-                  <td class="muted">
+                  <td :data-label="t('common.date')">{{ formatDateDMY(payment.paymentDate) }}</td>
+                  <td :data-label="t('common.total')">{{ formatCurrency(payment.totalAmount) }}</td>
+                  <td :data-label="t('payments.penalty')">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                  <td :data-label="t('common.interest')">{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                  <td :data-label="t('common.fees')">{{ formatCurrency(payment.allocatedToFees) }}</td>
+                  <td :data-label="t('common.principal')">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                  <td :data-label="t('common.method')">{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
+                  <td class="muted" :data-label="t('payments.notes')">
                     {{ payment.notes || '-' }}
                     <div v-if="payment.isReversed" class="pill pill-overdue mt-1">
                       {{ t('payments.reversed') }}<template v-if="payment.reversalReason">: {{ payment.reversalReason }}</template>
@@ -171,12 +171,12 @@
               </thead>
               <tbody>
                 <tr v-for="item in paginatedLoanCollateral" :key="item.id">
-                  <td>#{{ item.id }}</td>
-                  <td>{{ item.description }}</td>
-                  <td>{{ formatCurrency(item.appraisedValue) }}</td>
-                  <td>{{ item.custodyCode }}</td>
-                  <td>{{ item.storageLocation }}</td>
-                  <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+                  <td :data-label="t('common.id')">#{{ item.id }}</td>
+                  <td :data-label="t('common.description')">{{ item.description }}</td>
+                  <td :data-label="t('collateral.appraisedValue')">{{ formatCurrency(item.appraisedValue) }}</td>
+                  <td :data-label="t('collateral.custodyCode')">{{ item.custodyCode }}</td>
+                  <td :data-label="t('collateral.location')">{{ item.storageLocation }}</td>
+                  <td :data-label="t('common.status')">{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
                 </tr>
               </tbody>
             </table>

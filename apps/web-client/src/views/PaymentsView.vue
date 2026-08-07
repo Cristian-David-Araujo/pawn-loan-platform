@@ -31,58 +31,59 @@
       <p class="muted">{{ t('common.breakdownNote') }}</p>
 
       <div class="table-toolbar toolbar-end mt-16">
-        <span class="pill">{{ t('payments.suggestedForSelected', { amount: formatCurrency(suggestedSelectedAmount) }) }}</span>
+        <span class="pill">{{ t('payments.totalPending', { amount: formatCurrency(totalPendingOutstanding) }) }}</span>
       </div>
 
+      <!--
+        No checkbox column. Interest is allocated oldest-first by the server and client
+        selection is ignored by design, so ticking a row could never change where the money
+        went — it only made the confirmation dialog say something untrue. The rightmost
+        column shows what this amount will actually cover, period by period.
+      -->
       <div class="table-wrap" v-if="flatPendingItems.length">
         <table>
           <thead>
             <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  :checked="allChargesSelected"
-                  :aria-label="t('payments.selectAllRows')"
-                  @change="toggleAllCharges"
-                />
-              </th>
               <th>{{ t('common.loan') }}</th>
-              <th>{{ t('common.type') }}</th>
               <th>{{ t('payments.period') }}</th>
               <th>{{ t('payments.dueDate') }}</th>
-              <th class="text-right">{{ t('payments.originalInterest') }}</th>
               <th class="text-right">{{ t('payments.pendingInterest') }}</th>
               <th class="text-right">{{ t('payments.penalty') }}</th>
               <th class="text-right">{{ t('payments.outstandingPeriod') }}</th>
               <th>{{ t('common.status') }}</th>
+              <th class="text-right">{{ t('payments.willReceive') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr
               v-for="item in paginatedPendingItems"
               :key="item.interest_charge_id"
-              :class="{ 'selected-row': isChargeSelected(item.interest_charge_id) }"
+              :class="{ 'row-allocated': allocationFor(item.interest_charge_id)?.applied }"
             >
-              <td>
-                <input
-                  type="checkbox"
-                  :checked="isChargeSelected(item.interest_charge_id)"
-                  :aria-label="t('payments.selectPeriodRow', { period: item.billing_period })"
-                  @change="toggleCharge(item.interest_charge_id)"
-                />
+              <td :data-label="t('common.loan')">
+                #{{ item.loan_id }}
+                <span class="muted">· {{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</span>
               </td>
-              <td>#{{ item.loan_id }}</td>
-              <td>{{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-              <td>{{ item.billing_period }}</td>
-              <td>{{ formatDateDMY(item.due_date) }}</td>
-              <td class="text-right">{{ formatCurrency(item.original_interest_amount) }}</td>
-              <td class="text-right">{{ formatCurrency(item.remaining_pending_amount) }}</td>
-              <td class="text-right">{{ formatCurrency(item.penalty_amount) }}</td>
-              <td class="text-right">{{ formatCurrency(item.current_outstanding_balance) }}</td>
-              <td>
+              <td :data-label="t('payments.period')">{{ item.billing_period }}</td>
+              <td :data-label="t('payments.dueDate')">{{ formatDateDMY(item.due_date) }}</td>
+              <td class="text-right" :data-label="t('payments.pendingInterest')">{{ formatCurrency(item.remaining_pending_amount) }}</td>
+              <td class="text-right" :data-label="t('payments.penalty')">{{ formatCurrency(item.penalty_amount) }}</td>
+              <td class="text-right" :data-label="t('payments.outstandingPeriod')">
+                <strong>{{ formatCurrency(item.current_outstanding_balance) }}</strong>
+              </td>
+              <td :data-label="t('common.status')">
                 <span class="pill" :class="getPendingStatusClass(item)">
                   {{ t(getPendingStatusKey(item)) }}
                 </span>
+              </td>
+              <td class="text-right" :data-label="t('payments.willReceive')">
+                <span v-if="allocationFor(item.interest_charge_id)?.applied" class="allocation-amount">
+                  {{ formatCurrency(allocationFor(item.interest_charge_id)!.applied) }}
+                  <span v-if="allocationFor(item.interest_charge_id)?.partial" class="pill pill-warning">
+                    {{ t('payments.partial') }}
+                  </span>
+                </span>
+                <span v-else class="muted">—</span>
               </td>
             </tr>
           </tbody>
@@ -112,13 +113,18 @@
         @submit="submitInterestPayment"
       >
         <template #icon><CircleDollarSign :size="16" /></template>
-        <p>{{ t('payments.selectedItems', { count: selectedChargeIds.size }) }}</p>
+        <!-- All three lines derive from the same base: the customer's full pending total. -->
         <p>{{ t('payments.amountEntered', { amount: formatCurrency(interestAmountToPay) }) }}</p>
+        <p>{{ t('payments.coversPeriods', { count: periodsCovered }) }}</p>
         <p>{{ t('payments.remainingAfterPayment', { amount: formatCurrency(remainingAfterInterestPayment) }) }}</p>
-        <p class="pill pill-warning" v-if="partialAmount > 0">
-          {{ t('payments.partialDetected', { amount: formatCurrency(partialAmount) }) }}
+        <p class="notice notice-warning" v-if="periodPartial">
+          {{ t('payments.partialOnPeriod', {
+            period: periodPartial.item.billing_period,
+            amount: formatCurrency(periodPartial.applied),
+            of: formatCurrency(periodPartial.item.current_outstanding_balance)
+          }) }}
         </p>
-        <p class="pill pill-upcoming" v-if="advanceAmount > 0">
+        <p class="notice notice-info" v-if="advanceAmount > 0">
           {{ t('payments.advanceDetected', { amount: formatCurrency(advanceAmount) }) }}
         </p>
       </PaymentCollectionForm>
@@ -169,20 +175,20 @@
                   @change="togglePrincipalLoan(item.loan_id)"
                 />
               </td>
-              <td>
+              <td :data-label="t('common.loan')">
                 #{{ item.loan_id }}
                 <span class="pill pill-upcoming" v-if="index === 0 && principalCurrentPage === 1">
                   {{ t('payments.oldestTag') }}
                 </span>
               </td>
-              <td>{{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-              <td>{{ formatDateDMY(item.disbursement_date) }}</td>
-              <td class="text-right">{{ formatCurrency(item.original_principal) }}</td>
-              <td class="text-right">{{ formatCurrency(item.outstanding_principal) }}</td>
-              <td class="text-right">{{ formatCurrency(item.accrued_unpaid_interest) }}</td>
-              <td class="text-right">{{ formatCurrency(item.penalties) }}</td>
-              <td class="text-right">{{ formatCurrency(item.total_payoff_amount) }}</td>
-              <td>{{ formatDateDMY(item.next_due_date) }}</td>
+              <td :data-label="t('common.type')">{{ item.loan_type === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+              <td :data-label="t('payments.disbursedOn')">{{ formatDateDMY(item.disbursement_date) }}</td>
+              <td class="text-right" :data-label="t('payments.originalPrincipal')">{{ formatCurrency(item.original_principal) }}</td>
+              <td class="text-right" :data-label="t('payments.outstandingPrincipal')">{{ formatCurrency(item.outstanding_principal) }}</td>
+              <td class="text-right" :data-label="t('payments.accruedUnpaidInterest')">{{ formatCurrency(item.accrued_unpaid_interest) }}</td>
+              <td class="text-right" :data-label="t('payments.penalty')">{{ formatCurrency(item.penalties) }}</td>
+              <td class="text-right" :data-label="t('payments.totalPayoff')">{{ formatCurrency(item.total_payoff_amount) }}</td>
+              <td :data-label="t('payments.nextDueDate')">{{ formatDateDMY(item.next_due_date) }}</td>
             </tr>
           </tbody>
         </table>
@@ -312,16 +318,16 @@
                   <ChevronRight v-else :size="14" />
                 </button>
               </td>
-              <td>#{{ payment.id }}</td>
-              <td>#{{ payment.loanId }}</td>
-              <td>{{ formatDateDMY(payment.paymentDate) }}</td>
-              <td class="text-right">{{ formatCurrency(payment.totalAmount) }}</td>
-              <td class="text-right">{{ formatCurrency(payment.allocatedToInterest) }}</td>
-              <td class="text-right">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-              <td class="text-right">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-              <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
-              <td>{{ payment?.receiver?.full_name || payment?.receiver?.username || '-' }}</td>
-              <td>
+              <td :data-label="t('common.id')">#{{ payment.id }}</td>
+              <td :data-label="t('common.loan')">#{{ payment.loanId }}</td>
+              <td :data-label="t('common.date')">{{ formatDateDMY(payment.paymentDate) }}</td>
+              <td class="text-right" :data-label="t('common.total')">{{ formatCurrency(payment.totalAmount) }}</td>
+              <td class="text-right" :data-label="t('common.interest')">{{ formatCurrency(payment.allocatedToInterest) }}</td>
+              <td class="text-right" :data-label="t('payments.penalty')">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+              <td class="text-right" :data-label="t('common.principal')">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+              <td :data-label="t('common.method')">{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
+              <td :data-label="t('common.receivedBy', 'Received by')">{{ payment?.receiver?.full_name || payment?.receiver?.username || '-' }}</td>
+              <td :data-label="t('common.status')">
                 <span :class="['pill', payment.isReversed ? 'pill-overdue' : 'pill-current']">
                   {{ payment.isReversed ? t('payments.reversed') : t('common.active') }}
                 </span>
@@ -376,12 +382,12 @@
                     </thead>
                     <tbody>
                       <tr v-for="event in getPaymentEvents(payment.id)" :key="event.id">
-                        <td>{{ getPaymentTypeLabel(event.payment_type) }}</td>
-                        <td>{{ event.billing_period || '-' }}</td>
-                        <td class="text-right">{{ formatCurrency(event.total_entered_amount) }}</td>
-                        <td class="text-right">{{ formatCurrency(event.allocated_to_interest) }}</td>
-                        <td class="text-right">{{ formatCurrency(event.allocated_to_penalty) }}</td>
-                        <td class="text-right">{{ formatCurrency(event.allocated_to_principal) }}</td>
+                        <td :data-label="t('payments.paymentType')">{{ getPaymentTypeLabel(event.payment_type) }}</td>
+                        <td :data-label="t('payments.period')">{{ event.billing_period || '-' }}</td>
+                        <td class="text-right" :data-label="t('common.total')">{{ formatCurrency(event.total_entered_amount) }}</td>
+                        <td class="text-right" :data-label="t('common.interest')">{{ formatCurrency(event.allocated_to_interest) }}</td>
+                        <td class="text-right" :data-label="t('payments.penalty')">{{ formatCurrency(event.allocated_to_penalty) }}</td>
+                        <td class="text-right" :data-label="t('common.principal')">{{ formatCurrency(event.allocated_to_principal) }}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -783,25 +789,54 @@ const totalPendingOutstanding = computed(() =>
   flatPendingItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0)
 )
 
-const {
-  selected: selectedChargeIds,
-  selectedRows: selectedPendingItems,
-  isSelected: isChargeSelected,
-  toggle: toggleChargeSelection,
-  toggleAll: toggleAllChargeSelection,
-  selectAll: selectAllCharges,
-  allSelected: allChargesSelected
-} = useRowSelection(flatPendingItems, (item) => item.interest_charge_id)
-
-const suggestedSelectedAmount = computed(() =>
-  selectedPendingItems.value.reduce((sum, item) => sum + item.current_outstanding_balance, 0)
-)
-
 const interestAmountToPay = computed(() => Math.max(0, interestEnteredAmount.value || 0))
 
+/**
+ * What this amount will actually cover, period by period.
+ *
+ * This tab used to carry a checkbox column and a select-all, and the confirmation dialog
+ * read "across {count} selected period(s)". The request has always sent
+ * `pay_all_pending: true` with an empty `selected_charge_ids`, and the API ignores client
+ * selection hints by design (CLAUDE.md): interest is allocated oldest-charge-first across
+ * the customer's whole book, penalty before interest. So a collector could untick the
+ * oldest period because the customer said "I'm paying this month", and the last screen
+ * before the money moved would confirm a destination that was not where it went.
+ *
+ * The checkboxes are gone. This computes the same oldest-first walk the server performs and
+ * shows it, so the screen states what will happen instead of asking for a choice that was
+ * never honoured.
+ */
+const interestAllocationPreview = computed(() => {
+  let remaining = interestAmountToPay.value
+
+  const rows = [...flatPendingItems.value]
+    .sort((a, b) => a.due_date.localeCompare(b.due_date))
+    .map((item) => {
+      const applied = Math.min(remaining, item.current_outstanding_balance)
+      remaining = Math.max(0, remaining - applied)
+      return {
+        item,
+        applied,
+        covered: applied > 0 && applied >= item.current_outstanding_balance,
+        partial: applied > 0 && applied < item.current_outstanding_balance
+      }
+    })
+
+  return { rows, advance: remaining }
+})
+
+const allocationFor = (chargeId: number) =>
+  interestAllocationPreview.value.rows.find((row) => row.item.interest_charge_id === chargeId)
+
+/** Periods this amount closes outright — what the confirmation names. */
+const periodsCovered = computed(() => interestAllocationPreview.value.rows.filter((row) => row.covered).length)
+const periodPartial = computed(() => interestAllocationPreview.value.rows.find((row) => row.partial) ?? null)
+const advanceAmount = computed(() => interestAllocationPreview.value.advance)
+
+/* One base for both lines. These used to disagree: "remaining after payment" counted every
+   pending row while "partial detected" counted only the ticked ones, so with anything
+   unticked the two described different debts. */
 const remainingAfterInterestPayment = computed(() => Math.max(0, totalPendingOutstanding.value - interestAmountToPay.value))
-const partialAmount = computed(() => Math.max(0, suggestedSelectedAmount.value - interestAmountToPay.value))
-const advanceAmount = computed(() => Math.max(0, interestAmountToPay.value - suggestedSelectedAmount.value))
 
 const getPendingStatusKey = (item: InterestPendingItem) => {
   if (item.overdue) {
@@ -926,24 +961,11 @@ const handleUpdatePayment = async () => {
   }
 }
 
+/* "Suggested" now means the whole pending total, which is the only figure the server can
+   act on. It used to mean the total of the ticked rows. */
 const useSuggestedAmount = () => {
-  interestEnteredAmount.value = suggestedSelectedAmount.value
+  interestEnteredAmount.value = totalPendingOutstanding.value
   interestAmountTouched.value = false
-}
-
-// Until the operator types an amount by hand, keep it in step with what is ticked.
-const toggleCharge = (chargeId: number) => {
-  toggleChargeSelection(chargeId)
-  if (!interestAmountTouched.value) {
-    useSuggestedAmount()
-  }
-}
-
-const toggleAllCharges = () => {
-  toggleAllChargeSelection()
-  if (!interestAmountTouched.value) {
-    useSuggestedAmount()
-  }
 }
 
 const togglePrincipalLoan = (loanId: number) => {
@@ -975,8 +997,8 @@ const loadCustomerPaymentData = async () => {
   principalContext.value = principal
   paymentHistory.value = history
   resetHistoryFilters()
-  // Both tabs open with everything ticked and the amount prefilled to that total.
-  selectAllCharges()
+  // The interest amount opens at the full pending total; the principal tab still opens with
+  // every loan ticked, because there the selection is honoured.
   useSuggestedAmount()
   selectAllPrincipalLoans()
   usePrincipalSuggestedAmount()
@@ -988,10 +1010,11 @@ const submitInterestPayment = async () => {
     return
   }
 
+  // Names the periods this will actually close, not the ones somebody ticked.
   const confirmed = await confirm(
     t('payments.confirmRegisterInterest', {
       amount: formatCurrency(interestAmountToPay.value),
-      count: selectedChargeIds.value.size
+      count: periodsCovered.value
     })
   )
   if (!confirmed) {

@@ -846,6 +846,32 @@ th.text-right {
   margin-top: 1.5rem;
 }
 
+/* Four more of the same, found in five files: .form-row, .flex-between, .mt-1 and
+   .mb-16 were all in markup and defined nowhere, so they styled nothing and would
+   have silently defeated anyone writing a mobile rule against them. */
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.mb-16 {
+  margin-bottom: 1rem;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+/* Two fields side by side inside a modal form, stacking on a phone. */
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
 /* ═══════════════════════════════════════════════
    STAT CARDS
 
@@ -1379,6 +1405,22 @@ tbody tr:hover,
   color: var(--text-secondary);
   white-space: nowrap;
   gap: 0.3rem;
+}
+
+/* A pill is a status chip and never wraps — but several places used the class to
+   carry a whole sentence, and one of them (the reversal warning) is ~200
+   characters. At 12.3px nowrap that is a 1300px element inside a 318px modal,
+   and because it escapes the table's scroll container it drags the entire page
+   sideways. A `<p>` wearing the class is prose by definition, so it wraps.
+   Anything that is genuinely a sentence should use `.notice` instead. */
+p.pill,
+p.badge {
+  display: block;
+  white-space: normal;
+  line-height: 1.45;
+  padding: 0.4rem 0.6rem;
+  font-size: var(--fs-sm);
+  font-weight: 500;
 }
 
 .pill-overdue {
@@ -2255,13 +2297,47 @@ ul {
     display: inline-flex;
   }
 
+  /* The topbar carried six things — menu, breadcrumbs, customer search, locale,
+     theme, sign out — in a non-wrapping flex row, so the right-hand group wrapped
+     into three lines and ate ~150px of a ~740px viewport while the search was
+     crushed to whatever was left.
+
+     The breadcrumb goes: PageHeader repeats the page name directly below it. The
+     customer search goes too — it is a jump-to-customer shortcut, and every screen
+     that needs one has its own picker in the page body. */
   .topbar {
-    padding: 0.75rem 1rem;
+    padding: 0.6rem 1rem;
     gap: 0.5rem;
+    flex-wrap: nowrap;
+  }
+
+  .topbar .breadcrumbs,
+  .topbar-actions .customer-autocomplete {
+    display: none;
   }
 
   .topbar-actions {
     width: auto;
+    flex-wrap: nowrap;
+    gap: 0.35rem;
+  }
+
+  /* Sign out keeps its icon and drops its label; three icon buttons fit where one
+     labelled button and a crushed search field did not. */
+  .topbar-actions .btn span,
+  .topbar-actions > .btn:not(.btn-icon) {
+    font-size: 0;
+    gap: 0;
+  }
+
+  .topbar-actions > .btn:not(.btn-icon) {
+    padding: 0.5rem;
+    aspect-ratio: 1;
+    justify-content: center;
+  }
+
+  .topbar-actions > .btn:not(.btn-icon) svg {
+    font-size: 1rem;
   }
 
   .page {
@@ -2276,7 +2352,8 @@ ul {
 
   .grid-4,
   .grid-3,
-  .grid-2 {
+  .grid-2,
+  .form-row {
     grid-template-columns: 1fr;
   }
 
@@ -2305,6 +2382,25 @@ ul {
     width: 100%;
     max-height: 95dvh;
     border-radius: var(--radius);
+    padding: 1rem;
+  }
+
+  /* The backdrop is a 16px strip at this width, so tapping outside is not a real
+     way out, and on the create-loan form the close button is a long scroll above
+     the fold. The header rides along instead. */
+  .modal-header {
+    position: sticky;
+    top: -1rem;
+    z-index: 2;
+    background: var(--surface);
+    margin: -1rem -1rem 1rem;
+    padding: 1rem;
+  }
+
+  /* Two levels of card padding inside the customer detail cost 80px of a 390px
+     screen before any content. */
+  .modal-panel .card {
+    padding: 0.85rem;
   }
 
   .tabs {
@@ -2348,9 +2444,136 @@ ul {
     font-size: var(--fs-lg);
   }
 
+  /* ─────────────────────────────────────────────
+     TABLES BECOME CARDS
+
+     A ten-column money table cannot be read on a 390px screen. Sideways-scrolling
+     one is worse than useless here: the row's checkbox and identity sit in the
+     first columns and the amount the operator is deciding on sits 700px to the
+     right, so the two are never on screen together — which on the payment screens
+     is how the wrong debt gets paid.
+
+     Every `td` carries a `data-label`, so each row restacks into a label/value
+     card without rewriting a single table into a list. A table that has not been
+     given `data-label`s keeps its horizontal scroll and is still usable; this
+     degrades rather than breaks.
+     ───────────────────────────────────────────── */
+  .table-wrap {
+    border: 0;
+    background: transparent;
+    overflow-x: visible;
+  }
+
+  .table-wrap table,
+  .table-wrap tbody,
+  .table-wrap tr,
+  .table-wrap td {
+    display: block;
+    width: 100%;
+  }
+
+  /* The header row is what the data-labels replace. */
+  .table-wrap thead {
+    display: none;
+  }
+
+  .table-wrap tr {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 0.35rem 0.75rem;
+    margin-bottom: 0.6rem;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .table-wrap td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    text-align: right !important;
+    white-space: normal;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--line-light);
+  }
+
+  .table-wrap tr td:last-child {
+    border-bottom: 0;
+  }
+
+  /* The column heading, reattached to the value it belongs to. */
+  .table-wrap td::before {
+    content: attr(data-label);
+    flex: 0 0 auto;
+    text-align: left;
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+
+  /* A cell with no label is a full-width block: an actions row, a checkbox. */
+  .table-wrap td:not([data-label]) {
+    justify-content: flex-end;
+  }
+
+  .table-wrap td:not([data-label])::before {
+    content: none;
+  }
+
+  /* Row-level actions get room to be tapped rather than stacking into a column. */
+  .table-wrap td .form-inline {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.4rem;
+  }
+
+  /* Selection reads as a tinted card, not a tinted strip. */
+  .selected-row,
+  .selected-row:hover {
+    border-color: var(--accent-border);
+  }
+
+  .selected-row td:first-child {
+    box-shadow: none;
+  }
+
   /* Mobile Accessibility & Touch Targets */
   .btn, .btn-icon, .tab-btn, .sort-header-btn {
     min-height: 44px;
+  }
+
+  /* A 17px checkbox is what selects which debt gets paid. The box stays its size;
+     the tappable area around it does not. */
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 22px;
+    height: 22px;
+    margin: 0.5rem;
+  }
+
+  .pagination-btn,
+  .date-nav-btn,
+  .date-picker-trigger {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .date-day-btn {
+    min-height: 42px;
+  }
+
+  /* These three declare --fs-sm at class specificity, which beat the 16px rule
+     below and made iOS Safari zoom the page on every search field — the exact
+     thing that rule exists to prevent. */
+  .topbar-search,
+  .table-search,
+  .table-select,
+  .locale-select {
+    font-size: 16px;
+    min-height: 44px !important;
   }
 
   /* Off the type scale on purpose, and the one place that is correct: iOS Safari

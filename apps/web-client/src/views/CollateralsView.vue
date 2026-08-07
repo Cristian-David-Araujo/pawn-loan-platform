@@ -42,42 +42,42 @@
         <table>
           <thead>
             <tr v-if="activeTab === 'custody'">
-              <th width="60">{{ t('common.id') }}</th>
-              <th width="120">{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('collateral.custodyCode') }}</th>
               <th>{{ t('common.description') }}</th>
-              <th width="110" class="text-right">{{ t('collateral.appraisedValue') }}</th>
-              <th width="100">{{ t('common.loan') }}</th>
-              <th width="110" class="text-right">{{ t('common.principal') }}</th>
-              <th width="110" class="text-right">{{ t('loans.outstanding') }}</th>
-              <th width="110" class="text-right">{{ t('common.interest', 'Interés') }}</th>
-              <th width="120">{{ t('common.status') }}</th>
-              <th width="90" class="text-center">{{ t('common.actions') }}</th>
+              <th class="text-right">{{ t('collateral.appraisedValue') }}</th>
+              <th>{{ t('common.loan') }}</th>
+              <th class="text-right">{{ t('common.principal') }}</th>
+              <th class="text-right">{{ t('loans.outstanding') }}</th>
+              <th class="text-right">{{ t('common.interest', 'Interés') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th class="text-center">{{ t('common.actions') }}</th>
             </tr>
             <tr v-else>
-              <th width="60">{{ t('common.id') }}</th>
-              <th width="120">{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('collateral.custodyCode') }}</th>
               <th>{{ t('common.description') }}</th>
-              <th width="110" class="text-right">{{ t('collateral.appraisedValue') }}</th>
-              <th width="100">{{ t('common.loan') }}</th>
-              <th width="110" class="text-right">{{ t('common.principal') }}</th>
-              <th width="110" class="text-right">{{ t('loans.outstanding') }}</th>
-              <th width="110" class="text-right">{{ t('common.interest', 'Interés') }}</th>
-              <th width="120">{{ t('common.status') }}</th>
-              <th width="110" class="text-right">{{ t('collaterals.salePrice') }}</th>
-              <th width="100">{{ t('collaterals.saleDate') }}</th>
-              <th width="80" class="text-center">{{ t('common.actions') }}</th>
+              <th class="text-right">{{ t('collateral.appraisedValue') }}</th>
+              <th>{{ t('common.loan') }}</th>
+              <th class="text-right">{{ t('common.principal') }}</th>
+              <th class="text-right">{{ t('loans.outstanding') }}</th>
+              <th class="text-right">{{ t('common.interest', 'Interés') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th class="text-right">{{ t('collaterals.salePrice') }}</th>
+              <th>{{ t('collaterals.saleDate') }}</th>
+              <th class="text-center">{{ t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in paginatedItems" :key="item.id">
-              <td>{{ item.id }}</td>
-              <td>{{ item.custody_code || item.custodyCode }}</td>
-              <td>{{ item.description }}</td>
-              <td class="text-right">{{ formatCurrency(item.appraised_value || item.appraisedValue) }}</td>
+              <td :data-label="t('common.id')">{{ item.id }}</td>
+              <td :data-label="t('collateral.custodyCode')">{{ item.custody_code || item.custodyCode }}</td>
+              <td :data-label="t('common.description')">{{ item.description }}</td>
+              <td class="text-right" :data-label="t('collateral.appraisedValue')">{{ formatCurrency(item.appraised_value || item.appraisedValue) }}</td>
               
               <!-- Tab Custody Columns -->
               <template v-if="activeTab === 'custody'">
-                <td>
+                <td :data-label="t('common.loan')">
                   <div class="fw-bold">#{{ item.loan_id || item.loanId }}</div>
                   <div v-if="item.loan_status || item.loanStatus" class="mt-1">
                     <span :class="['pill', getLoanStatusClass(item.loan_status || item.loanStatus)]">
@@ -85,20 +85,20 @@
                     </span>
                   </div>
                 </td>
-                <td class="text-right">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
-                <td class="text-right">
+                <td class="text-right" :data-label="t('common.principal')">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
+                <td class="text-right" :data-label="t('loans.outstanding')">
                   <span v-if="item.loan_outstanding || item.loanOutstanding" class="text-danger-dark fw-bold">
                     {{ formatCurrency(item.loan_outstanding || item.loanOutstanding) }}
                   </span>
                   <span v-else>-</span>
                 </td>
-                <td class="text-right">
+                <td class="text-right" :data-label="t('common.interest', 'Interés')">
                   <span v-if="(item.loan_interest_due !== undefined && item.loan_interest_due !== null) || (item.loanInterestDue !== undefined && item.loanInterestDue !== null)" class="text-warning-dark fw-bold">
                     {{ formatCurrency(item.loan_interest_due ?? item.loanInterestDue) }}
                   </span>
                   <span v-else>-</span>
                 </td>
-                <td>
+                <td :data-label="t('common.status')">
                   <span :class="['pill', getStatusClass(item.status)]">
                     {{ getStatusLabel(item.status) }}
                   </span>
@@ -119,7 +119,7 @@
 
               <!-- Tab Inventory Columns -->
               <template v-else>
-                <td>
+                <td :data-label="t('common.loan')">
                   <div class="fw-bold">#{{ item.loan_id || item.loanId }}</div>
                   <div v-if="item.loan_status || item.loanStatus" class="mt-1">
                     <span :class="['pill', getLoanStatusClass(item.loan_status || item.loanStatus)]">
@@ -127,26 +127,26 @@
                     </span>
                   </div>
                 </td>
-                <td class="text-right">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
-                <td class="text-right">
+                <td class="text-right" :data-label="t('common.principal')">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
+                <td class="text-right" :data-label="t('loans.outstanding')">
                   <span v-if="item.loan_outstanding || item.loanOutstanding" class="text-danger-dark fw-bold">
                     {{ formatCurrency(item.loan_outstanding || item.loanOutstanding) }}
                   </span>
                   <span v-else>-</span>
                 </td>
-                <td class="text-right">
+                <td class="text-right" :data-label="t('common.interest', 'Interés')">
                   <span v-if="(item.loan_interest_due !== undefined && item.loan_interest_due !== null) || (item.loanInterestDue !== undefined && item.loanInterestDue !== null)" class="text-warning-dark fw-bold">
                     {{ formatCurrency(item.loan_interest_due ?? item.loanInterestDue) }}
                   </span>
                   <span v-else>-</span>
                 </td>
-                <td>
+                <td :data-label="t('common.status')">
                   <span :class="['pill', getStatusClass(item.status)]">
                     {{ getStatusLabel(item.status) }}
                   </span>
                 </td>
-                <td class="text-right">{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
-                <td>{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
+                <td class="text-right" :data-label="t('collaterals.salePrice')">{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
+                <td :data-label="t('collaterals.saleDate')">{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
                 <td class="text-center">
                   <button 
                     v-if="item.status === 'for_sale'" 

@@ -347,6 +347,16 @@ this system does not take.
 
 ### Tables
 The densest surface in the product and the one most read.
+
+**Below 768px a table stops being a table.** Every `<td>` carries a `data-label` holding its
+column heading, the `<thead>` is hidden, and each row restacks into a card of label/value
+pairs rendered from `td::before { content: attr(data-label) }`. A cell with no `data-label`
+— an actions cell, a checkbox — becomes a full-width block instead. This is why the labels
+are bound expressions (`:data-label="t('common.loan')"`) reusing the exact `t()` call from
+the matching `<th>`: a hardcoded string there would be an untranslated string on a phone, and
+`npm run check:i18n` cannot see it because it is not a key. A table that has not been given
+`data-label`s keeps its horizontal scroll, so the pattern degrades rather than breaks.
+
 - Hairline rows, uppercase micro-label headers on an oat fill, sticky header.
 - **No zebra striping.** With a hover row, a selected row and a status pill already
   competing, a fourth background state made a wide money table harder to track.

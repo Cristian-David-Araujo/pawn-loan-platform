@@ -33,9 +33,17 @@ one cannot recover from inside the app.
 
 ## The usage scene
 
-An office or a shop counter under ordinary indoor light, on a desktop or laptop, often with
-a customer waiting on the other side of the desk. Sessions are long and repetitive. The same
-screens are read hundreds of times a week by people who already know where everything is.
+An office or a shop counter under ordinary indoor light, often with a customer waiting on
+the other side of the desk. Sessions are long and repetitive. The same screens are read
+hundreds of times a week by people who already know where everything is.
+
+**A desktop or laptop is the main scene, but a phone is a supported one.** The collector is
+not always behind the desk — they take a payment standing beside the safe, check whether a
+pledge is still in custody with the customer in front of them, and look up a balance away
+from the counter. Below 768px the data tables restack into card lists: on a phone a
+ten-column money table can only be read by scrolling sideways, which puts the row's identity
+and the amount being decided on out of view of each other, and on the payment screens that
+is how the wrong debt gets paid. Density is right on a desk and wrong in a hand.
 
 This is what settles most design questions here: **the interface is a tool in someone's
 hands, not a thing to be admired.** Speed of reading beats novelty. Density is correct.
