@@ -229,8 +229,8 @@ const handleLogout = () => {
   white-space: nowrap;
 }
 
-/* Lightened from the old #64748b, which sat at 3.3:1 on the sidebar and failed
-   AA for the one label that tells an operator which permissions they hold. */
+/* Lightened from the previous cool slate, which sat at 3.3:1 on the sidebar and failed AA
+   for the one label that tells an operator which permissions they hold. */
 .sidebar-user-role {
   font-size: var(--fs-xs);
   color: var(--sidebar-muted);

@@ -6,13 +6,35 @@
     "",
     "The rendered login page carries three real sizes: 12.3px for labels and controls, 14px for input values, 21px for the heading. Forcing 1.25 between the first two would put form labels at 11px or input values at 17.5px, and both are worse for someone reading them all day at a counter. The reported figures also over-count under the Vite dev server, which injects <style> and <title> nodes that the rule measures as text; confirmed against the rendered DOM with a headless pass.",
     "",
-    "Remove this waiver if the type scale is ever reworked - it is a statement about this scale, not a permanent exemption."
+    "Remove this waiver if the type scale is ever reworked - it is a statement about this scale, not a permanent exemption.",
+    "",
+    "The two ignoreValues entries scope design-system-font-size and design-system-radius away from InvoicePrintView.vue only. That file is the four printable documents, which deliberately set their own scale in px and pt because they are laid out for physical paper rather than for a screen, and their restraint is a recorded decision (see the Printable documents section of CLAUDE.md). They do consume this system's colour tokens, so design-system-color still applies there and is not waived."
   ],
   "detector": {
+    "designSystem": {
+      "enabled": true
+    },
     "ignoreRules": [
       "flat-type-hierarchy"
     ],
     "ignoreFiles": [],
-    "ignoreValues": []
+    "ignoreValues": [
+      {
+        "rule": "design-system-font-size",
+        "value": "*",
+        "files": [
+          "apps/web-client/src/views/InvoicePrintView.vue"
+        ],
+        "createdAt": "2026-08-07T04:11:55.292Z"
+      },
+      {
+        "rule": "design-system-radius",
+        "value": "*",
+        "files": [
+          "apps/web-client/src/views/InvoicePrintView.vue"
+        ],
+        "createdAt": "2026-08-07T04:11:55.358Z"
+      }
+    ]
   }
 }

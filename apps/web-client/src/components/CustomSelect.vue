@@ -206,7 +206,7 @@ onUnmounted(() => {
 }
 
 .select-button:hover:not(:disabled) {
-  border-color: #b9b5ab;
+  border-color: var(--line-hover);
 }
 
 .select-button:focus-visible {

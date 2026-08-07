@@ -12,16 +12,26 @@ colors:
   petrol-hover: "#0a4a43"
   petrol-soft: "#e6f0ee"
   petrol-border: "#b9d4cf"
+  petrol-on-dark: "#4ba599"
   text: "#1c1a17"
   text-secondary: "#44403a"
   text-muted: "#6b655c"
+  text-inverse: "#faf9f7"
+  text-disabled: "#b5b0a6"
+  placeholder: "#8f8a80"
+  on-fill: "#ffffff"
   line: "#e4e2dd"
   line-light: "#efedea"
   line-strong: "#d3d0c9"
+  line-hover: "#b9b5ab"
   sidebar: "#1a1815"
+  sidebar-text: "#f5f4f1"
+  sidebar-link: "#cbc6ba"
+  sidebar-muted: "#918a7d"
   success: "#15803d"
   warning: "#b45309"
   danger: "#b42318"
+  danger-hover: "#97180f"
   info: "#1e5a97"
 typography:
   headline:
@@ -46,6 +56,10 @@ typography:
     fontSize: "0.72rem"
     fontWeight: 600
     letterSpacing: "0.06em"
+  micro:
+    fontFamily: "Manrope, ui-sans-serif, -apple-system, sans-serif"
+    fontSize: "0.62rem"
+    fontWeight: 700
   data:
     fontFamily: "JetBrains Mono, ui-monospace, monospace"
     fontSize: "0.82rem"
@@ -155,8 +169,15 @@ that never do decorative work.
 - **Vault Black** (#1a1815): the sidebar. A flat second neutral layer, no gradient.
 - **Ledger Text** (#1c1a17) / **Secondary** (#44403a) / **Muted** (#6b655c): warm off-blacks;
   never pure black. Muted holds 5.2:1 on the canvas.
-- **Rule** (#e4e2dd) / **Rule Light** (#efedea) / **Rule Strong** (#d3d0c9): the hairlines
-  that carry nearly all the structure.
+- **Rule** (#e4e2dd) / **Rule Light** (#efedea) / **Rule Strong** (#d3d0c9) / **Rule Hover**
+  (#b9b5ab): the hairlines that carry nearly all the structure, plus the border a control
+  takes under the pointer.
+- **Placeholder** (#8f8a80) and **Disabled** (#b5b0a6): text that is present but is not
+  being asked to carry meaning — a prompt in an empty field, a day outside the displayed
+  month. Both hold AA on their own surface.
+- **On Fill** (#ffffff): text on a saturated fill. Deliberately not the same token as
+  `--surface`, which happens to share the value: a surface and a foreground are different
+  ideas and a future dark mode would move one without the other.
 
 ### Tertiary — semantic
 - **Ledger Green** (#15803d), **Amber Notice** (#b45309), **Arrears Red** (#b42318),
@@ -198,6 +219,8 @@ explicitly, so nothing inherits the raw root value and lands between steps.
 - **Body** (400, 0.93rem / 14px, 1.6): prose, input values, list content.
 - **Secondary** (500, 0.82rem / 12.3px): table cells, meta, helper text, buttons.
 - **Label** (600, 0.72rem / 10.8px, 0.06em, uppercase): table headers, nav section titles.
+- **Micro** (700, 0.62rem / 9.3px): counters, sort markers, the help glyph. Below the label
+  step on purpose, and it never carries a word an operator needs in order to work.
 - **Data** (JetBrains Mono, tabular): every amount, custody code, page number and date cell.
 
 The scale ratio is 1.13–1.2 between adjacent steps, which is the Operate range. The
@@ -346,6 +369,11 @@ set `tabular-nums`, but they do not take the app's mono face, its radii, or its 
   an icon anywhere in `views/` or `components/`.
 - **Don't** write an inline `style` attribute or an arbitrary `z-index`. The scale runs
   `--z-sticky` 8 → `--z-popover` 40 → `--z-backdrop` 90 → `--z-sidebar` 100 → `--z-modal`
-  200 → `--z-confirm` 300 → `--z-dropdown` 1000.
+  200 → `--z-confirm` 300 → `--z-dropdown` 1000 → `--z-skip-link` 1100.
+- **Don't** leave a literal colour, radius or type size in a rule. Every one of them belongs
+  in `:root` with a name. The `design-system-*` detector rules compare the stylesheet against
+  the frontmatter above and will say so — that check is what turned nine such values here
+  into the tokens `--line-hover`, `--placeholder`, `--text-disabled`, `--on-fill`,
+  `--accent-on-dark`, `--danger-hover`, `--sidebar-link`, `--fs-2xs` and `--z-skip-link`.
 - **Don't** ship a user-facing string that is not a `vue-i18n` key present in **both**
   locale blocks. `npm run check:i18n` enforces it.

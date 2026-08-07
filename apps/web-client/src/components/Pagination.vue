@@ -156,7 +156,7 @@ const visiblePages = computed(() => {
 
 .pagination-btn:hover:not(:disabled) {
   background: var(--surface-hover);
-  border-color: #b9b5ab;
+  border-color: var(--line-hover);
 }
 
 .pagination-btn:disabled {
@@ -168,7 +168,7 @@ const visiblePages = computed(() => {
 /* The current page is orientation, which is the accent's job. */
 .pagination-btn.active {
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-fill);
   border-color: var(--accent);
   font-weight: 700;
 }

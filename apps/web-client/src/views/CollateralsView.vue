@@ -435,9 +435,9 @@ const handleSell = async () => {
 
 <style scoped>
 /* Replaces `class="text-center p-16"` plus `class="text-warning mx-auto mb-8"` and an
-   inline `style="color: #d97706"`. None of those utility names existed anywhere in the
-   stylesheet, so the only thing actually colouring the icon was the inline attribute — in
-   an amber that belonged to the previous palette. */
+   inline amber `style` attribute. None of those utility names existed anywhere in the
+   stylesheet, so the only thing actually colouring the icon was the inline attribute — and
+   in a tone that belonged to the previous palette. */
 .sell-confirm {
   text-align: center;
   padding: 1rem;

@@ -14,6 +14,9 @@
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', monospace;
 
   /* ── Type scale (root is 15px; ratio ≈1.13–1.2) ── */
+  /* Counters, sort markers and the help glyph: below the label step on purpose,
+     and never carrying a word the operator has to read to do their job. */
+  --fs-2xs: 0.62rem;
   --fs-xs: 0.72rem;
   --fs-sm: 0.82rem;
   --fs-base: 0.93rem;
@@ -39,6 +42,16 @@
   --line: #e4e2dd;
   --line-light: #efedea;
   --line-strong: #d3d0c9;
+  --line-hover: #b9b5ab; /* a control's border under the pointer */
+
+  /* Text that is present but not being asked to carry meaning: a placeholder, a
+     day outside the displayed month. Both hold AA on their own surface. */
+  --placeholder: #8f8a80;
+  --text-disabled: #b5b0a6;
+
+  /* White on a saturated fill. Not --surface: that token means a surface, and a
+     text colour that happens to share its value is not the same idea. */
+  --on-fill: #ffffff;
 
   /* ── Ink: the primary action colour ────────────
      Buttons are ink, not accent. Every table row here carries an action; an
@@ -54,6 +67,9 @@
   --accent-hover: #0a4a43;
   --accent-soft: #e6f0ee;
   --accent-border: #b9d4cf;
+  /* The accent lifted to read against the vault-black sidebar, where #0d5c53
+     would disappear. Only the active-nav rule uses it. */
+  --accent-on-dark: #4ba599;
 
   /* ── Status: facts a reader acts on, so they keep their own hues ── */
   --success: #15803d;
@@ -65,6 +81,7 @@
   --warning-border: #f0d5ae;
   --warning-text: #8a4008;
   --danger: #b42318;
+  --danger-hover: #97180f;
   --danger-soft: #fdefed;
   --danger-border: #f2c9c4;
   --danger-text: #912018;
@@ -99,6 +116,7 @@
   --sidebar-width: 268px;
   --sidebar-bg: #1a1815;
   --sidebar-text: #f5f4f1;
+  --sidebar-link: #cbc6ba;
   --sidebar-muted: #918a7d;
   --sidebar-active-bg: rgba(255, 255, 255, 0.09);
 
@@ -115,6 +133,8 @@
   /* Above the modal panel: every dropdown in the app is a CustomSelect, and
      most of them are opened from inside a form in one. */
   --z-dropdown: 1000;
+  /* Above everything: a keyboard user must be able to reach it from any state. */
+  --z-skip-link: 1100;
 
   font-family: var(--font-ui);
   color: var(--text);
@@ -211,7 +231,7 @@ a:hover {
   position: absolute;
   left: 0.75rem;
   top: -100%;
-  z-index: 400;
+  z-index: var(--z-skip-link);
   background: var(--ink);
   color: var(--text-inverse);
   padding: 0.6rem 1rem;
@@ -242,7 +262,7 @@ a:hover {
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #b9b5ab;
+  background: var(--line-hover);
   background-clip: content-box;
   border: 3px solid transparent;
 }
@@ -376,7 +396,7 @@ th.text-right {
 }
 
 .nav-link {
-  color: #cbc6ba;
+  color: var(--sidebar-link);
   text-decoration: none;
   padding: 0.55rem 0.7rem;
   border-radius: var(--radius-sm);
@@ -410,7 +430,7 @@ th.text-right {
   width: 3px;
   height: 1.1rem;
   border-radius: 0 var(--radius-full) var(--radius-full) 0;
-  background: #4ba599;
+  background: var(--accent-on-dark);
   transform: translateY(-50%);
 }
 
@@ -741,13 +761,13 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: #8f8a80; /* 4.6:1 on white */
+  color: var(--placeholder);
 }
 
 input:hover,
 select:hover,
 textarea:hover {
-  border-color: #b9b5ab;
+  border-color: var(--line-hover);
 }
 
 input:focus,
@@ -800,7 +820,7 @@ input[type="radio"] {
 }
 
 input[type="checkbox"] {
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }
 
 input[type="radio"] {
@@ -886,7 +906,7 @@ label {
   border-radius: var(--radius-full);
   border: 1px solid var(--line-strong);
   color: var(--muted);
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   line-height: 1;
   cursor: help;
   transition: background-color var(--transition), color var(--transition), border-color var(--transition);
@@ -962,7 +982,7 @@ label {
   position: absolute;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   border: 2px solid currentColor;
   border-top-color: transparent;
   color: var(--text-inverse);
@@ -981,7 +1001,7 @@ label {
 
 .btn-secondary:hover:not(:disabled) {
   background: var(--surface-soft);
-  border-color: #b9b5ab;
+  border-color: var(--line-hover);
   color: var(--text);
 }
 
@@ -998,13 +1018,13 @@ label {
 
 .btn-danger {
   background: var(--danger);
-  color: #ffffff;
+  color: var(--on-fill);
   border-color: transparent;
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #97180f;
-  color: #ffffff;
+  background: var(--danger-hover);
+  color: var(--on-fill);
 }
 
 /* ═══════════════════════════════════════════════
@@ -1141,7 +1161,7 @@ tbody tr:hover,
   border-radius: var(--radius-xs);
   background: var(--accent-soft);
   color: var(--accent);
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   line-height: 1;
   padding: 0.14rem 0.28rem;
   font-weight: 700;
@@ -1368,13 +1388,13 @@ tbody tr:hover,
 }
 
 .date-day-btn.is-muted {
-  color: #b5b0a6;
+  color: var(--text-disabled);
 }
 
 .date-day-btn.is-selected {
   background: var(--accent);
   border-color: transparent;
-  color: #ffffff;
+  color: var(--on-fill);
   font-weight: 700;
 }
 
@@ -1549,6 +1569,9 @@ tbody tr:hover,
   opacity: 1;
 }
 
+/* Not a CSS pixel and not off the type scale: these labels live inside an SVG
+   with `viewBox="0 0 100 64"`, so the unit is a viewBox unit that scales with
+   the chart. At the rendered width it lands near the micro step. */
 .chart-x-label,
 .chart-y-label {
   fill: var(--muted);
@@ -1617,7 +1640,7 @@ tbody tr:hover,
   border-radius: var(--radius-xs);
   background: var(--surface-hover);
   color: var(--text-secondary);
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   padding: 0 0.3rem;
   line-height: 1;
@@ -1923,7 +1946,7 @@ ul {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   border: 2px solid currentColor;
   border-top-color: transparent;
   animation: spin 600ms linear infinite;
@@ -2134,6 +2157,9 @@ ul {
     min-height: 44px;
   }
 
+  /* Off the type scale on purpose, and the one place that is correct: iOS Safari
+     zooms the whole page when a focused field is under 16px, and an operator
+     taking a payment on a phone should not have to pinch back out afterwards. */
   input, select, textarea {
     min-height: 44px;
     font-size: 16px;
