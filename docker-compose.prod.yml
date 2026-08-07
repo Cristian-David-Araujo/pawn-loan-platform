@@ -83,6 +83,16 @@ services:
       DB_INIT_ON_STARTUP: ${DB_INIT_ON_STARTUP:-true}
       DB_SEED_ON_STARTUP: ${DB_SEED_ON_STARTUP:-false}
       DB_SEED_FORCE: ${DB_SEED_FORCE:-false}
+      BACKUP_SCHEDULER_ENABLED: ${BACKUP_SCHEDULER_ENABLED:-true}
+      BACKUP_SCHEDULER_INTERVAL_MINUTES: ${BACKUP_SCHEDULER_INTERVAL_MINUTES:-15}
+      BACKUP_LOCAL_DIRECTORY: ${BACKUP_LOCAL_DIRECTORY:-/var/backups/pawn-platform}
+    volumes:
+      # A named volume, not a container path: a scheduled copy written inside the container
+      # would be discarded by the next deploy, which recreates it — so the backups would
+      # disappear exactly when a rollback needed them. It is still the *same droplet*, so this
+      # protects against a bad release, not against losing the box; that is what the Google
+      # Drive destination is for.
+      - backup_data:/var/backups/pawn-platform
     depends_on:
       postgres:
         condition: service_healthy
@@ -122,3 +132,4 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
+  backup_data:

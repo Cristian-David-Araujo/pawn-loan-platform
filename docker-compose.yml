@@ -33,6 +33,7 @@ services:
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES}
     volumes:
       - ./apps/api-server:/app
+      - backup_data:/var/backups/pawn-platform
     ports:
       - "${API_SERVER_PORT}:8000"
     depends_on:
@@ -54,3 +55,4 @@ services:
 
 volumes:
   postgres_data:
+  backup_data:

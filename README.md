@@ -48,12 +48,24 @@ The platform is configured to read shared runtime variables from root `.env` onl
 - `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_ROLE`
 - `DB_INIT_ON_STARTUP`, `DB_SEED_ON_STARTUP`, `DB_SEED_FORCE`
 - `AUTO_INTEREST_GENERATION_ENABLED`, `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES`
+- `BACKUP_SCHEDULER_ENABLED`, `BACKUP_SCHEDULER_INTERVAL_MINUTES`, `BACKUP_LOCAL_DIRECTORY`
 
 #### Interest generation variables
 
 - `AUTO_INTEREST_GENERATION_ENABLED=true|false`: enables/disables periodic automatic interest generation in the API process.
 - `AUTO_INTEREST_GENERATION_INTERVAL_MINUTES=1440`: scheduler interval in minutes (default is daily).
 - `DB_INIT_ON_STARTUP=true`: required so settings and tables are available on startup.
+
+#### Recurring backup variables
+
+The schedule itself — frequency, hour, destination, retention, the Google Drive account — is
+configured from **Settings → Automatic backups** and stored in the database. Only these three
+are environment settings, and the schedule stays off until an administrator turns it on. See
+[docs/scheduled-backups.md](docs/scheduled-backups.md).
+
+- `BACKUP_SCHEDULER_ENABLED=true|false`: whether this deployment runs the backup thread at all.
+- `BACKUP_SCHEDULER_INTERVAL_MINUTES=15`: how often the thread checks the clock, which is also the schedule's precision.
+- `BACKUP_LOCAL_DIRECTORY=/var/backups/pawn-platform`: default folder for the local destination. In Docker it is the `backup_data` volume, so copies survive the container being recreated.
 
 ## Run with Docker (recommended)
 

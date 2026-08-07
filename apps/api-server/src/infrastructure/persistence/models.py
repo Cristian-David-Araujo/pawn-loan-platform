@@ -288,3 +288,69 @@ class GlobalSettings(Base):
     # days of grace and one signed on the 3rd got three.
     default_grace_days: Mapped[int] = mapped_column(Integer, default=0)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)
+
+
+class BackupSettings(Base):
+    """Single row (``id=1``) holding the recurring backup schedule and its destination.
+
+    Deliberately not part of ``GlobalSettings``: ``GET /settings`` is readable by every
+    authenticated role, and these columns carry the OAuth client secret and refresh token of
+    the Google account the archives land in. They live behind the admin-only ``/backup/*``
+    routes and are never returned by the API — the schedule response reports whether a
+    credential is present, never its value.
+    """
+
+    __tablename__ = "backup_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    enabled: Mapped[bool] = mapped_column(default=False)
+    # daily | weekly | monthly
+    frequency: Mapped[str] = mapped_column(String(20), default="daily")
+    # Local hour (GlobalSettings.timezone) the copy is taken at, outside business hours.
+    hour: Mapped[int] = mapped_column(Integer, default=2)
+    # 1 = Monday .. 7 = Sunday. Read only when frequency is weekly.
+    day_of_week: Mapped[int] = mapped_column(Integer, default=1)
+    # Capped at 28 so every month has the day. Read only when frequency is monthly.
+    day_of_month: Mapped[int] = mapped_column(Integer, default=1)
+    # local_directory | google_drive
+    destination: Mapped[str] = mapped_column(String(30), default="local_directory")
+    local_directory: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Copies to keep at the destination; 0 keeps everything.
+    retention_copies: Mapped[int] = mapped_column(Integer, default=7)
+    drive_client_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    drive_client_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    drive_refresh_token: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Shown in the UI so the administrator can tell which Google account is connected.
+    drive_account_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    drive_folder_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    drive_folder_name: Mapped[str] = mapped_column(String(255), default="PawnPlatform Backups")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)
+
+
+class BackupRun(Base):
+    """One attempt at a backup, successful or not.
+
+    This table is the only record of whether the schedule is actually working: an operator
+    reads "the last copy succeeded 9 days ago" from here. There is no denormalised
+    ``last_status`` on ``BackupSettings`` on purpose — a cache of this would be one more thing
+    that can disagree with what happened.
+    """
+
+    __tablename__ = "backup_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, index=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # success | failed
+    status: Mapped[str] = mapped_column(String(20), default="success")
+    # scheduled | manual
+    trigger: Mapped[str] = mapped_column(String(20), default="scheduled")
+    destination: Mapped[str] = mapped_column(String(30), default="local_directory")
+    filename: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    total_rows: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Where the copy ended up: an absolute path, or the Google Drive file id.
+    location: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Whole message, so a failure can be diagnosed without server access.
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    triggered_by: Mapped[str | None] = mapped_column(String(80), nullable=True)

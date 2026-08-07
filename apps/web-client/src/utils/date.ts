@@ -113,6 +113,31 @@ export const toIsoDate = (value: string | Date | null | undefined): string | nul
 }
 
 /**
+ * Date and time of day, in the configured date format.
+ *
+ * For values where the time is the point — when a backup ran, when the next one is due — a
+ * date alone cannot answer the question. A timestamp with **no** offset is read as UTC, which
+ * is how the API stores one: `new Date('2026-08-05T07:00:00')` would otherwise be taken as
+ * the browser's local time and shift the hour by the viewer's offset.
+ */
+export const formatDateTime = (value: string | null | undefined): string => {
+  if (!value) {
+    return '-'
+  }
+
+  const raw = String(value).trim()
+  const hasZone = /(Z|[+-]\d{2}:?\d{2})$/.test(raw)
+  const parsed = new Date(hasZone ? raw : `${raw}Z`)
+
+  if (Number.isNaN(parsed.getTime())) {
+    return raw
+  }
+
+  const time = `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`
+  return `${formatDateDMY(parsed)} ${time}`
+}
+
+/**
  * Day of the month a loan bills on, taken from its disbursement date.
  *
  * The interest cycle is anchored on that day: a loan disbursed on the 25th bills 25th to

@@ -122,7 +122,14 @@ def test_export_redacts_live_password_reset_tokens(
     assert any(item["hashed_password"] for item in users)
 
     manifest = json.loads(archive.read("manifest.json"))
-    assert manifest["redacted_fields"] == ["users.reset_token", "users.reset_token_expires_at"]
+    # Every field the archive withholds is named in the manifest, so whoever restores it knows
+    # what they have to set up again rather than discovering it when a backup fails.
+    assert manifest["redacted_fields"] == [
+        "backup_settings.drive_client_secret",
+        "backup_settings.drive_refresh_token",
+        "users.reset_token",
+        "users.reset_token_expires_at",
+    ]
 
 
 def test_export_is_restricted_to_administrators(

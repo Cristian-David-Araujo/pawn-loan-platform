@@ -59,6 +59,7 @@ def db_session() -> Generator[Session, None, None]:
 @pytest.fixture
 def app(db_session: Session) -> FastAPI:
     get_settings().auto_interest_generation_enabled = False
+    get_settings().backup_scheduler_enabled = False
 
     app = FastAPI()
     app.include_router(api_router, prefix="/api/v1")
