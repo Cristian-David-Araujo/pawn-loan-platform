@@ -79,9 +79,12 @@
             <Sun v-else-if="preference === 'light'" :size="15" aria-hidden="true" />
             <Moon v-else :size="15" aria-hidden="true" />
           </button>
-          <button class="btn btn-secondary" type="button" @click="handleLogout">
-            <LogOut :size="15" />
-            {{ t('app.signOut') }}
+          <button class="btn btn-secondary" type="button" :aria-label="t('app.signOut')" @click="handleLogout">
+            <LogOut :size="15" aria-hidden="true" />
+            <!-- The label is a real element so the mobile rule can hide it. It used to be a
+                 bare text node, which left `font-size: 0` on the button as the only way to
+                 suppress it — a trick that also silently shrank anything else inside. -->
+            <span class="btn-label">{{ t('app.signOut') }}</span>
           </button>
         </div>
       </header>

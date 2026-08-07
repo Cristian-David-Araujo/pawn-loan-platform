@@ -2323,21 +2323,17 @@ ul {
   }
 
   /* Sign out keeps its icon and drops its label; three icon buttons fit where one
-     labelled button and a crushed search field did not. */
-  .topbar-actions .btn span,
-  .topbar-actions > .btn:not(.btn-icon) {
-    font-size: 0;
-    gap: 0;
+     labelled button and a crushed search field did not. The button keeps its
+     aria-label, so the action is still named for a screen reader. */
+  .topbar-actions .btn-label {
+    display: none;
   }
 
   .topbar-actions > .btn:not(.btn-icon) {
     padding: 0.5rem;
     aspect-ratio: 1;
+    gap: 0;
     justify-content: center;
-  }
-
-  .topbar-actions > .btn:not(.btn-icon) svg {
-    font-size: 1rem;
   }
 
   .page {

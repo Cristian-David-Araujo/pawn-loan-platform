@@ -1,8 +1,12 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-07T06:00:00.000Z",
+  "generatedAt": "2026-08-07T12:00:00.000Z",
   "title": "Design System: Pawn Loan Platform",
   "extensions": {
+    "responsive": {
+      "breakpoint": "768px",
+      "notes": "Below 768px a table stops being a table. Every <td> carries a data-label holding its column heading, <thead> hides, and each row restacks into a card of label/value pairs rendered from td::before { content: attr(data-label) }. Cells with no data-label — actions, checkboxes — become full-width blocks. Labels are bound expressions reusing the exact t() call from the matching <th>, because a hardcoded string there is an untranslated string on a phone that check:i18n cannot see. A table without data-labels keeps its horizontal scroll, so the pattern degrades rather than breaks. Density is right on a desk and wrong in a hand."
+    },
     "themes": {
       "default": "system",
       "light": { "canvas": "#faf9f7", "surface": "#ffffff", "text": "#1c1a17", "ink": "#232019", "accent": "#0d5c53", "sidebar": "#1a1815" },
@@ -179,6 +183,11 @@
         "name": "The No-Halo Rule",
         "body": "A zero-offset glow is decoration, not depth. Every shadow here has an offset and a soft blur.",
         "section": "elevation"
+      },
+      {
+        "name": "The Card-List Rule",
+        "body": "Below 768px a table restacks into cards through data-label on every cell. A ten-column money table can only be read sideways, which keeps the row's identity and the amount being decided on off screen from each other — and on the payment screens that is how the wrong debt gets paid.",
+        "section": "components"
       },
       {
         "name": "The Both-Themes Rule",
