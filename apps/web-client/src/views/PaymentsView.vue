@@ -24,7 +24,7 @@
 
     <!-- Above the working area: at the foot of the page this sat below the history table,
          so a rejected payment looked like nothing had happened at all. -->
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
 
     <div v-if="activeTab === 'interest'" class="card mt-16">
       <h3>{{ t('payments.pendingInterestTitle') }}</h3>
@@ -472,6 +472,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { usePageMessage } from '../composables/usePageMessage'
 import { CircleDollarSign, ChevronDown, ChevronRight, FilterX, Pencil, ReceiptText, Save, Trash2, WalletCards, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
@@ -591,7 +592,7 @@ const historyToDate = ref('')
 const historyLoanFilter = ref('all')
 const historyTypeFilter = ref('all')
 const processing = ref(false)
-const message = ref('')
+const { message, messageClass, notify, fail, report } = usePageMessage()
 const paymentPendingReversal = ref<Payment | null>(null)
 const showPaymentEditModal = ref(false)
 const selectedPaymentEditId = ref<number | null>(null)
@@ -895,7 +896,7 @@ const openReversalModal = (payment: Payment) => {
 const onPaymentDeleted = async (paymentId: number) => {
   await refreshAll()
   await loadCustomerPaymentData()
-  message.value = t('payments.paymentDeleted', { id: paymentId })
+  notify(t('payments.paymentDeleted', { id: paymentId }))
 }
 
 const openPaymentEditModal = (payment: {
@@ -936,7 +937,7 @@ const handleUpdatePayment = async () => {
 
   const paymentDate = toIsoDate(paymentEditForm.value.paymentDate)
   if (!paymentDate) {
-    message.value = t('messages.invalidDateFormat')
+    fail(t('messages.invalidDateFormat'))
     return
   }
 
@@ -949,13 +950,13 @@ const handleUpdatePayment = async () => {
       notes: paymentEditForm.value.notes
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     if (result.ok) {
       closePaymentEditModal()
       await loadCustomerPaymentData()
     }
   } catch (error) {
-    message.value = apiErrorMessage(error) || t('messages.operationFailed')
+    fail(apiErrorMessage(error) || t('messages.operationFailed'))
   } finally {
     processing.value = false
   }
@@ -1038,13 +1039,13 @@ const submitInterestPayment = async () => {
     await refreshAll()
     await loadCustomerPaymentData()
     interestNotes.value = ''
-    message.value = t('messages.paymentRegistered')
+    notify(t('messages.paymentRegistered'))
 
     if (printReceiptOnSave.value && selectedCustomerPayments.value.length > 0) {
       router.push(`/print/invoice/payment/${selectedCustomerPayments.value[0].id}`)
     }
   } catch (error) {
-    message.value = apiErrorMessage(error) || t('messages.operationFailed')
+    fail(apiErrorMessage(error) || t('messages.operationFailed'))
   } finally {
     processing.value = false
   }
@@ -1124,10 +1125,10 @@ const handBackSettledCustody = async (
     for (const loanId of settledLoanIds) {
       await releaseCollateralForLoan(loanId)
     }
-    message.value = t('collaterals.handbackDone', { count: itemCount })
+    notify(t('collaterals.handbackDone', { count: itemCount }))
   } catch (error) {
     // The payment itself already succeeded, so say exactly why the pledges stayed put.
-    message.value = apiErrorMessage(error) || t('collaterals.handbackFailed')
+    fail(apiErrorMessage(error) || t('collaterals.handbackFailed'))
   }
 }
 
@@ -1183,7 +1184,7 @@ const submitPrincipalPayment = async () => {
 
     await refreshAll()
     await loadCustomerPaymentData()
-    message.value = t('messages.paymentRegistered')
+    notify(t('messages.paymentRegistered'))
 
     // Before any navigation: the print redirect below would unmount this view.
     if (handBackCustodyOnSettle.value) {
@@ -1194,7 +1195,7 @@ const submitPrincipalPayment = async () => {
       router.push(`/print/invoice/payment/${selectedCustomerPayments.value[0].id}`)
     }
   } catch (error) {
-    message.value = apiErrorMessage(error) || t('messages.operationFailed')
+    fail(apiErrorMessage(error) || t('messages.operationFailed'))
   } finally {
     processing.value = false
   }

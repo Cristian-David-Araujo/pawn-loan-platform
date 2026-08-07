@@ -12,7 +12,7 @@
       </template>
     </PageHeader>
 
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
 
     <div class="card mt-16">
       <div class="table-toolbar">
@@ -20,7 +20,27 @@
         <CustomSelect v-model="customerStatusFilter" inputClass="table-select" :options="customerStatusFilterOptions" />
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>
-      <div class="table-wrap">
+      <!-- This table used to render its six headings over nothing on a fresh installation
+           or a search with no match: no empty row, no empty state. -->
+      <div v-if="!filteredCustomers.length" class="empty-state">
+        <div class="empty-state-icon"><Users :size="22" /></div>
+        <p class="empty-state-title">
+          {{ search || customerStatusFilter !== 'all' ? t('customers.noMatchesTitle') : t('customers.noneYetTitle') }}
+        </p>
+        <p class="empty-state-hint">
+          {{ search || customerStatusFilter !== 'all' ? t('customers.noMatchesHint') : t('customers.noneYetHint') }}
+        </p>
+        <button
+          v-if="!search && customerStatusFilter === 'all'"
+          class="btn"
+          type="button"
+          @click="openCreateModal"
+        >
+          <UserPlus :size="16" />
+          {{ t('customers.createCustomer') }}
+        </button>
+      </div>
+      <div v-else class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -679,9 +699,19 @@
                 :required="true"
               />
             </label>
+            <!--
+              Read-only, for the same reason the pledge's custody status next door is.
+              `active` and `overdue` are owned by the server's overdue-transition job, so
+              setting either by hand is reverted on the next interest cycle. `closed` is
+              reached by paying the principal to zero or by a forced close that records a
+              reason — writing it here wrote the balance off with nobody's name on it. And
+              `defaulted` was not even in the option list, so opening this form on a
+              foreclosed loan showed a control whose current value was not among its choices.
+            -->
             <label>
               {{ t('common.status') }}
-              <CustomSelect v-model="loanEditForm.status" :options="loanStatusOptions" />
+              <p class="form-static-value">{{ t(`common.${loanEditForm.status}`) }}</p>
+              <span class="field-hint">{{ t('loans.statusIsAutomatic') }}</span>
             </label>
           </div>
           <label class="mt-8">
@@ -797,6 +827,7 @@ import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import { useRoute } from 'vue-router'
@@ -882,7 +913,7 @@ const { t } = useI18n()
 const { confirm } = useConfirmDialog()
 const route = useRoute()
 const { hasRole } = useAuthState()
-const message = ref('')
+const { message, messageClass, notify, fail, report } = usePageMessage()
 const search = ref('')
 const customerStatusFilter = ref<'all' | 'active' | 'archived'>('all')
 const customerSortPriority = ref<SortCriterion<CustomerSortKey>[]>([{ key: 'name', direction: 'asc' }])
@@ -1294,7 +1325,7 @@ const loadCustomerFinancialData = async (customerId: number) => {
 const handleCreateCustomer = async () => {
   try {
     const result = await createCustomer({ ...form })
-    message.value = t(result.messageKey)
+    report(result, t)
 
     if (result.ok) {
       form.fullName = ''
@@ -1305,7 +1336,7 @@ const handleCreateCustomer = async () => {
       closeCreateModal()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   }
 }
 
@@ -1328,12 +1359,12 @@ const handleUpdateCustomer = async () => {
       status: editForm.status
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     if (result.ok) {
       syncEditForm()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1358,13 +1389,13 @@ const updateSelectedCustomerStatus = async (statusValue: 'active' | 'archived') 
       status: statusValue
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     if (result.ok) {
       editForm.status = statusValue
       syncEditForm()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1409,7 +1440,7 @@ const handleDeleteCustomer = async () => {
   isSaving.value = true
   try {
     const result = await deleteCustomer(selectedCustomer.value.id)
-    message.value = t(result.messageKey)
+    report(result, t)
 
     if (result.ok) {
       selectedCustomerId.value = null
@@ -1417,7 +1448,7 @@ const handleDeleteCustomer = async () => {
       closeDetailModal()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1429,13 +1460,13 @@ const handleUpdateLoan = async () => {
   }
 
   if (loanEditForm.outstandingPrincipal > loanEditForm.principalAmount) {
-    message.value = t('messages.loanOutstandingExceedsPrincipal')
+    fail(t('messages.loanOutstandingExceedsPrincipal'))
     return
   }
 
   const disbursementDate = toIsoDate(loanEditForm.disbursementDate)
   if (!disbursementDate) {
-    message.value = t('messages.invalidDateFormat')
+    fail(t('messages.invalidDateFormat'))
     return
   }
 
@@ -1453,14 +1484,14 @@ const handleUpdateLoan = async () => {
       status: loanEditForm.status
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     closeLoanEditModal()
     if (result.ok) {
       // Editing the rate or the dates recalculates the interest charges server-side.
       await reloadSelectedCustomerFinancials()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1479,7 +1510,7 @@ const handleDeleteLoan = async (loanId: number) => {
   isSaving.value = true
   try {
     const result = await deleteLoan(loanId)
-    message.value = t(result.messageKey)
+    report(result, t)
 
     if (result.ok) {
       if (selectedLoanDetailId.value === loanId) {
@@ -1488,7 +1519,7 @@ const handleDeleteLoan = async (loanId: number) => {
       await reloadSelectedCustomerFinancials()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1509,10 +1540,10 @@ const handleUpdateCollateral = async () => {
       storageLocation: collateralEditForm.storageLocation
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     closeCollateralEditModal()
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1533,7 +1564,7 @@ const reloadSelectedCustomerFinancials = async () => {
 }
 
 const onPaymentDeleted = async (paymentId: number) => {
-  message.value = t('payments.paymentDeleted', { id: paymentId })
+  notify(t('payments.paymentDeleted', { id: paymentId }))
   if (selectedCustomer.value) {
     await loadCustomerFinancialData(selectedCustomer.value.id)
   }
@@ -1546,7 +1577,7 @@ const handleUpdatePayment = async () => {
 
   const paymentDate = toIsoDate(paymentEditForm.paymentDate)
   if (!paymentDate) {
-    message.value = t('messages.invalidDateFormat')
+    fail(t('messages.invalidDateFormat'))
     return
   }
 
@@ -1559,13 +1590,13 @@ const handleUpdatePayment = async () => {
       notes: paymentEditForm.notes
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     if (result.ok && selectedCustomer.value) {
       closePaymentEditModal()
       await loadCustomerFinancialData(selectedCustomer.value.id)
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1753,11 +1784,9 @@ const loanTypeOptions = computed(() => [
   { value: 'personal', label: t('common.personal') }
 ])
 
-const loanStatusOptions = computed(() => [
-  { value: 'active', label: t('common.active') },
-  { value: 'overdue', label: t('common.overdue') },
-  { value: 'closed', label: t('common.closed') }
-])
+/* `loanStatusOptions` used to sit here. The payload still carries `status`, because the
+   API's shape requires it — but it now always carries the value the loan already has, so
+   it is a no-op rather than an edit. */
 
 const collateralLoanIdOptions = computed(() => 
   allSelectedCustomerLoans.value.map(l => ({ value: l.id, label: '#' + l.id }))

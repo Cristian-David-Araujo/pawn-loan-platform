@@ -6,6 +6,11 @@
       </template>
     </PageHeader>
 
+    <!-- This view had no banner at all, which is why four failures were reported through
+         native alert() dialogs — modal, unstyled, untranslatable and impossible to read
+         beside the row they were about. -->
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
+
     <div class="tabs mt-16">
       <button class="tab-btn" :class="{ active: activeTab === 'custody' }" @click="activeTab = 'custody'" type="button">
         {{ t('collaterals.tabCustody') }}
@@ -224,6 +229,7 @@ import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { usePageMessage } from '../composables/usePageMessage'
 import { Shield, DollarSign, X, AlertTriangle, PackageCheck } from 'lucide-vue-next'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY } from '../utils/date'
@@ -231,6 +237,7 @@ import { formatDateDMY } from '../utils/date'
 const { t } = useI18n()
 const store = usePlatformStore()
 const { confirm } = useConfirmDialog()
+const { message, messageClass, notify, fail, clearMessage } = usePageMessage()
 
 const items = ref<any[]>([])
 const loading = ref(true)
@@ -317,7 +324,11 @@ const loadItems = async () => {
     loading.value = true
     items.value = await store.fetchCollateralItems()
   } catch (err: any) {
-    alert(t('common.errors?.generic') || 'Error fetching data')
+    /* Was `alert(t('common.errors?.generic') || 'Error fetching data')`. That key does not
+       exist, and `t()` renders a missing key as the key itself — which is truthy, so the
+       `||` fallback never fired and a failed load popped a browser dialog reading the
+       literal string `common.errors?.generic`. */
+    fail(err.message || t('collaterals.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -383,10 +394,13 @@ const handBackItem = async (item: any) => {
 
   try {
     isSubmitting.value = true
+    clearMessage()
     await store.releaseCollateralItem(item.id)
     await loadItems()
+    // Handing goods back said nothing at all before: the row simply left the tab.
+    notify(t('collaterals.handbackItemDone', { code: item.custody_code ?? item.custodyCode }))
   } catch (err: any) {
-    alert(err.message || t('collaterals.handbackFailed'))
+    fail(err.message || t('collaterals.handbackFailed'))
   } finally {
     isSubmitting.value = false
   }
@@ -411,7 +425,7 @@ const closeSellModal = () => {
 const handleSell = async () => {
   if (confirmStep.value === 1) {
     if (!salePrice.value || salePrice.value <= 0) {
-      alert(t('collaterals.invalidPrice'))
+      fail(t('collaterals.invalidPrice'))
       return
     }
     confirmStep.value = 2
@@ -419,13 +433,17 @@ const handleSell = async () => {
   }
 
   if (!selectedItem.value) return
+  const soldCode = selectedItem.value.custody_code ?? selectedItem.value.custodyCode
+  const soldFor = salePrice.value!
   try {
     isSubmitting.value = true
-    await store.sellCollateralItem(selectedItem.value.id, salePrice.value!, saleNotes.value)
+    clearMessage()
+    await store.sellCollateralItem(selectedItem.value.id, soldFor, saleNotes.value)
     closeSellModal()
     await loadItems()
+    notify(t('collaterals.sellDone', { code: soldCode, amount: formatCurrency(soldFor) }))
   } catch (err: any) {
-    alert(err.message || t('collaterals.sellError'))
+    fail(err.message || t('collaterals.sellError'))
     confirmStep.value = 1
   } finally {
     isSubmitting.value = false

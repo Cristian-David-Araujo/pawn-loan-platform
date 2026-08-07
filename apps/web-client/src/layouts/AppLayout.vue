@@ -111,6 +111,7 @@ import {
   Settings,
   Shield,
   Sun,
+  UserCog,
   Users
 } from 'lucide-vue-next'
 import { persistLocale, type AppLocale } from '../i18n'
@@ -125,20 +126,32 @@ const route = useRoute()
 const router = useRouter()
 const { state: authState, logout, hasRole } = useAuthState()
 
+/*
+ * Ordered by who is standing there, not by entity.
+ *
+ * Payments used to sit fifth, below three destinations a collector can read but not act in —
+ * they cannot open a loan or register a pledge. It is the only screen they spend the day in
+ * and the most time-pressured one in the product, so it leads. Dashboard drops below the
+ * three working screens: it reports, it does not ask.
+ *
+ * Users takes UserCog. It shared `Shield` with Collateral, and in a flat dark sidebar the
+ * icon is the fastest scan target — two destinations rendering the same glyph is how someone
+ * lands on the vault when they wanted permissions.
+ */
 const navItems = computed(() => {
   const items = [
-    { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
+    { to: '/payments', labelKey: 'app.payments', icon: ReceiptText },
     { to: '/customers', labelKey: 'app.customers', icon: Users },
     { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
     { to: '/collaterals', labelKey: 'app.collateral', icon: Shield },
-    { to: '/payments', labelKey: 'app.payments', icon: ReceiptText }
+    { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard }
   ]
   if (hasRole([UserRole.Administrator, UserRole.LoanOfficer])) {
     items.push({ to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 })
   }
   if (hasRole([UserRole.Administrator])) {
     items.push({ to: '/settings', labelKey: 'app.settings', icon: Settings })
-    items.push({ to: '/users', labelKey: 'app.users', icon: Shield })
+    items.push({ to: '/users', labelKey: 'app.users', icon: UserCog })
   }
   return items
 })

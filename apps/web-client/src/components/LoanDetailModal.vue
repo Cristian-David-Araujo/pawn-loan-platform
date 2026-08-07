@@ -20,6 +20,8 @@
         </div>
       </div>
 
+      <p v-if="forecloseError" class="notice notice-error mt-16">{{ forecloseError }}</p>
+
       <p class="muted mt-16">{{ t('loans.selectedLoan', { id: loan.id }) }}</p>
 
       <div class="grid grid-4 mt-16">
@@ -278,17 +280,26 @@ const canForeclose = computed(() => {
          ['active', 'overdue'].includes(props.loan?.status)
 })
 
+const forecloseError = ref('')
+
 const confirmForeclose = async () => {
   if (await confirmDialog(t('collaterals.foreclosureWarning'))) {
     if (!props.loan) return
     try {
       isForeclosing.value = true
+      forecloseError.value = ''
       await store.forecloseLoan(props.loan.id)
+      /* Was `window.location.reload()` with the comment "simple refresh to update tables".
+         It threw away the operator's filters, sort order and page — and, when this modal was
+         opened from a customer detail, the whole customer they were working in — immediately
+         after the most consequential action in the product. `refreshAll` is what the store
+         has for this, and the parent already listens for the event. */
+      await store.refreshAll()
+      emit('payments-changed')
       emit('close')
-      window.location.reload() // simple refresh to update tables
     } catch (e: any) {
-      console.error(e)
-      alert('Error: ' + (e.response?.data?.detail || e.message))
+      // Was a native `alert('Error: ' + ...)`, in English regardless of locale.
+      forecloseError.value = e?.response?.data?.detail || e?.message || t('loans.forecloseFailed')
     } finally {
       isForeclosing.value = false
     }

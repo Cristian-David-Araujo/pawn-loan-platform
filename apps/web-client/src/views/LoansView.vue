@@ -12,6 +12,8 @@
       </template>
     </PageHeader>
 
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
+
     <!-- ── Create Loan Modal ──────────────────────────── -->
     <div v-if="showCreateLoanModal" class="modal-backdrop" @click.self="closeCreateLoanModal">
       <div class="modal-panel card modal-panel-lg">
@@ -291,8 +293,6 @@
       </div>
     </div>
 
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
-
     <!-- ── Loan Detail Modal ──────────────────────────── -->
     <LoanDetailModal
       :show="showLoanDetailModal"
@@ -317,6 +317,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import { BadgeDollarSign, ClockAlert, FilePlus2, FilterX, HandCoins, Trash2, TrendingUp, X, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
@@ -380,14 +381,18 @@ const loanTypeOptions = computed(() => [
   { value: 'personal', label: t('common.personal') }
 ])
 
+/* `defaulted` was missing here even though the table styles it and the collateral view
+   filters on it — so a foreclosed loan could only be found under "all", mixed into
+   everything else. Those are precisely the loans an administrator goes looking for. */
 const statusFilterOptions = computed(() => [
   { value: 'all', label: t('loans.allStatuses') },
   { value: 'active', label: t('common.active') },
   { value: 'overdue', label: t('common.overdue') },
-  { value: 'closed', label: t('common.closed') }
+  { value: 'closed', label: t('common.closed') },
+  { value: 'defaulted', label: t('loans.foreclosed') }
 ])
 const search = ref('')
-const message = ref('')
+const { message, messageClass, notify } = usePageMessage()
 const formError = ref('')
 
 const getLoanStatusClass = (status: string) => {
@@ -406,7 +411,7 @@ const printInvoiceOnSave = ref(true)
 /* Seeded from `?status=`, so the dashboard's overdue tile lands on the overdue loans rather
    than on the full list with the operator left to filter it themselves. Only the values the
    filter actually offers are honoured; anything else falls back to "all". */
-const STATUS_FILTERS = ['all', 'active', 'overdue', 'closed'] as const
+const STATUS_FILTERS = ['all', 'active', 'overdue', 'closed', 'defaulted'] as const
 type StatusFilter = (typeof STATUS_FILTERS)[number]
 
 const statusFromQuery = (): StatusFilter => {
@@ -477,7 +482,9 @@ const form = reactive({
 
 const handleCreateLoan = async () => {
   if (!form.customerId) {
-    formError.value = 'Por favor selecciona un cliente.'
+    // Was `messages.selectCustomerFirst`, a namespace that has no such key, so the form
+    // printed the literal string `messages.selectCustomerFirst` at the operator.
+    formError.value = t('payments.selectCustomerFirst')
     return
   }
 
@@ -531,7 +538,7 @@ const handleCreateLoan = async () => {
   form.disbursementDate = formatDateDMY(todayIso)
   form.loanType = 'pawn'
   form.description = ''
-  message.value = t('messages.loanRegistered')
+  notify(t('messages.loanRegistered'))
   collateralQueue.value = []
   collateralForm.description = ''
   collateralForm.appraisedValue = 1000

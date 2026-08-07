@@ -1024,6 +1024,14 @@ textarea[aria-invalid='true']:focus,
   font-weight: 500;
 }
 
+/* Why a field the form shows is not a field the form owns. */
+.field-hint {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 /* Both need this: without it they inherit the text-field rule above and render as
    full-width 44px boxes. */
 input[type="checkbox"],

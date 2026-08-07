@@ -6,7 +6,7 @@
       </template>
     </PageHeader>
 
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
 
     <article class="card mt-16">
       <h3>{{ t('settings.colombiaPresetTitle') }}</h3>
@@ -238,13 +238,14 @@ import { useI18n } from 'vue-i18n'
 import { Download, Save, Settings, Sparkles, Upload } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import ScheduledBackupCard from '../components/ScheduledBackupCard.vue'
+import { usePageMessage } from '../composables/usePageMessage'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY } from '../utils/date'
 
 const { state, ensureInitialized, updateGlobalSettings, refreshAll } = usePlatformStore()
 const { t } = useI18n()
-const message = ref('')
+const { message, messageClass, notify, fail, report, clearMessage } = usePageMessage()
 const exporting = ref(false)
 
 const IMPORT_CONFIRMATION = 'REPLACE ALL DATA'
@@ -330,15 +331,15 @@ onMounted(async () => {
 const handleSaveSettings = async () => {
   try {
     const result = await updateGlobalSettings({ ...form })
-    message.value = t(result.messageKey)
+    report(result, t)
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   }
 }
 
 const handleExportData = async () => {
   exporting.value = true
-  message.value = ''
+  clearMessage()
   try {
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')
     const { blob, filename } = await apiClient.requestFile('/backup/export', `export-${timestamp}.zip`)
@@ -352,9 +353,9 @@ const handleExportData = async () => {
     link.remove()
     URL.revokeObjectURL(url)
 
-    message.value = t('messages.dataExported')
+    notify(t('messages.dataExported'))
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     exporting.value = false
   }
@@ -367,7 +368,7 @@ const handleFileSelected = async (event: Event) => {
   selectedFile.value = file
   analysis.value = null
   confirmation.value = ''
-  message.value = ''
+  clearMessage()
 
   if (!file) {
     return
@@ -380,7 +381,7 @@ const handleFileSelected = async (event: Event) => {
     formData.append('validate_only', 'true')
     analysis.value = await apiClient.requestUpload<ImportResult>('/backup/import', formData)
   } catch (error) {
-    message.value = error instanceof Error && error.message ? error.message : t('messages.operationFailed')
+    fail(error instanceof Error && error.message ? error.message : t('messages.operationFailed'))
   } finally {
     analyzing.value = false
   }
@@ -392,7 +393,7 @@ const handleImportData = async () => {
   }
 
   importing.value = true
-  message.value = ''
+  clearMessage()
   try {
     const formData = new FormData()
     formData.append('file', selectedFile.value)
@@ -402,12 +403,12 @@ const handleImportData = async () => {
     const result = await apiClient.requestUpload<ImportResult>('/backup/import', formData)
     analysis.value = result
     confirmation.value = ''
-    message.value = t('messages.dataImported', { rows: result.total_incoming_rows })
+    notify(t('messages.dataImported', { rows: result.total_incoming_rows }))
 
     // Everything in memory belongs to the replaced dataset.
     await refreshAll()
   } catch (error) {
-    message.value = error instanceof Error && error.message ? error.message : t('messages.operationFailed')
+    fail(error instanceof Error && error.message ? error.message : t('messages.operationFailed'))
   } finally {
     importing.value = false
   }
