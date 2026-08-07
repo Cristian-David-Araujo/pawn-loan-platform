@@ -185,6 +185,37 @@ that never do decorative work.
   `warning` are never confusable at pill size. Each carries a `-soft` fill, a `-border` and
   a darker `-text` variant that holds AA on its own fill.
 
+### Themes
+
+Both themes ship, and `system` is the default. The dark palette is the same warm family
+turned down — not a cool slate, which is where most dark modes drift and where this one
+would stop reading as the same product. Surfaces climb as they come forward (canvas
+`#171612`, panel `#1f1d19`, raised `#272420`, hover `#322e28`), and text tops out at
+`#f2f0eb` rather than pure white, which haloes at this contrast and is tiring over a shift.
+
+Two things invert rather than darken:
+
+- **Ink becomes paper.** A near-black primary button on a near-black field would vanish, so
+  `--ink` inverts to `#ece8e0` with dark text. The idea was never "dark", it was "not the
+  accent", and that survives the inversion.
+- **The sidebar drops below the canvas** (`#100f0c`) instead of rising above it, so the
+  chrome recedes and content reads as the nearer surface. It also takes a hairline border,
+  which it does not need against a bone canvas.
+
+The accent lightens to `#4ba599` so it reads on a dark field, which is why `--on-accent`
+and `--on-danger` exist as separate tokens: the two fills move in opposite directions
+between themes, and white on the lightened accent would be 2.9:1.
+
+`data-theme` is written on `<html>` before first paint by an inline script in `index.html`,
+so the CSS is a plain attribute selector rather than a `prefers-color-scheme` block. The
+media query cannot express "the operator chose light on a machine set to dark", and
+carrying the palette twice to support both is how the two halves drift apart.
+
+**The Both-Themes Rule.** A colour is not done until it has been measured in both.
+`npm run check:contrast` checks every foreground/background pair in both themes against
+WCAG AA and CI runs it — that check is what caught `--placeholder` shipping at 3.4:1 behind
+a comment that claimed 4.6:1.
+
 ### Named Rules
 
 **The Orientation Rule.** Petrol answers exactly one question: *where am I, and what is

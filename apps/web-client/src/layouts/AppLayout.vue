@@ -59,13 +59,26 @@
             inputClass="topbar-search"
             :placeholder="t('customers.searchPlaceholder')"
           />
-          <CustomSelect 
-            id="locale-select" 
-            v-model="selectedLocale" 
-            inputClass="locale-select" 
+          <CustomSelect
+            id="locale-select"
+            v-model="selectedLocale"
+            inputClass="locale-select"
             :options="localeOptions"
-            @change="onLocaleChange" 
+            @change="onLocaleChange"
           />
+          <!-- Cycles system → light → dark. The label names the state it is in and the one
+               it will move to, because a lone icon cannot say which of the three applies. -->
+          <button
+            class="btn btn-secondary btn-icon"
+            type="button"
+            :title="themeLabel"
+            :aria-label="themeLabel"
+            @click="cycleTheme"
+          >
+            <Monitor v-if="preference === 'system'" :size="15" aria-hidden="true" />
+            <Sun v-else-if="preference === 'light'" :size="15" aria-hidden="true" />
+            <Moon v-else :size="15" aria-hidden="true" />
+          </button>
           <button class="btn btn-secondary" type="button" @click="handleLogout">
             <LogOut :size="15" />
             {{ t('app.signOut') }}
@@ -88,10 +101,13 @@ import {
   HandCoins,
   LayoutDashboard,
   LogOut,
+  Monitor,
+  Moon,
   PanelLeft,
   ReceiptText,
   Settings,
   Shield,
+  Sun,
   Users
 } from 'lucide-vue-next'
 import { persistLocale, type AppLocale } from '../i18n'
@@ -99,6 +115,7 @@ import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { usePlatformStore } from '../stores/platformStore'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import CustomSelect from '../components/CustomSelect.vue'
+import { useTheme, type ThemePreference } from '../composables/useTheme'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -139,6 +156,17 @@ const userInitial = computed(() => currentUsername.value.charAt(0).toUpperCase()
 const currentRouteLabel = computed(() => {
   const labelKey = (route.meta.labelKey as string | undefined) ?? 'app.dashboard'
   return t(labelKey)
+})
+
+const { preference, cycleTheme } = useTheme()
+
+const THEME_ORDER: ThemePreference[] = ['system', 'light', 'dark']
+const themeName = (value: ThemePreference) =>
+  t(value === 'system' ? 'app.themeSystem' : value === 'light' ? 'app.themeLight' : 'app.themeDark')
+
+const themeLabel = computed(() => {
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(preference.value) + 1) % THEME_ORDER.length]
+  return t('app.themeSwitchTo', { current: themeName(preference.value), next: themeName(next) })
 })
 
 watch(

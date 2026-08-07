@@ -1090,8 +1090,50 @@ onMounted(async () => {
    Deliberately restrained: whitespace carries the structure, not fills and
    rules. One accent colour, one emphasis weight, one hairline. Anything that
    adds a second way of saying "this is a section" has been left out. */
+/* These four documents are printed on white office paper, so they are pinned to the light
+   palette whatever the operator's theme is. Two reasons, and the second is the serious one:
+   a dark receipt on screen would not match the sheet that comes out of the printer, and
+   browsers drop backgrounds when printing — a dark-mode document would print near-white
+   text onto white paper and hand the customer a blank page.
+
+   Redeclaring the tokens on this container rather than reaching for `[data-theme]` keeps it
+   local: the route sits outside AppLayout, and nothing else on the page has to know. */
 .print-container {
+  color-scheme: light;
+
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --surface-soft: #f5f4f1;
+  --surface-hover: #eceae5;
+  --text: #1c1a17;
+  --text-secondary: #44403a;
+  --muted: #6b655c;
+  --line: #e4e2dd;
+  --line-light: #efedea;
+  --line-strong: #d3d0c9;
+  --ink: #232019;
+  --ink-hover: #3a352c;
+  --text-inverse: #faf9f7;
+  --accent: #0d5c53;
+  --accent-hover: #0a4a43;
+  --accent-soft: #e6f0ee;
+  --accent-border: #b9d4cf;
+  --success: #15803d;
+  --success-soft: #ecf5ee;
+  --success-text: #14602f;
+  --warning: #b45309;
+  --warning-soft: #fdf3e7;
+  --warning-text: #8a4008;
+  --danger: #b42318;
+  --danger-soft: #fdefed;
+  --danger-text: #912018;
+  --info-soft: #eaf1f8;
+  --info-text: #1a4d81;
+  --on-accent: #ffffff;
+  --on-danger: #ffffff;
+
   background: var(--surface-hover);
+  color: var(--text);
   min-height: 100vh;
   padding: 40px 20px;
   display: flex;

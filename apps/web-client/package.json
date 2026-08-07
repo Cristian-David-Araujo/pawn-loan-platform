@@ -9,6 +9,7 @@
     "build:ci": "vite build",
     "typecheck": "vue-tsc -b",
     "check:i18n": "node scripts/check-i18n.mjs",
+    "check:contrast": "node scripts/check-contrast.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -25,6 +25,13 @@
   --fs-xl: 1.4rem;
   --fs-2xl: 1.7rem;
 
+  /* ═══ THEME: LIGHT ═══
+     Everything below this point is theme-dependent and is overridden wholesale
+     by [data-theme='dark'] further down. Structural tokens — type, radii,
+     motion, z-index — are not: a scale does not change with the light. */
+
+  color-scheme: light;
+
   /* ── Surfaces (one warm neutral family, never a cool/warm mix) ── */
   --bg: #faf9f7;
   --surface: #ffffff;
@@ -45,20 +52,35 @@
   --line-hover: #b9b5ab; /* a control's border under the pointer */
 
   /* Text that is present but not being asked to carry meaning: a placeholder, a
-     day outside the displayed month. Both hold AA on their own surface. */
-  --placeholder: #8f8a80;
+     day outside the displayed month.
+
+     --placeholder holds AA on both surfaces it can sit on (4.9:1 on a panel,
+     4.7:1 on the canvas). Its first value here was #8f8a80, which measured
+     3.4:1 — below AA, on hints that carry real information such as the expected
+     date format. Building the dark palette is what surfaced it, because the two
+     themes were checked against each other rather than eyeballed.
+
+     --text-disabled is deliberately below AA: it marks a day outside the
+     displayed month, which is decoration for the grid rather than content, and
+     the same day is reachable by paging to its own month. */
+  --placeholder: #767066;
   --text-disabled: #b5b0a6;
 
-  /* White on a saturated fill. Not --surface: that token means a surface, and a
-     text colour that happens to share its value is not the same idea. */
-  --on-fill: #ffffff;
+  /* Foreground on a saturated fill. Two tokens rather than one "on-fill",
+     because the two fills move in opposite directions between themes: the
+     accent lightens in dark mode and needs dark text on it, while danger stays
+     dark enough to keep white. One token could not have been right for both. */
+  --on-accent: #ffffff;
+  --on-danger: #ffffff;
 
   /* ── Ink: the primary action colour ────────────
      Buttons are ink, not accent. Every table row here carries an action; an
      accent-coloured button on each one makes the accent mean nothing. Ink keeps
-     it rare enough to still say "you are here". */
+     it rare enough to still say "you are here". In dark mode ink inverts to
+     paper — a light button on a dark field — which keeps the same idea. */
   --ink: #232019;
   --ink-hover: #3a352c;
+  --on-ink-subtle: rgba(255, 255, 255, 0.16); /* a counter inside an ink button */
 
   /* ── Accent (deep petrol) ──────────────────────
      Interaction and orientation only: active nav, focus, selection, links,
@@ -90,6 +112,11 @@
   --info-border: #c2d7ea;
   --info-text: #1a4d81;
 
+  /* ── Chrome: surfaces that are not content ── */
+  --topbar-bg: rgba(250, 249, 247, 0.85);
+  --tab-hover-bg: rgba(255, 255, 255, 0.7);
+  --backdrop: rgba(28, 26, 23, 0.45);
+
   /* ── Radii: tighter inside, softer outside ── */
   --radius-xs: 4px;
   --radius-sm: 6px;
@@ -105,6 +132,7 @@
   --shadow-md: 0 8px 24px rgba(35, 32, 25, 0.09), 0 2px 6px rgba(35, 32, 25, 0.05);
   --shadow-lg: 0 20px 48px rgba(35, 32, 25, 0.16), 0 4px 12px rgba(35, 32, 25, 0.08);
   --shadow-focus: 0 0 0 3px rgba(13, 92, 83, 0.22);
+  --shadow-focus-danger: 0 0 0 3px rgba(180, 35, 24, 0.18);
 
   /* ── Motion: 150–220ms. Users are in flow; nobody waits for choreography. ── */
   --ease: cubic-bezier(0.32, 0.72, 0, 1);
@@ -112,13 +140,19 @@
   --transition: 180ms var(--ease);
   --transition-slow: 240ms var(--ease);
 
-  /* ── Sidebar: a flat second neutral layer, no gradient ── */
+  /* ── Sidebar: a flat second neutral layer, no gradient ──
+     Already dark in light mode. In dark mode it drops *below* the canvas rather
+     than rising above it, so the chrome recedes and the content reads as the
+     nearer surface — and it takes a border, which it does not need against a
+     bone canvas. */
   --sidebar-width: 268px;
   --sidebar-bg: #1a1815;
   --sidebar-text: #f5f4f1;
   --sidebar-link: #cbc6ba;
   --sidebar-muted: #918a7d;
   --sidebar-active-bg: rgba(255, 255, 255, 0.09);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-border: transparent;
 
   /* ── z-index scale: no more 9999 ── */
   --z-sticky: 8;
@@ -144,6 +178,100 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-synthesis-weight: none;
+}
+
+/* ═══════════════════════════════════════════════
+   THEME: DARK
+
+   The same warm family, turned down — not a cool slate, which is where most
+   dark modes drift and where this one would stop feeling like the same product.
+
+   `data-theme` is always written by useTheme before first paint, so this is a
+   plain attribute selector rather than a prefers-color-scheme block: the media
+   query cannot express "the operator chose light on a machine set to dark",
+   and duplicating the palette to support both is how the two halves drift.
+   ═══════════════════════════════════════════════ */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces climb as they come forward: canvas, panel, raised, hover. */
+  --bg: #171612;
+  --surface: #1f1d19;
+  --surface-soft: #272420;
+  --surface-hover: #322e28;
+  --surface-elevated: #272420;
+
+  /* Never pure white on near-black: at this contrast it haloes and is tiring
+     over a shift. #f2f0eb holds 15.2:1 on the canvas, which is plenty. */
+  --text: #f2f0eb;
+  --text-secondary: #cac4b8;
+  --muted: #9d9689; /* 7.0:1 on --bg */
+  --text-inverse: #171612;
+
+  --line: #322e28;
+  --line-light: #272420;
+  --line-strong: #453f37;
+  --line-hover: #5c554a;
+
+  --placeholder: #8b8478;
+  --text-disabled: #5f594f;
+
+  /* The accent lightens here, so white on it would fall to 2.9:1. Dark text on
+     the accent is 5.8:1. Danger stays dark enough to keep white at 5.3:1. */
+  --on-accent: #0b1f1c;
+  --on-danger: #ffffff;
+
+  /* Ink inverts to paper. A near-black button on a near-black field would be
+     invisible; the idea was never "dark", it was "not the accent". */
+  --ink: #ece8e0;
+  --ink-hover: #ffffff;
+  --on-ink-subtle: rgba(23, 22, 18, 0.12);
+
+  --accent: #4ba599;
+  --accent-hover: #6cbcb1;
+  --accent-soft: #12312c;
+  --accent-border: #26564e;
+  --accent-on-dark: #4ba599;
+
+  --success: #3f9159;
+  --success-soft: #16281c;
+  --success-border: #2c4b36;
+  --success-text: #8ad3a4;
+  --warning: #c07a22;
+  --warning-soft: #2b2013;
+  --warning-border: #533d1f;
+  --warning-text: #edb268;
+  --danger: #b8392c;
+  --danger-hover: #d0503f;
+  --danger-soft: #2c1714;
+  --danger-border: #542722;
+  --danger-text: #f0a49a;
+  --info: #3f7cb5;
+  --info-soft: #16212d;
+  --info-border: #234869;
+  --info-text: #93bde4;
+
+  --topbar-bg: rgba(23, 22, 18, 0.85);
+  --tab-hover-bg: rgba(255, 255, 255, 0.05);
+  --backdrop: rgba(8, 7, 6, 0.65);
+
+  /* Shadows barely read on a dark field, so they go deeper and structure leans
+     harder on the hairlines. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-focus: 0 0 0 3px rgba(75, 165, 153, 0.32);
+  --shadow-focus-danger: 0 0 0 3px rgba(208, 80, 63, 0.32);
+
+  --sidebar-bg: #100f0c;
+  --sidebar-text: #f2f0eb;
+  --sidebar-link: #b4aea2;
+  --sidebar-muted: #8b8478;
+  --sidebar-active-bg: rgba(255, 255, 255, 0.07);
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.045);
+  --sidebar-border: #272420;
 }
 
 /* ═══════════════════════════════════════════════
@@ -331,6 +459,8 @@ th.text-right {
   gap: 1.5rem;
   z-index: var(--z-sidebar);
   overflow-y: auto;
+  /* Transparent against a bone canvas, a real hairline against a dark one. */
+  border-right: 1px solid var(--sidebar-border);
 }
 
 .brand-wrap {
@@ -410,7 +540,7 @@ th.text-right {
 }
 
 .nav-link:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--sidebar-hover-bg);
   color: var(--sidebar-text);
 }
 
@@ -449,7 +579,7 @@ th.text-right {
 /* ── Topbar ──────────────────────────────────── */
 .topbar {
   min-height: 60px;
-  background: rgba(250, 249, 247, 0.85);
+  background: var(--topbar-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--line);
@@ -797,7 +927,7 @@ textarea[aria-invalid='true'],
 input[aria-invalid='true']:focus,
 textarea[aria-invalid='true']:focus,
 .is-invalid:focus {
-  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.18);
+  box-shadow: var(--shadow-focus-danger);
 }
 
 .field-error {
@@ -1242,7 +1372,7 @@ tbody tr:hover,
 
 .tab-btn:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--tab-hover-bg);
 }
 
 .tab-btn.active {
@@ -1647,7 +1777,7 @@ tbody tr:hover,
 }
 
 .btn .tab-count {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--on-ink-subtle);
   color: inherit;
 }
 
@@ -1752,7 +1882,7 @@ ul {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(28, 26, 23, 0.45);
+  background: var(--backdrop);
   backdrop-filter: blur(3px);
   -webkit-backdrop-filter: blur(3px);
   display: flex;
@@ -2005,7 +2135,7 @@ ul {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(28, 26, 23, 0.4);
+    background: var(--backdrop);
     z-index: var(--z-backdrop);
   }
 
@@ -2050,7 +2180,7 @@ ul {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(28, 26, 23, 0.4);
+    background: var(--backdrop);
     z-index: var(--z-backdrop);
     animation: backdrop-in 160ms var(--ease);
   }

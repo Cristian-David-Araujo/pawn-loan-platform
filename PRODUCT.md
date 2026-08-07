@@ -42,8 +42,15 @@ hands, not a thing to be admired.** Speed of reading beats novelty. Density is c
 Familiarity is a feature — a control that behaves like the control it resembles is doing its
 job. Motion that makes someone wait is a defect.
 
-Light mode is the only mode. It matches the ambient light of the room and the paper the
-documents are printed on.
+**Light and dark are both shipped, and "system" is the default.** The room is not one
+room: the counter is usually bright, the back office often is not, and a closing shift runs
+into the evening. Light was the only mode until an operator asked for the choice, and the
+answer that fits the scene is to follow the machine unless someone says otherwise — a
+person who sets their laptop to dark at 6pm should not have to set the app separately, and
+a person who explicitly picked light must keep it when the machine switches.
+
+The printed documents stay light in both. They are printed on white paper, and a browser
+drops backgrounds when printing, so a dark receipt would hand the customer a blank page.
 
 ## What the product is about
 
