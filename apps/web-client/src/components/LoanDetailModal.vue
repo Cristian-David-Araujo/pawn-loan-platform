@@ -192,7 +192,10 @@ import { Printer, X, Pencil, Save, AlertTriangle, Trash2 } from 'lucide-vue-next
 import { usePlatformStore } from '../stores/platformStore'
 
 import Pagination from './Pagination.vue'
-import { billingAnchorDay } from '../utils/date'
+import { formatCurrency } from '../utils/currency'
+/* `formatDateDMY` was written out again in this file and hard-coded `DD/MM/YYYY`, so the
+   loan detail ignored `GlobalSettings.dateFormat` the same way the collateral screen did. */
+import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import PaymentReversalModal from './PaymentReversalModal.vue'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { Loan, Payment, CollateralItem } from '../types/domain'
@@ -233,22 +236,6 @@ const billingDay = computed(() =>
 
 const loanPaymentsCurrentPage = ref(1)
 const loanCollateralsCurrentPage = ref(1)
-
-const locale = useI18n().locale
-const currencyCode = computed(() => store.state.globalSettings?.currencyCode ?? 'COP')
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(amount)
-
-const formatDateDMY = (dateString: string) => {
-  if (!dateString) return '-'
-  const [y, m, d] = dateString.split('-')
-  return `${d}/${m}/${y}`
-}
-
 
 const paginatedLoanPayments = computed(() => {
   const start = (loanPaymentsCurrentPage.value - 1) * 10

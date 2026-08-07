@@ -806,6 +806,7 @@ import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
+import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
 
@@ -879,7 +880,6 @@ const { t, locale } = useI18n()
 const { confirm } = useConfirmDialog()
 const route = useRoute()
 const { hasRole } = useAuthState()
-const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const message = ref('')
 const search = ref('')
 const customerStatusFilter = ref<'all' | 'active' | 'archived'>('all')
@@ -1152,14 +1152,6 @@ const firstLoanDisbursementDate = computed(() => {
     .sort((a, b) => new Date(a.disbursementDate).getTime() - new Date(b.disbursementDate).getTime())[0]
     .disbursementDate
 })
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(
-    amount
-  )
 
 const formatDateTime = (value: string) => {
   if (!value) {

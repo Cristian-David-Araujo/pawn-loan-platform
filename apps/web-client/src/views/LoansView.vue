@@ -326,6 +326,7 @@ import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
+import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 import { apiClient } from '../services/api'
 
@@ -368,7 +369,7 @@ interface InterestPendingResponse {
 const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = usePlatformStore()
 const { hasRole } = useAuthState()
 const router = useRouter()
-const { t, locale } = useI18n()
+const { t } = useI18n()
   const { confirm } = useConfirmDialog()
 
 const loanTypeOptions = computed(() => [
@@ -437,7 +438,6 @@ const totalPendingPenalty = computed(() => {
 })
 
 const collateralQueue = ref<CollateralQueueItem[]>([])
-const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const datePlaceholder = computed(() => getGlobalDateFormat())
 const todayIso = new Date().toISOString().slice(0, 10)
 const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
@@ -555,14 +555,6 @@ const addCollateralToQueue = () => {
 const removeCollateralFromQueue = (index: number) => {
   collateralQueue.value = collateralQueue.value.filter((_, itemIndex) => itemIndex !== index)
 }
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(
-    amount
-  )
 
 const getCustomerLabel = (customerId: number) => {
   const value = getCustomerName(customerId)

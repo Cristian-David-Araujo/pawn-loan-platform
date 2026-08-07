@@ -219,8 +219,10 @@ import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { Shield, DollarSign, X, AlertTriangle, PackageCheck } from 'lucide-vue-next'
+import { formatCurrency } from '../utils/currency'
+import { formatDateDMY } from '../utils/date'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const store = usePlatformStore()
 const { confirm } = useConfirmDialog()
 
@@ -259,17 +261,10 @@ const inventoryStatusOptions = computed(() => [
   { value: 'liquidated', label: t('collaterals.statusLiquidated') }
 ])
 
-const currencyCode = computed(() => store.state.globalSettings?.currencyCode ?? 'COP')
-const formatCurrency = (val: number) => {
-  if (val === null || val === undefined) return '-'
-  return new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: currencyCode.value }).format(val)
-}
-
-const formatDateDMY = (dateString: string) => {
-  if (!dateString) return '-'
-  const [y, m, d] = dateString.split('-')
-  return `${d}/${m}/${y}`
-}
+/* Both formatters used to be local to this file: the currency one grouped with `es-MX`
+   while the printed documents used `es-CO`, and the date one hard-coded `DD/MM/YYYY` and so
+   ignored `GlobalSettings.dateFormat` entirely — this was the one screen where changing
+   that setting did nothing. */
 
 const getStatusClass = (status: string) => {
   switch(status) {

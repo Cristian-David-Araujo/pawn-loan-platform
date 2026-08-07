@@ -422,6 +422,7 @@ import DateInputField from '../components/DateInputField.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
+import { formatCompactNumber, formatCurrency, formatInteger } from '../utils/currency'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 
 const { state, getCustomerName, ensureInitialized } = usePlatformStore()
@@ -458,7 +459,6 @@ interface ChartModel {
   bars: ChartBar[]
 }
 
-const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const today = new Date().toISOString().slice(0, 10)
 const firstDayOfMonth = `${today.slice(0, 7)}-01`
 const fromDate = ref(formatDateDMY(firstDayOfMonth))
@@ -873,24 +873,7 @@ const createBarChartModel = (series: ChartEntry[]): ChartModel => {
   }
 }
 
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(
-    amount
-  )
-
 const formatPercent = (value: number) => `${value.toFixed(1)}%`
-const formatCompactNumber = (value: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    notation: 'compact',
-    maximumFractionDigits: 1
-  }).format(value)
-const formatInteger = (value: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    maximumFractionDigits: 0
-  }).format(value)
 
 const getCustomerLabel = (customerId: number) => {
   const value = getCustomerName(customerId)

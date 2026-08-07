@@ -580,6 +580,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { usePlatformStore } from '../stores/platformStore'
+import { formatCurrency } from '../utils/currency'
 import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
 import { apiClient } from '../services/api'
@@ -979,10 +980,10 @@ const dateString = computed(() => formatDateDMY(new Date().toISOString()))
 
 const eventTypeLabel = (value: string) => t(paymentTypeKey(value))
 
-const formatCurrency = (val: number) => {
-  const code = globalSettings.value?.currencyCode || 'COP'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: code }).format(val)
-}
+/* This document's `es-CO` grouping was the correct one and is unchanged: the shared
+   formatter picks the locale from the currency, so pesos still print as `$ 1.250.000`.
+   What moved is every screen behind it, which had been grouping with `es-MX` and showing
+   the same debt as `COP 1,250,000`. */
 
 /**
  * Human-readable label for the payment type derived from the allocation breakdown.

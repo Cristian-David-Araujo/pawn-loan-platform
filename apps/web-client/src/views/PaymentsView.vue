@@ -473,6 +473,7 @@ import PageHeader from '../components/PageHeader.vue'
 import { apiClient, apiErrorMessage } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
+import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
 
@@ -542,9 +543,8 @@ const { state, ensureInitialized, refreshAll, updatePayment, releaseCollateralFo
   usePlatformStore()
 const { hasRole } = useAuthState()
 const router = useRouter()
-const { t, locale } = useI18n()
-  const { confirm } = useConfirmDialog()
-const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
+const { t } = useI18n()
+const { confirm } = useConfirmDialog()
 
 const activeTab = ref<'interest' | 'principal'>('interest')
 const printReceiptOnSave = ref(true)
@@ -824,14 +824,6 @@ const getPendingStatusClass = (item: InterestPendingItem) => {
 
   return getPendingStatusKey(item) === 'payments.current' ? 'pill-current' : 'pill-upcoming'
 }
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(
-    amount
-  )
 
 const getPaymentTypeLabel = (paymentType: string) => t(paymentTypeKey(paymentType))
 

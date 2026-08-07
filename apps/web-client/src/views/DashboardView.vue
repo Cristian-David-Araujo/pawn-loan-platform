@@ -65,24 +65,16 @@ import {
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
+import { formatCurrency } from '../utils/currency'
 
-const { state, dashboardStats, ensureInitialized } = usePlatformStore()
-const { t, locale } = useI18n()
+const { dashboardStats, ensureInitialized } = usePlatformStore()
+const { t } = useI18n()
 const router = useRouter()
 const stats = computed(() => dashboardStats.value)
-const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 
 onMounted(async () => {
   await ensureInitialized()
 })
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(
-    amount
-  )
 
 const goTo = (path: string) => {
   void router.push(path)
