@@ -1213,7 +1213,7 @@ const historyTypeFilterOptions = computed(() => [
 .handback-list {
   margin: 0.4rem 0 0 0;
   padding-left: 1.5rem;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--text-secondary);
 }
 
@@ -1223,7 +1223,7 @@ const historyTypeFilterOptions = computed(() => [
 
 .handback-total {
   margin-top: 0.35rem;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text);
 }

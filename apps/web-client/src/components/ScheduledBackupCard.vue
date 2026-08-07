@@ -525,7 +525,7 @@ onMounted(async () => {
   padding-left: 1.2rem;
   display: grid;
   gap: 0.3rem;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 /* An error message can be a full sentence from Google; it wraps rather than stretching the

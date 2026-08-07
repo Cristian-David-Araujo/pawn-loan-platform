@@ -1119,6 +1119,9 @@ onMounted(async () => {
   color: var(--text);
   font-size: 14px;
   line-height: 1.65;
+  /* Every figure on the document lines up in its column. No face change: the document's
+     restraint is deliberate, and this is the one typographic setting that serves it. */
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Header ── */
@@ -1318,7 +1321,7 @@ onMounted(async () => {
 
 /* A settled bucket reads as good news rather than just another figure. */
 .balance-zero {
-  color: #065f46;
+  color: var(--success-text);
 }
 
 /* ── Status pills: the app's own pill shape, minus the border. ── */
@@ -1335,18 +1338,18 @@ onMounted(async () => {
 
 .status-active {
   background: var(--info-soft);
-  color: #3730a3;
+  color: var(--info-text);
 }
 
 .status-overdue,
 .status-defaulted {
   background: var(--danger-soft);
-  color: #b91c1c;
+  color: var(--danger-text);
 }
 
 .status-closed {
   background: var(--success-soft);
-  color: #065f46;
+  color: var(--success-text);
 }
 
 /* ── Notices: one shape, tinted by meaning. ── */
@@ -1364,21 +1367,21 @@ onMounted(async () => {
 .closed-notice {
   border-left-color: var(--success);
   background: var(--success-soft);
-  color: #065f46;
+  color: var(--success-text);
 }
 
 .reversed-notice {
   margin-top: var(--doc-gap);
   border-left-color: var(--danger);
   background: var(--danger-soft);
-  color: #b91c1c;
+  color: var(--danger-text);
   font-weight: 600;
 }
 
 .note {
   border-left-color: var(--warning);
   background: var(--warning-soft);
-  color: #92400e;
+  color: var(--warning-text);
 }
 
 /* ── Footer ── */
@@ -1402,7 +1405,7 @@ onMounted(async () => {
 }
 
 .loading {
-  font-size: 1.05rem;
+  font-size: var(--fs-md);
   color: var(--muted);
   text-align: center;
   width: 100%;

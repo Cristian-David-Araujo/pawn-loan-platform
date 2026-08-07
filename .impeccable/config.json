@@ -1,0 +1,18 @@
+{
+  "$comment": [
+    "Shared, tracked Impeccable configuration. Per-developer overrides belong in config.local.json, which .gitignore excludes.",
+    "",
+    "flat-type-hierarchy is waived deliberately, not silenced. The rule asks for >=1.25 between adjacent type steps, which is calibrated for brand surfaces; impeccable's own reference/operate.md prescribes 1.125-1.2 for product UI, because these screens carry far more type elements and exaggerated contrast reads as noise. This app is an Operate surface (see PRODUCT.md).",
+    "",
+    "The rendered login page carries three real sizes: 12.3px for labels and controls, 14px for input values, 21px for the heading. Forcing 1.25 between the first two would put form labels at 11px or input values at 17.5px, and both are worse for someone reading them all day at a counter. The reported figures also over-count under the Vite dev server, which injects <style> and <title> nodes that the rule measures as text; confirmed against the rendered DOM with a headless pass.",
+    "",
+    "Remove this waiver if the type scale is ever reworked - it is a statement about this scale, not a permanent exemption."
+  ],
+  "detector": {
+    "ignoreRules": [
+      "flat-type-hierarchy"
+    ],
+    "ignoreFiles": [],
+    "ignoreValues": []
+  }
+}

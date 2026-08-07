@@ -24,14 +24,14 @@
           <PasswordInput v-model="form.password" autocomplete="current-password" required />
         </label>
 
-        <div style="text-align: right; margin-top: -0.2rem; margin-bottom: 0.5rem;">
-          <router-link to="/forgot-password" style="font-size: 0.85rem; color: var(--color-primary, #2563eb); text-decoration: none; font-weight: 500;">
+        <div class="auth-link-end">
+          <router-link class="auth-link" to="/forgot-password">
             {{ t('auth.forgotPassword') }}
           </router-link>
         </div>
 
-        <button class="btn" type="submit" :disabled="isSubmitting" style="width: 100%; justify-content: center;">
-          <LogIn v-if="!isSubmitting" :size="16" />
+        <button class="btn" type="submit" :disabled="isSubmitting" :class="{ 'is-loading': isSubmitting }">
+          <LogIn v-if="!isSubmitting" :size="16" aria-hidden="true" />
           {{ isSubmitting ? t('auth.signingIn') : t('auth.signIn') }}
         </button>
       </form>

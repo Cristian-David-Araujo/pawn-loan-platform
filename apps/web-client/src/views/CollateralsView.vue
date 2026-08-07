@@ -31,8 +31,12 @@
         <span class="table-count">{{ t('collaterals.totalItems', { count: filteredItems.length }, { default: `Total: ${filteredItems.length}` }) }}</span>
       </div>
 
-      <div v-if="loading" class="text-center muted mt-16 p-16">
-        {{ t('common.loading') }}
+      <!-- A skeleton in the shape of the table that is coming, rather than the word
+           "Loading" centred in an empty panel: the layout no longer jumps when rows land. -->
+      <div v-if="loading" class="table-wrap" role="status" :aria-label="t('common.loading')">
+        <div v-for="row in 6" :key="row" class="skeleton-row">
+          <span class="skeleton" v-for="cell in 5" :key="cell"></span>
+        </div>
       </div>
       <div v-else class="table-wrap">
         <table>
@@ -182,21 +186,23 @@
           <div v-if="confirmStep === 1">
             <label>
               {{ t('collaterals.salePrice') }}
-              <input type="number" v-model="salePrice" min="0" step="0.01" class="w-full mt-4" />
+              <input type="number" v-model="salePrice" min="0" step="0.01" />
             </label>
             <label class="mt-16">
               {{ t('collaterals.notes') }}
-              <textarea v-model="saleNotes" rows="3" class="w-full mt-4"></textarea>
+              <textarea v-model="saleNotes" rows="3"></textarea>
             </label>
           </div>
-          <div v-else class="text-center p-16">
-            <AlertTriangle :size="32" class="text-warning mx-auto mb-8" style="color: #d97706;" />
+          <!-- Step two: selling someone's pledge is irreversible, so the step states the
+               item and the price before the button that does it. -->
+          <div v-else class="sell-confirm">
+            <AlertTriangle :size="30" class="sell-confirm-icon" aria-hidden="true" />
             <p><strong>{{ t('collaterals.confirmSellStepOne', { item: selectedItem?.description, price: formatCurrency(salePrice || 0) }) }}</strong></p>
             <p class="muted mt-8">{{ t('collaterals.confirmSellStepTwo') }}</p>
           </div>
         </div>
 
-        <div class="form-actions mt-16" style="display: flex; justify-content: flex-end; gap: 1rem;">
+        <div class="form-actions mt-16">
           <button class="btn btn-secondary" type="button" @click="closeSellModal" :disabled="isSubmitting">
             {{ t('common.cancel') }}
           </button>
@@ -426,4 +432,20 @@ const handleSell = async () => {
   }
 }
 </script>
+
+<style scoped>
+/* Replaces `class="text-center p-16"` plus `class="text-warning mx-auto mb-8"` and an
+   inline `style="color: #d97706"`. None of those utility names existed anywhere in the
+   stylesheet, so the only thing actually colouring the icon was the inline attribute — in
+   an amber that belonged to the previous palette. */
+.sell-confirm {
+  text-align: center;
+  padding: 1rem;
+}
+
+.sell-confirm-icon {
+  color: var(--warning);
+  margin-bottom: 0.5rem;
+}
+</style>
 

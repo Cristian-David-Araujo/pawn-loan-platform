@@ -81,7 +81,9 @@ export const messages = {
       passwordMismatch: 'Passwords do not match.',
       passwordTooShort: 'Password must be at least 8 characters long.',
       resettingPassword: 'Updating password...',
-      passwordResetSuccess: 'Password updated successfully. You can now sign in.'
+      passwordResetSuccess: 'Password updated successfully. You can now sign in.',
+      missingResetToken: 'This link carries no reset token. Request a new one.',
+      resetPasswordFailed: "We couldn't update the password. Request a new link and try again."
     },
     roles: {
       administrator: 'Administrator',
@@ -116,6 +118,16 @@ export const messages = {
       updatedSuccess: 'User updated successfully'
     },
     common: {
+      // Referenced across the app but never defined in either block. Four sites had no
+      // fallback and rendered the literal key — `common.notes` onto a printed customer
+      // document — and the ones that did fall back hardcoded a single language, so the
+      // destructive confirmation dialog answered a Spanish-first team in English.
+      confirmAction: 'Confirm action',
+      accept: 'Accept',
+      unknown: 'Unknown',
+      loading: 'Loading...',
+      notes: 'Notes',
+      collaterals: 'Collateral',
       pagination: 'Pagination',
       previousPage: 'Previous page',
       nextPage: 'Next page',
@@ -852,7 +864,9 @@ export const messages = {
       passwordMismatch: 'Las contraseñas no coinciden.',
       passwordTooShort: 'La contraseña debe tener al menos 8 caracteres.',
       resettingPassword: 'Actualizando contraseña...',
-      passwordResetSuccess: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesión.'
+      passwordResetSuccess: 'Contraseña actualizada exitosamente. Ya puedes iniciar sesión.',
+      missingResetToken: 'Este enlace no trae un token de restablecimiento. Solicita uno nuevo.',
+      resetPasswordFailed: 'No pudimos actualizar la contraseña. Solicita un enlace nuevo e inténtalo otra vez.'
     },
     roles: {
       administrator: 'Administrador',
@@ -887,6 +901,12 @@ export const messages = {
       updatedSuccess: 'Usuario actualizado exitosamente'
     },
     common: {
+      confirmAction: 'Confirmar acción',
+      accept: 'Aceptar',
+      unknown: 'Desconocido',
+      loading: 'Cargando...',
+      notes: 'Notas',
+      collaterals: 'Garantías',
       pagination: 'Paginación',
       previousPage: 'Página anterior',
       nextPage: 'Página siguiente',

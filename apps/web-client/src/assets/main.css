@@ -140,6 +140,11 @@ body {
   min-height: 100vh;
   color: var(--text);
   background: var(--bg);
+  /* The root's 15px is the rem basis, not a text size. Without this, any element
+     that names no step inherited the raw 15px and landed between --fs-base and
+     --fs-md, which is what made the rendered scale read as four crowded sizes
+     rather than a hierarchy. */
+  font-size: var(--fs-base);
 }
 
 h1, h2, h3, h4, p {
@@ -630,6 +635,11 @@ th.text-right {
 
 .mt-16 {
   margin-top: 1rem;
+}
+
+/* Referenced by the markup for a long time without ever having a rule. */
+.mt-24 {
+  margin-top: 1.5rem;
 }
 
 /* ═══════════════════════════════════════════════
@@ -1399,6 +1409,21 @@ tbody tr:hover,
   border-color: var(--warning-border);
 }
 
+/* `.notice` is already the success tone; the explicit name exists because the
+   markup asks for it. `.notice-info` was asked for too and had no rule at all,
+   so the dev reset-token panel rendered in the success green. */
+.notice-success {
+  color: var(--success-text);
+  background: var(--success-soft);
+  border-color: var(--success-border);
+}
+
+.notice-info {
+  color: var(--info-text);
+  background: var(--info-soft);
+  border-color: var(--info-border);
+}
+
 @keyframes notice-in {
   from {
     opacity: 0;
@@ -1830,11 +1855,80 @@ ul {
   background: var(--ink);
 }
 
+/* The three auth screens used to carry this styling as inline `style` attributes
+   painting from --color-primary, a token this system has never defined — so all
+   three links fell through to a hardcoded blue that belongs to no palette here. */
+.auth-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.auth-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.auth-link-end {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.25rem 0 0.25rem;
+}
+
+.auth-link-center {
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+/* Only rendered outside production, where the API returns the reset token in the
+   response body because there is no mailer yet. */
+.auth-dev-token {
+  margin-top: 1rem;
+  word-break: break-all;
+  font-size: var(--fs-sm);
+}
+
+.auth-dev-token a {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: inherit;
+  text-decoration: underline;
+}
+
 /* ═══════════════════════════════════════════════
    UTILITIES
    ═══════════════════════════════════════════════ */
 .text-right { text-align: right !important; }
 .text-center { text-align: center !important; }
+
+/* These two were in the markup of LoansView, ReportingView and CollateralsView
+   without ever being defined anywhere, so the figure they were meant to call out
+   — an overdue amount — rendered exactly like the ones beside it. */
+.fw-bold { font-weight: 700; }
+
+.text-warning-dark { color: var(--warning-text); }
+
+.text-danger-dark { color: var(--danger-text); }
+
+.text-success-dark { color: var(--success-text); }
+
+/* Work in progress on a control that is not a .btn. */
+.spinner-small {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 600ms linear infinite;
+  flex-shrink: 0;
+}
 
 .visually-hidden {
   position: absolute;

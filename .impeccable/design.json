@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T00:00:00.000Z",
+  "title": "Design System: Pawn Loan Platform",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Ledger Ink",
+        "canonical": "#232019",
+        "tonalRamp": ["#141210", "#232019", "#3a352c", "#544d40", "#726957", "#9a9080", "#c4bcae", "#e7e2d9"]
+      },
+      "petrol": {
+        "role": "secondary",
+        "displayName": "Counter Petrol",
+        "canonical": "#0d5c53",
+        "tonalRamp": ["#04211d", "#073731", "#0a4a43", "#0d5c53", "#13877a", "#4baa9d", "#8fcdc4", "#e6f0ee"]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Warm Bone",
+        "canonical": "#faf9f7",
+        "tonalRamp": ["#1c1a17", "#44403a", "#6b655c", "#948d81", "#d3d0c9", "#e4e2dd", "#f5f4f1", "#faf9f7"]
+      },
+      "sidebar": {
+        "role": "neutral",
+        "displayName": "Vault Black",
+        "canonical": "#1a1815",
+        "tonalRamp": ["#0d0c0a", "#1a1815", "#2b2823", "#413c34", "#5c554a", "#847c6e", "#b3ab9c", "#e2ddd3"]
+      },
+      "success": {
+        "role": "tertiary",
+        "displayName": "Ledger Green",
+        "canonical": "#15803d",
+        "tonalRamp": ["#06240f", "#0a3d1c", "#14602f", "#15803d", "#2fa35c", "#68c48c", "#a9dfbe", "#ecf5ee"]
+      },
+      "warning": {
+        "role": "tertiary",
+        "displayName": "Amber Notice",
+        "canonical": "#b45309",
+        "tonalRamp": ["#3a1a02", "#5e2c04", "#8a4008", "#b45309", "#d97a1f", "#eda45c", "#f5c894", "#fdf3e7"]
+      },
+      "danger": {
+        "role": "tertiary",
+        "displayName": "Arrears Red",
+        "canonical": "#b42318",
+        "tonalRamp": ["#3a0a06", "#5e120c", "#912018", "#b42318", "#d64a3d", "#e88478", "#f3b7b0", "#fdefed"]
+      },
+      "info": {
+        "role": "tertiary",
+        "displayName": "Slate Blue",
+        "canonical": "#1e5a97",
+        "tonalRamp": ["#08192b", "#0f2f4f", "#1a4d81", "#1e5a97", "#3b81c4", "#74a8d8", "#aecbe8", "#eaf1f8"]
+      }
+    },
+    "typographyMeta": {
+      "headline": { "displayName": "Headline", "purpose": "Page-level h1. Rare in this app." },
+      "title": { "displayName": "Title", "purpose": "Page titles and modal headings." },
+      "body": { "displayName": "Body", "purpose": "Prose, input values, list content." },
+      "label": { "displayName": "Label", "purpose": "Uppercase micro-labels: table headers, nav section titles." },
+      "data": { "displayName": "Data", "purpose": "Every amount, custody code, page number and calendar day. Tabular figures are the point." }
+    },
+    "shadows": [
+      { "name": "shadow-xs", "value": "0 1px 2px rgba(35, 32, 25, 0.05)", "purpose": "A card's slight separation from the canvas. The default for a resting surface." },
+      { "name": "shadow-sm", "value": "0 1px 3px rgba(35, 32, 25, 0.06), 0 1px 2px rgba(35, 32, 25, 0.04)", "purpose": "The login card and the active tab." },
+      { "name": "shadow-md", "value": "0 8px 24px rgba(35, 32, 25, 0.09), 0 2px 6px rgba(35, 32, 25, 0.05)", "purpose": "Dropdowns, autocomplete lists, the date popover." },
+      { "name": "shadow-lg", "value": "0 20px 48px rgba(35, 32, 25, 0.16), 0 4px 12px rgba(35, 32, 25, 0.08)", "purpose": "Modal panels and the mobile sidebar drawer." },
+      { "name": "shadow-focus", "value": "0 0 0 3px rgba(13, 92, 83, 0.22)", "purpose": "The focus ring, always paired with a border shift to petrol." }
+    ],
+    "motion": [
+      { "name": "ease", "value": "cubic-bezier(0.32, 0.72, 0, 1)", "purpose": "Exponential ease-out. The only easing in the system." },
+      { "name": "transition-fast", "value": "120ms", "purpose": "Row hover and other high-frequency feedback." },
+      { "name": "transition", "value": "180ms", "purpose": "The default for state changes on controls." },
+      { "name": "transition-slow", "value": "240ms", "purpose": "The sidebar drawer. The ceiling: nothing here makes the operator wait longer." }
+    ],
+    "breakpoints": [
+      { "name": "mobile", "value": "768px" },
+      { "name": "tablet", "value": "1080px" },
+      { "name": "wide", "value": "1200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Every primary action. Ink rather than accent, so the accent stays rare enough to mean orientation.",
+      "html": "<button class=\"ds-btn\">Registrar pago</button>",
+      "css": ".ds-btn { background: #232019; color: #faf9f7; border: 1px solid transparent; border-radius: 6px; padding: 0.5rem 0.9rem; min-height: 38px; font: 600 0.82rem/1.4 Manrope, sans-serif; cursor: pointer; transition: background-color 180ms cubic-bezier(0.32,0.72,0,1); } .ds-btn:hover { background: #3a352c; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: 2px solid #0d5c53; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Cancel, close, and any action that sits beside a primary one.",
+      "html": "<button class=\"ds-btn-secondary\">Cancelar</button>",
+      "css": ".ds-btn-secondary { background: #ffffff; color: #44403a; border: 1px solid #d3d0c9; border-radius: 6px; padding: 0.5rem 0.9rem; min-height: 38px; font: 600 0.82rem/1.4 Manrope, sans-serif; cursor: pointer; transition: background-color 180ms cubic-bezier(0.32,0.72,0,1), border-color 180ms cubic-bezier(0.32,0.72,0,1); } .ds-btn-secondary:hover { background: #f5f4f1; border-color: #b9b5ab; color: #1c1a17; } .ds-btn-secondary:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "The focus treatment is a border shift plus a ring, never one alone.",
+      "html": "<input class=\"ds-input\" value=\"Maria Fernanda Ocampo\" />",
+      "css": ".ds-input { width: 100%; background: #ffffff; color: #1c1a17; border: 1px solid #d3d0c9; border-radius: 6px; padding: 0.6rem 0.8rem; min-height: 44px; font: 400 0.93rem/1.6 Manrope, sans-serif; transition: border-color 180ms cubic-bezier(0.32,0.72,0,1), box-shadow 180ms cubic-bezier(0.32,0.72,0,1); } .ds-input:hover { border-color: #b9b5ab; } .ds-input:focus { outline: none; border-color: #0d5c53; box-shadow: 0 0 0 3px rgba(13,92,83,0.22); }"
+    },
+    {
+      "name": "Money Cell",
+      "kind": "custom",
+      "refersTo": "typography.data",
+      "description": "The signature component. Right-aligned, monospaced, tabular — a column of these cannot shift under the eye between rows.",
+      "html": "<table class=\"ds-money-table\"><tr><td>Capital</td><td class=\"ds-money\">$ 1.250.000</td></tr><tr><td>Interés</td><td class=\"ds-money\">$ 62.500</td></tr><tr><td>Mora</td><td class=\"ds-money\">$ 3.125</td></tr></table>",
+      "css": ".ds-money-table { width: 100%; border-collapse: separate; border-spacing: 0; font: 500 0.82rem/1.6 Manrope, sans-serif; color: #1c1a17; } .ds-money-table td { padding: 0.65rem 0.75rem; border-bottom: 1px solid #efedea; } .ds-money-table tr:last-child td { border-bottom: none; } .ds-money { text-align: right; font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum' 1; }"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Squared, not lozenge-shaped: a pill on every row of a dense table is noise. Same meaning is always the same hue.",
+      "html": "<span class=\"ds-pill ds-pill-overdue\">En mora</span> <span class=\"ds-pill ds-pill-current\">Al día</span> <span class=\"ds-pill ds-pill-upcoming\">Próximo</span>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; border-radius: 4px; padding: 0.16rem 0.45rem; font: 600 0.72rem/1.4 Manrope, sans-serif; letter-spacing: 0.01em; border: 1px solid #e4e2dd; background: #f5f4f1; color: #44403a; white-space: nowrap; } .ds-pill-overdue { background: #fdefed; color: #912018; border-color: #f2c9c4; } .ds-pill-current { background: #ecf5ee; color: #14602f; border-color: #bcdcc6; } .ds-pill-upcoming { background: #eaf1f8; color: #1a4d81; border-color: #c2d7ea; }"
+    },
+    {
+      "name": "Sidebar Nav Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "The active state is the one place the accent appears in the chrome: a 3px petrol rule answering 'where am I'.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-link\" href=\"#\">Clientes</a><a class=\"ds-nav-link ds-nav-active\" href=\"#\">Pagos</a><a class=\"ds-nav-link\" href=\"#\">Garantías</a></nav>",
+      "css": ".ds-nav { background: #1a1815; padding: 0.75rem; border-radius: 10px; display: flex; flex-direction: column; gap: 0.1rem; } .ds-nav-link { position: relative; color: #cbc6ba; text-decoration: none; padding: 0.55rem 0.7rem; border-radius: 6px; font: 500 0.93rem/1.6 Manrope, sans-serif; transition: background-color 180ms cubic-bezier(0.32,0.72,0,1), color 180ms cubic-bezier(0.32,0.72,0,1); } .ds-nav-link:hover { background: rgba(255,255,255,0.06); color: #f5f4f1; } .ds-nav-active { background: rgba(255,255,255,0.09); color: #f5f4f1; font-weight: 600; } .ds-nav-active::before { content: ''; position: absolute; left: 0; top: 50%; width: 3px; height: 1.1rem; border-radius: 0 999px 999px 0; background: #4ba599; transform: translateY(-50%); }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A container, not a decoration. Flat at rest and it does not lift on hover, because it cannot be clicked.",
+      "html": "<div class=\"ds-card\"><p class=\"ds-card-label\">Capital pendiente</p><p class=\"ds-card-value\">$ 8.420.000</p></div>",
+      "css": ".ds-card { background: #ffffff; border: 1px solid #e4e2dd; border-radius: 10px; padding: 1.25rem; box-shadow: 0 1px 2px rgba(35,32,25,0.05); display: flex; flex-direction: column; gap: 0.35rem; } .ds-card-label { margin: 0; color: #6b655c; font: 500 0.82rem/1.6 Manrope, sans-serif; } .ds-card-value { margin: 0; color: #1c1a17; font-family: 'JetBrains Mono', ui-monospace, monospace; font-variant-numeric: tabular-nums; font-size: 1.4rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.15; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Counter Ledger",
+    "overview": "This is a tool held in someone's hands while a customer waits on the other side of the desk. It takes its character from the thing it replaced: a warm paper ledger, ruled in hairlines, written in a hand that stays legible after the hundredth entry. Not the vault, not the strongroom, not a fintech app — the book the amounts were kept in.\n\nEverything follows from the fact that every number on these screens is money that belongs to somebody else. Figures are set in a monospaced face and aligned so a column of pesos cannot shift under the eye between rows. Colour is scarce enough that when it appears it means something: a status, a selection, a place. Surfaces are quiet so the figures on them are not. Motion reports that something changed and then gets out of the way.\n\nThe rejected world is specific and was the incumbent: the generic AI dashboard — indigo gradients on the sidebar and on every button, frosted panels, a decorative circle behind each stat tile, Inter everywhere. It looked like a product demo rather than a place of record, and some of it worked against the reading: proportional digits in money columns, a hover lift on cards that cannot be clicked, four competing background states in one table.",
+    "keyCharacteristics": [
+      "Warm neutrals throughout; no cool grey anywhere",
+      "Figures in a monospaced face with tabular alignment",
+      "One accent, spent only on orientation",
+      "Ink, not accent, for primary actions",
+      "Flat surfaces, hairline separation, shadows only where something genuinely floats",
+      "Density is correct; whitespace serves grouping, not spectacle"
+    ],
+    "rules": [
+      {
+        "name": "The Orientation Rule",
+        "body": "Petrol answers exactly one question: where am I, and what is selected. It never fills a button, never tints a panel, never marks a status. If a use of the accent is not answering that question, it is decoration and belongs in ink or a neutral.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Grey Family Rule",
+        "body": "Every neutral is warm. A cool grey anywhere — a #64748b, a #cbd5e1, an undefined token falling back to a Tailwind default — is a defect, not a variation. Three such fallbacks were live in this codebase.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Figures Rule",
+        "body": "Any number a reader compares against another number is set in --font-mono with tabular-nums. Money, custody codes, page numbers, calendar days, counts. A proportional digit in a money column is a defect, because it moves the thousands place between rows and the eye has to re-find it every time.",
+        "section": "typography"
+      },
+      {
+        "name": "The Right-Aligned Money Rule",
+        "body": "Amounts are right-aligned in tables. td.text-right gets tabular figures automatically, because in this app a right-aligned cell is always a figure.",
+        "section": "typography"
+      },
+      {
+        "name": "The No-Halo Rule",
+        "body": "A zero-offset glow is decoration, not depth. Every shadow here has an offset and a soft blur.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do set every figure a reader compares in --font-mono with tabular figures.",
+      "Do reach for a hairline and spacing before a fill, a border or a shadow.",
+      "Do spend --accent only on orientation: active nav, focus, selection, sort, links.",
+      "Do give every interactive element a default, hover, focus-visible, active and disabled state before shipping it.",
+      "Do name a step from the type scale. An ad-hoc font-size: 0.85rem in a scoped block is what flattened the rendered hierarchy.",
+      "Do put a new shared class in main.css. A class that exists only in markup styles nothing — .page-header-actions, .fw-bold, .text-warning-dark, .spinner-small, .mt-24 and .notice-info were all live examples."
+    ],
+    "donts": [
+      "Don't introduce a cool grey, or a var(--some-token, #hardcoded) fallback for a token this system does not define. Three of those were shipping the old palette.",
+      "Don't use a gradient. Not on the sidebar, not on a button, not behind a stat tile.",
+      "Don't lift a card on hover, or scale a button toward the cursor.",
+      "Don't animate width, height, padding or margin. Transform and opacity.",
+      "Don't add a fourth background state to a table row.",
+      "Don't put a raw <select>, a raw money <input>, or a Unicode glyph standing in for an icon anywhere in views/ or components/.",
+      "Don't write an inline style attribute or an arbitrary z-index. The scale runs --z-sticky 8, --z-popover 40, --z-backdrop 90, --z-sidebar 100, --z-modal 200, --z-confirm 300, --z-dropdown 1000.",
+      "Don't ship a user-facing string that is not a vue-i18n key present in both locale blocks. npm run check:i18n enforces it."
+    ]
+  }
+}

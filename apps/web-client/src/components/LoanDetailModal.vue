@@ -4,14 +4,15 @@
       <div class="modal-header">
         <h3>{{ t('loans.loanDetail') }}</h3>
         <div class="form-inline">
-          <button v-if="canForeclose" class="btn btn-danger btn-sm" type="button" :disabled="isForeclosing" @click="confirmForeclose" style="background: #dc2626; color: white; border-color: #dc2626;">
-            <AlertTriangle :size="14" style="margin-right: 4px;" />
+          <!-- `.btn-danger` already carries this colour; the inline style repeated it in the
+               old palette's red, and `.btn-sm` was never a class anywhere. -->
+          <button v-if="canForeclose" class="btn btn-danger" type="button" :disabled="isForeclosing" @click="confirmForeclose">
+            <AlertTriangle :size="14" aria-hidden="true" />
             <span v-if="isForeclosing" class="spinner-small"></span>
             <span v-else>{{ t('loans.forecloseLoan') }}</span>
           </button>
-          <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;">
-
-            <Printer :size="16" />
+          <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')">
+            <Printer :size="16" aria-hidden="true" />
           </a>
           <button class="btn btn-secondary btn-icon" type="button" @click="closeModal">
             <X :size="16" />
@@ -76,8 +77,17 @@
         </div>
       </div>
 
-      <div v-if="financialDataLoading" class="mt-16 text-center muted">
-        {{ t('common.loading') }}
+      <!-- Skeleton tiles in the shape of the two figures that are coming, so the modal does
+           not resize under the reader the moment they arrive. -->
+      <div v-if="financialDataLoading" class="grid grid-2 mt-16" role="status" :aria-label="t('common.loading')">
+        <div class="card stat-card">
+          <span class="skeleton skeleton-text" style="width: 45%"></span>
+          <span class="skeleton skeleton-text" style="width: 70%; height: 1.2rem"></span>
+        </div>
+        <div class="card stat-card">
+          <span class="skeleton skeleton-text" style="width: 45%"></span>
+          <span class="skeleton skeleton-text" style="width: 70%; height: 1.2rem"></span>
+        </div>
       </div>
       <div v-else>
         <div class="grid grid-2 mt-16">

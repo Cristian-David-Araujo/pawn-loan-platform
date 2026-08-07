@@ -51,7 +51,7 @@
               <td colspan="5">{{ t('users.noUsers', 'No users found.') }}</td>
             </tr>
             <tr v-if="loading">
-              <td colspan="5">{{ t('common.loading', 'Loading...') }}</td>
+              <td colspan="5">{{ t('common.loading') }}</td>
             </tr>
           </tbody>
         </table>

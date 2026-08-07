@@ -243,7 +243,7 @@
                 <span v-if="getLoanSortBadge('interest')" class="sort-indicator">{{ getLoanSortBadge('interest') }}</span>
               </button>
             </th>
-            <th class="text-center">{{ t('common.collaterals', 'Garantías') }}</th>
+            <th class="text-center">{{ t('common.collaterals') }}</th>
             <th>
               <button class="sort-header-btn" type="button" @click="toggleLoanSort('status')">
                 {{ t('common.status') }}

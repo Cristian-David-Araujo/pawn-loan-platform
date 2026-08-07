@@ -4,12 +4,12 @@
     class="modal-backdrop confirm-backdrop"
     role="alertdialog"
     aria-modal="true"
-    :aria-label="t('common.confirmAction', 'Confirm Action')"
+    :aria-label="t('common.confirmAction')"
     @click.self="cancel"
   >
     <div class="modal-panel card modal-panel-sm">
       <div class="modal-header">
-        <h3>{{ t('common.confirmAction', 'Confirm Action') }}</h3>
+        <h3>{{ t('common.confirmAction') }}</h3>
         <button
           class="btn btn-secondary btn-icon"
           type="button"
@@ -31,7 +31,7 @@
         </button>
         <button ref="acceptRef" class="btn btn-danger" type="button" @click="accept">
           <Check :size="16" aria-hidden="true" />
-          {{ t('common.accept', 'Accept') }}
+          {{ t('common.accept') }}
         </button>
       </div>
     </div>

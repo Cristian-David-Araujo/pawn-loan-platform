@@ -174,7 +174,9 @@
           </span>
         </div>
 
-        <p v-if="hasCustomerCreditTraceability" class="notice mt-16" style="background: var(--warning-soft); color: #92400e; border-color: var(--warning-border);">{{ t('customers.traceabilityDeleteHint') }}</p>
+        <!-- Was a `.notice` with an inline style repainting it amber; `.notice-warning` is
+             that same tone as a system class. -->
+        <p v-if="hasCustomerCreditTraceability" class="notice notice-warning mt-16">{{ t('customers.traceabilityDeleteHint') }}</p>
 
         <article class="card mt-16">
           <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
