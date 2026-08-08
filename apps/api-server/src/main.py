@@ -9,10 +9,12 @@ from src.infrastructure.config.settings import assert_production_secrets, get_se
 from src.infrastructure.persistence.database import engine
 from src.infrastructure.persistence.init_db import init_database
 from src.infrastructure.persistence.migrations import run_database_migrations
+from src.infrastructure.tasks.backup_scheduler import BackupScheduler
 from src.infrastructure.tasks.interest_scheduler import InterestGenerationScheduler
 
 settings = get_settings()
 interest_scheduler = InterestGenerationScheduler(interval_minutes=settings.auto_interest_generation_interval_minutes)
+backup_scheduler = BackupScheduler(interval_minutes=settings.backup_scheduler_interval_minutes)
 
 app = FastAPI(
     title=settings.app_name,
@@ -45,10 +47,16 @@ def startup_event() -> None:
     if settings.auto_interest_generation_enabled:
         interest_scheduler.start()
 
+    # The thread only looks at the clock: whether a copy is ever taken is the schedule stored
+    # in the database, which is off until an administrator turns it on.
+    if settings.backup_scheduler_enabled:
+        backup_scheduler.start()
+
 
 @app.on_event("shutdown")
 def shutdown_event() -> None:
     interest_scheduler.stop()
+    backup_scheduler.stop()
 
 
 @app.get("/health", tags=["system"])

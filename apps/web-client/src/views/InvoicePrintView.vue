@@ -580,6 +580,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { usePlatformStore } from '../stores/platformStore'
+import { formatCurrency } from '../utils/currency'
 import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
 import { apiClient } from '../services/api'
@@ -979,10 +980,10 @@ const dateString = computed(() => formatDateDMY(new Date().toISOString()))
 
 const eventTypeLabel = (value: string) => t(paymentTypeKey(value))
 
-const formatCurrency = (val: number) => {
-  const code = globalSettings.value?.currencyCode || 'COP'
-  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: code }).format(val)
-}
+/* This document's `es-CO` grouping was the correct one and is unchanged: the shared
+   formatter picks the locale from the currency, so pesos still print as `$ 1.250.000`.
+   What moved is every screen behind it, which had been grouping with `es-MX` and showing
+   the same debt as `COP 1,250,000`. */
 
 /**
  * Human-readable label for the payment type derived from the allocation breakdown.
@@ -1089,8 +1090,50 @@ onMounted(async () => {
    Deliberately restrained: whitespace carries the structure, not fills and
    rules. One accent colour, one emphasis weight, one hairline. Anything that
    adds a second way of saying "this is a section" has been left out. */
+/* These four documents are printed on white office paper, so they are pinned to the light
+   palette whatever the operator's theme is. Two reasons, and the second is the serious one:
+   a dark receipt on screen would not match the sheet that comes out of the printer, and
+   browsers drop backgrounds when printing — a dark-mode document would print near-white
+   text onto white paper and hand the customer a blank page.
+
+   Redeclaring the tokens on this container rather than reaching for `[data-theme]` keeps it
+   local: the route sits outside AppLayout, and nothing else on the page has to know. */
 .print-container {
+  color-scheme: light;
+
+  --bg: #faf9f7;
+  --surface: #ffffff;
+  --surface-soft: #f5f4f1;
+  --surface-hover: #eceae5;
+  --text: #1c1a17;
+  --text-secondary: #44403a;
+  --muted: #6b655c;
+  --line: #e4e2dd;
+  --line-light: #efedea;
+  --line-strong: #d3d0c9;
+  --ink: #232019;
+  --ink-hover: #3a352c;
+  --text-inverse: #faf9f7;
+  --accent: #0d5c53;
+  --accent-hover: #0a4a43;
+  --accent-soft: #e6f0ee;
+  --accent-border: #b9d4cf;
+  --success: #15803d;
+  --success-soft: #ecf5ee;
+  --success-text: #14602f;
+  --warning: #b45309;
+  --warning-soft: #fdf3e7;
+  --warning-text: #8a4008;
+  --danger: #b42318;
+  --danger-soft: #fdefed;
+  --danger-text: #912018;
+  --info-soft: #eaf1f8;
+  --info-text: #1a4d81;
+  --on-accent: #ffffff;
+  --on-danger: #ffffff;
+
   background: var(--surface-hover);
+  color: var(--text);
   min-height: 100vh;
   padding: 40px 20px;
   display: flex;
@@ -1118,6 +1161,9 @@ onMounted(async () => {
   color: var(--text);
   font-size: 14px;
   line-height: 1.65;
+  /* Every figure on the document lines up in its column. No face change: the document's
+     restraint is deliberate, and this is the one typographic setting that serves it. */
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Header ── */
@@ -1317,7 +1363,7 @@ onMounted(async () => {
 
 /* A settled bucket reads as good news rather than just another figure. */
 .balance-zero {
-  color: #065f46;
+  color: var(--success-text);
 }
 
 /* ── Status pills: the app's own pill shape, minus the border. ── */
@@ -1334,18 +1380,18 @@ onMounted(async () => {
 
 .status-active {
   background: var(--info-soft);
-  color: #3730a3;
+  color: var(--info-text);
 }
 
 .status-overdue,
 .status-defaulted {
   background: var(--danger-soft);
-  color: #b91c1c;
+  color: var(--danger-text);
 }
 
 .status-closed {
   background: var(--success-soft);
-  color: #065f46;
+  color: var(--success-text);
 }
 
 /* ── Notices: one shape, tinted by meaning. ── */
@@ -1363,21 +1409,21 @@ onMounted(async () => {
 .closed-notice {
   border-left-color: var(--success);
   background: var(--success-soft);
-  color: #065f46;
+  color: var(--success-text);
 }
 
 .reversed-notice {
   margin-top: var(--doc-gap);
   border-left-color: var(--danger);
   background: var(--danger-soft);
-  color: #b91c1c;
+  color: var(--danger-text);
   font-weight: 600;
 }
 
 .note {
   border-left-color: var(--warning);
   background: var(--warning-soft);
-  color: #92400e;
+  color: var(--warning-text);
 }
 
 /* ── Footer ── */
@@ -1401,7 +1447,7 @@ onMounted(async () => {
 }
 
 .loading {
-  font-size: 1.05rem;
+  font-size: var(--fs-md);
   color: var(--muted);
   text-align: center;
   width: 100%;

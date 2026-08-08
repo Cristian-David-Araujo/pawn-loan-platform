@@ -1,9 +1,12 @@
 <template>
   <div class="app-shell">
+    <a class="skip-link" href="#main-content">{{ t('app.skipToContent') }}</a>
     <aside class="sidebar" :class="{ 'sidebar-open': mobileMenuOpen }">
       <div class="brand-wrap">
+        <!-- The product's own mark, not a borrowed icon. `Shield` sat here and was also the
+             Collateral nav item, so the brand and a destination rendered the same glyph. -->
         <span class="brand-logo">
-          <Shield :size="18" />
+          <BrandMark :size="20" :title="state.globalSettings?.appName || t('app.title')" />
         </span>
         <div>
           <h1 class="brand">{{ state.globalSettings?.appName || t('app.title') }}</h1>
@@ -37,7 +40,7 @@
     </aside>
     <div v-if="mobileMenuOpen" class="sidebar-backdrop" @click="mobileMenuOpen = false"></div>
 
-    <main class="content">
+    <div class="content">
       <header class="topbar">
         <div class="topbar-left">
           <button class="menu-toggle" type="button" @click="mobileMenuOpen = !mobileMenuOpen">
@@ -57,24 +60,41 @@
             :customers="state.customers"
             inputClass="topbar-search"
             :placeholder="t('customers.searchPlaceholder')"
+            :aria-label="t('customers.searchPlaceholder')"
           />
-          <CustomSelect 
-            id="locale-select" 
-            v-model="selectedLocale" 
-            inputClass="locale-select" 
+          <CustomSelect
+            id="locale-select"
+            v-model="selectedLocale"
+            inputClass="locale-select"
             :options="localeOptions"
-            @change="onLocaleChange" 
+            @change="onLocaleChange"
           />
-          <button class="btn btn-secondary" type="button" @click="handleLogout">
-            <LogOut :size="15" />
-            {{ t('app.signOut') }}
+          <!-- Cycles system → light → dark. The label names the state it is in and the one
+               it will move to, because a lone icon cannot say which of the three applies. -->
+          <button
+            class="btn btn-secondary btn-icon"
+            type="button"
+            :title="themeLabel"
+            :aria-label="themeLabel"
+            @click="cycleTheme"
+          >
+            <Monitor v-if="preference === 'system'" :size="15" aria-hidden="true" />
+            <Sun v-else-if="preference === 'light'" :size="15" aria-hidden="true" />
+            <Moon v-else :size="15" aria-hidden="true" />
+          </button>
+          <button class="btn btn-secondary" type="button" :aria-label="t('app.signOut')" @click="handleLogout">
+            <LogOut :size="15" aria-hidden="true" />
+            <!-- The label is a real element so the mobile rule can hide it. It used to be a
+                 bare text node, which left `font-size: 0` on the button as the only way to
+                 suppress it — a trick that also silently shrank anything else inside. -->
+            <span class="btn-label">{{ t('app.signOut') }}</span>
           </button>
         </div>
       </header>
-      <section class="page fade-in-up">
+      <main id="main-content" class="page fade-in-up" tabindex="-1">
         <RouterView />
-      </section>
-    </main>
+      </main>
+    </div>
   </div>
 </template>
 
@@ -87,37 +107,55 @@ import {
   HandCoins,
   LayoutDashboard,
   LogOut,
+  Monitor,
+  Moon,
   PanelLeft,
   ReceiptText,
   Settings,
   Shield,
+  Sun,
+  UserCog,
   Users
 } from 'lucide-vue-next'
 import { persistLocale, type AppLocale } from '../i18n'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { usePlatformStore } from '../stores/platformStore'
+import BrandMark from '../components/BrandMark.vue'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import CustomSelect from '../components/CustomSelect.vue'
+import { useTheme, type ThemePreference } from '../composables/useTheme'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { state: authState, logout, hasRole } = useAuthState()
 
+/*
+ * Ordered by who is standing there, not by entity.
+ *
+ * Payments used to sit fifth, below three destinations a collector can read but not act in —
+ * they cannot open a loan or register a pledge. It is the only screen they spend the day in
+ * and the most time-pressured one in the product, so it leads. Dashboard drops below the
+ * three working screens: it reports, it does not ask.
+ *
+ * Users takes UserCog. It shared `Shield` with Collateral, and in a flat dark sidebar the
+ * icon is the fastest scan target — two destinations rendering the same glyph is how someone
+ * lands on the vault when they wanted permissions.
+ */
 const navItems = computed(() => {
   const items = [
-    { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
+    { to: '/payments', labelKey: 'app.payments', icon: ReceiptText },
     { to: '/customers', labelKey: 'app.customers', icon: Users },
     { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
     { to: '/collaterals', labelKey: 'app.collateral', icon: Shield },
-    { to: '/payments', labelKey: 'app.payments', icon: ReceiptText }
+    { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard }
   ]
   if (hasRole([UserRole.Administrator, UserRole.LoanOfficer])) {
     items.push({ to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 })
   }
   if (hasRole([UserRole.Administrator])) {
     items.push({ to: '/settings', labelKey: 'app.settings', icon: Settings })
-    items.push({ to: '/users', labelKey: 'app.users', icon: Shield })
+    items.push({ to: '/users', labelKey: 'app.users', icon: UserCog })
   }
   return items
 })
@@ -138,6 +176,17 @@ const userInitial = computed(() => currentUsername.value.charAt(0).toUpperCase()
 const currentRouteLabel = computed(() => {
   const labelKey = (route.meta.labelKey as string | undefined) ?? 'app.dashboard'
   return t(labelKey)
+})
+
+const { preference, cycleTheme } = useTheme()
+
+const THEME_ORDER: ThemePreference[] = ['system', 'light', 'dark']
+const themeName = (value: ThemePreference) =>
+  t(value === 'system' ? 'app.themeSystem' : value === 'light' ? 'app.themeLight' : 'app.themeDark')
+
+const themeLabel = computed(() => {
+  const next = THEME_ORDER[(THEME_ORDER.indexOf(preference.value) + 1) % THEME_ORDER.length]
+  return t('app.themeSwitchTo', { current: themeName(preference.value), next: themeName(next) })
 })
 
 watch(
@@ -196,17 +245,19 @@ const handleLogout = () => {
   width: 100%;
 }
 
+/* A squircle rather than a circle, and flat rather than the indigo gradient it
+   used to carry: the avatar is an identifier, not a brand mark. */
 .sidebar-user-avatar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #3b82f6, #6366f1);
-  color: #fff;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--sidebar-text);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   flex-shrink: 0;
 }
 
@@ -218,17 +269,20 @@ const handleLogout = () => {
 }
 
 .sidebar-user-name {
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--sidebar-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* Lightened from the previous cool slate, which sat at 3.3:1 on the sidebar and failed AA
+   for the one label that tells an operator which permissions they hold. */
 .sidebar-user-role {
-  font-size: 0.72rem;
-  color: #64748b;
+  font-size: var(--fs-xs);
+  color: var(--sidebar-muted);
+  text-transform: capitalize;
 }
 </style>
 

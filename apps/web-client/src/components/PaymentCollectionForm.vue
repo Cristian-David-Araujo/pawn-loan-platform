@@ -80,10 +80,20 @@ const paymentMethodOptions = computed(() => [
 </script>
 
 <style scoped>
+/* `align-items` is set only from the tablet breakpoint up. As a scoped rule it compiles to
+   a two-class selector, which outranked the mobile `.form-inline { align-items: stretch }`
+   reset — so on a phone the amount field, the method dropdown and the submit button all
+   collapsed to their intrinsic width and hugged the right edge. That is the control that
+   takes the money. */
 .collection-actions {
-  align-items: flex-end;
   border-top: 1px solid var(--line);
   padding-top: 1rem;
+}
+
+@media (min-width: 769px) {
+  .collection-actions {
+    align-items: flex-end;
+  }
 }
 
 .collection-spacer {

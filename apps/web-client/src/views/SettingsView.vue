@@ -6,16 +6,166 @@
       </template>
     </PageHeader>
 
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
 
-    <article class="card mt-16">
-      <h3>{{ t('settings.colombiaPresetTitle') }}</h3>
-      <p class="muted">{{ t('settings.colombiaPresetHint') }}</p>
-      <button class="btn btn-secondary mt-16" type="button" @click="applyColombiaPreset">
-        <Sparkles :size="16" />
-        {{ t('settings.applyColombiaPreset') }}
-      </button>
-    </article>
+    <!--
+      Order matters on this page more than on any other.
+
+      It used to open with a preset button, then Export, then the scheduled backup, and then
+      the full-replace Import with its row-count table — and only after all of that, the
+      settings the page is named after, with Save at the very bottom. An administrator
+      coming here to change the grace days or the company name printed on receipts had to
+      scroll past a destructive restore tool to reach them.
+
+      Now: the settings and their Save first, then a Data section, with Import last because
+      it is the most dangerous thing here.
+    -->
+    <form class="form mt-16" @submit.prevent="handleSaveSettings">
+      <div class="card mb-16">
+        <h3>{{ t('settings.companyInfoTitle') }}</h3>
+        <p class="muted">{{ t('settings.companyInfoHint') }}</p>
+        <div class="grid grid-2 mt-16">
+          <label :title="t('settings.appNameHelp')">
+            <span class="field-label-row">
+              {{ t('settings.appName') }}
+              <Info class="field-help" :size="13" aria-hidden="true" />
+            </span>
+            <input v-model="form.appName" required :title="t('settings.appNameHelp')" />
+          </label>
+          <label>
+            <span class="field-label-row">
+              {{ t('settings.companyName') }}
+            </span>
+            <input v-model="form.companyName" />
+          </label>
+          <label>
+            <span class="field-label-row">
+              {{ t('settings.companyDocumentType') }}
+            </span>
+            <CustomSelect v-model="form.companyDocumentType" :options="documentTypeOptions" />
+          </label>
+          <label>
+            <span class="field-label-row">
+              {{ t('settings.companyDocumentNumber') }}
+            </span>
+            <input v-model="form.companyDocumentNumber" />
+          </label>
+          <label>
+            <span class="field-label-row">
+              {{ t('settings.companyAddress') }}
+            </span>
+            <input v-model="form.companyAddress" />
+          </label>
+          <label>
+            <span class="field-label-row">
+              {{ t('settings.companyPhone') }}
+            </span>
+            <input v-model="form.companyPhone" />
+          </label>
+          <label>
+            <span class="field-label-row">
+              {{ t('settings.companyEmail') }}
+            </span>
+            <input v-model="form.companyEmail" type="email" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Six fields sat in an unlabelled card while every other block on the page had a
+           heading and a hint. Two of them — grace days and interest lead days — reach every
+           loan in the book, so the card says so. -->
+      <div class="card">
+        <div class="section-head-split">
+          <div>
+            <h3>{{ t('settings.portfolioPolicyTitle') }}</h3>
+            <p class="muted">{{ t('settings.portfolioPolicyHint') }}</p>
+          </div>
+          <!-- Moved here from the top of the page, where it was the first control an admin
+               met and silently changed three fields 600px below it. -->
+          <button class="btn btn-secondary" type="button" @click="applyColombiaPreset">
+            <Sparkles :size="16" />
+            {{ t('settings.applyColombiaPreset') }}
+          </button>
+        </div>
+        <div class="grid grid-2 mt-16">
+        <label :title="t('settings.currencyCodeHelp')">
+          <span class="field-label-row">
+            {{ t('settings.currencyCode') }}
+            <Info class="field-help" :size="13" aria-hidden="true" />
+          </span>
+          <CustomSelect v-model="form.currencyCode" :options="currencyOptions" />
+        </label>
+        <label :title="t('settings.timezoneHelp')">
+          <span class="field-label-row">
+            {{ t('settings.timezone') }}
+            <Info class="field-help" :size="13" aria-hidden="true" />
+          </span>
+          <input v-model="form.timezone" required :title="t('settings.timezoneHelp')" />
+        </label>
+        <label :title="t('settings.dateFormatHelp')">
+          <span class="field-label-row">
+            {{ t('settings.dateFormat') }}
+            <Info class="field-help" :size="13" aria-hidden="true" />
+          </span>
+          <CustomSelect v-model="form.dateFormat" :options="dateFormatOptions" />
+        </label>
+        <label :title="t('settings.defaultLatePenaltyRateHelp')">
+          <span class="field-label-row">
+            {{ t('settings.defaultLatePenaltyRate') }}
+            <Info class="field-help" :size="13" aria-hidden="true" />
+          </span>
+          <input
+            v-model.number="form.defaultLatePenaltyRate"
+            type="number"
+            min="0"
+            step="0.1"
+            required
+            :title="t('settings.defaultLatePenaltyRateHelp')"
+          />
+        </label>
+        <label :title="t('settings.interestGenerationLeadDaysHelp')">
+          <span class="field-label-row">
+            {{ t('settings.interestGenerationLeadDays') }}
+            <Info class="field-help" :size="13" aria-hidden="true" />
+          </span>
+          <input
+            v-model.number="form.interestGenerationLeadDays"
+            type="number"
+            min="0"
+            max="31"
+            step="1"
+            required
+            :title="t('settings.interestGenerationLeadDaysHelp')"
+          />
+        </label>
+        <label :title="t('settings.defaultGraceDaysHelp')">
+          <span class="field-label-row">
+            {{ t('settings.defaultGraceDays') }}
+            <Info class="field-help" :size="13" aria-hidden="true" />
+          </span>
+          <input
+            v-model.number="form.defaultGraceDays"
+            type="number"
+            min="0"
+            max="31"
+            step="1"
+            required
+            :title="t('settings.defaultGraceDaysHelp')"
+          />
+        </label>
+        </div>
+      </div>
+
+      <div class="mt-16 text-right">
+        <button class="btn" type="submit">
+          <Save :size="16" />
+          {{ t('settings.saveSettings') }}
+        </button>
+      </div>
+    </form>
+
+    <h3 class="group-title mt-24">{{ t('settings.dataSectionTitle') }}</h3>
+    <p class="muted">{{ t('settings.dataSectionHint') }}</p>
 
     <article class="card mt-16">
       <h3>{{ t('settings.exportDataTitle') }}</h3>
@@ -27,7 +177,10 @@
       </button>
     </article>
 
-    <article class="card mt-16">
+    <ScheduledBackupCard />
+
+    <!-- Last on the page. It wipes every table and reloads from the archive. -->
+    <article class="card mt-16 import-card">
       <h3>{{ t('settings.importDataTitle') }}</h3>
       <p class="muted">{{ t('settings.importDataHint') }}</p>
       <p class="muted mt-8"><strong>{{ t('settings.importDataWarning') }}</strong></p>
@@ -97,135 +250,6 @@
         </button>
       </div>
     </article>
-
-    <form class="form mt-16" @submit.prevent="handleSaveSettings">
-      <div class="card mb-16">
-        <h3>{{ t('settings.companyInfoTitle') }}</h3>
-        <p class="muted">{{ t('settings.companyInfoHint') }}</p>
-        <div class="grid grid-2 mt-16">
-          <label :title="t('settings.appNameHelp')">
-            <span class="field-label-row">
-              {{ t('settings.appName') }}
-              <span class="field-help" aria-hidden="true">ⓘ</span>
-            </span>
-            <input v-model="form.appName" required :title="t('settings.appNameHelp')" />
-          </label>
-          <label>
-            <span class="field-label-row">
-              {{ t('settings.companyName') }}
-            </span>
-            <input v-model="form.companyName" />
-          </label>
-          <label>
-            <span class="field-label-row">
-              {{ t('settings.companyDocumentType') }}
-            </span>
-            <CustomSelect v-model="form.companyDocumentType" :options="documentTypeOptions" />
-          </label>
-          <label>
-            <span class="field-label-row">
-              {{ t('settings.companyDocumentNumber') }}
-            </span>
-            <input v-model="form.companyDocumentNumber" />
-          </label>
-          <label>
-            <span class="field-label-row">
-              {{ t('settings.companyAddress') }}
-            </span>
-            <input v-model="form.companyAddress" />
-          </label>
-          <label>
-            <span class="field-label-row">
-              {{ t('settings.companyPhone') }}
-            </span>
-            <input v-model="form.companyPhone" />
-          </label>
-          <label>
-            <span class="field-label-row">
-              {{ t('settings.companyEmail') }}
-            </span>
-            <input v-model="form.companyEmail" type="email" />
-          </label>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="grid grid-2">
-        <label :title="t('settings.currencyCodeHelp')">
-          <span class="field-label-row">
-            {{ t('settings.currencyCode') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-          <CustomSelect v-model="form.currencyCode" :options="currencyOptions" />
-        </label>
-        <label :title="t('settings.timezoneHelp')">
-          <span class="field-label-row">
-            {{ t('settings.timezone') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-          <input v-model="form.timezone" required :title="t('settings.timezoneHelp')" />
-        </label>
-        <label :title="t('settings.dateFormatHelp')">
-          <span class="field-label-row">
-            {{ t('settings.dateFormat') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-          <CustomSelect v-model="form.dateFormat" :options="dateFormatOptions" />
-        </label>
-        <label :title="t('settings.defaultLatePenaltyRateHelp')">
-          <span class="field-label-row">
-            {{ t('settings.defaultLatePenaltyRate') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-          <input
-            v-model.number="form.defaultLatePenaltyRate"
-            type="number"
-            min="0"
-            step="0.1"
-            required
-            :title="t('settings.defaultLatePenaltyRateHelp')"
-          />
-        </label>
-        <label :title="t('settings.interestGenerationLeadDaysHelp')">
-          <span class="field-label-row">
-            {{ t('settings.interestGenerationLeadDays') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-          <input
-            v-model.number="form.interestGenerationLeadDays"
-            type="number"
-            min="0"
-            max="31"
-            step="1"
-            required
-            :title="t('settings.interestGenerationLeadDaysHelp')"
-          />
-        </label>
-        <label :title="t('settings.defaultGraceDaysHelp')">
-          <span class="field-label-row">
-            {{ t('settings.defaultGraceDays') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
-          </span>
-          <input
-            v-model.number="form.defaultGraceDays"
-            type="number"
-            min="0"
-            max="31"
-            step="1"
-            required
-            :title="t('settings.defaultGraceDaysHelp')"
-          />
-        </label>
-        </div>
-      </div>
-
-      <div class="mt-16 text-right">
-        <button class="btn" type="submit">
-          <Save :size="16" />
-          {{ t('settings.saveSettings') }}
-        </button>
-      </div>
-    </form>
   </section>
 </template>
 
@@ -233,15 +257,17 @@
 import CustomSelect from '../components/CustomSelect.vue'
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Download, Save, Settings, Sparkles, Upload } from 'lucide-vue-next'
+import { Download, Info, Save, Settings, Sparkles, Upload } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
+import ScheduledBackupCard from '../components/ScheduledBackupCard.vue'
+import { usePageMessage } from '../composables/usePageMessage'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import { formatDateDMY } from '../utils/date'
 
 const { state, ensureInitialized, updateGlobalSettings, refreshAll } = usePlatformStore()
 const { t } = useI18n()
-const message = ref('')
+const { message, messageClass, notify, fail, report, clearMessage } = usePageMessage()
 const exporting = ref(false)
 
 const IMPORT_CONFIRMATION = 'REPLACE ALL DATA'
@@ -290,7 +316,7 @@ const documentTypeOptions = ['CC', 'TI', 'NIT', 'CE', 'PAS', 'RUT'].map(o => ({
 }))
 
 const form = reactive({
-  appName: 'PawnPlatform',
+  appName: 'Mutuum',
   companyName: '',
   companyDocumentType: 'NIT',
   companyDocumentNumber: '',
@@ -308,7 +334,7 @@ const form = reactive({
 onMounted(async () => {
   await ensureInitialized()
   if (state.globalSettings) {
-    form.appName = state.globalSettings.appName || 'PawnPlatform'
+    form.appName = state.globalSettings.appName || 'Mutuum'
     form.companyName = state.globalSettings.companyName || ''
     form.companyDocumentType = state.globalSettings.companyDocumentType || 'NIT'
     form.companyDocumentNumber = state.globalSettings.companyDocumentNumber || ''
@@ -327,15 +353,15 @@ onMounted(async () => {
 const handleSaveSettings = async () => {
   try {
     const result = await updateGlobalSettings({ ...form })
-    message.value = t(result.messageKey)
+    report(result, t)
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   }
 }
 
 const handleExportData = async () => {
   exporting.value = true
-  message.value = ''
+  clearMessage()
   try {
     const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-')
     const { blob, filename } = await apiClient.requestFile('/backup/export', `export-${timestamp}.zip`)
@@ -349,9 +375,9 @@ const handleExportData = async () => {
     link.remove()
     URL.revokeObjectURL(url)
 
-    message.value = t('messages.dataExported')
+    notify(t('messages.dataExported'))
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     exporting.value = false
   }
@@ -364,7 +390,7 @@ const handleFileSelected = async (event: Event) => {
   selectedFile.value = file
   analysis.value = null
   confirmation.value = ''
-  message.value = ''
+  clearMessage()
 
   if (!file) {
     return
@@ -377,7 +403,7 @@ const handleFileSelected = async (event: Event) => {
     formData.append('validate_only', 'true')
     analysis.value = await apiClient.requestUpload<ImportResult>('/backup/import', formData)
   } catch (error) {
-    message.value = error instanceof Error && error.message ? error.message : t('messages.operationFailed')
+    fail(error instanceof Error && error.message ? error.message : t('messages.operationFailed'))
   } finally {
     analyzing.value = false
   }
@@ -389,7 +415,7 @@ const handleImportData = async () => {
   }
 
   importing.value = true
-  message.value = ''
+  clearMessage()
   try {
     const formData = new FormData()
     formData.append('file', selectedFile.value)
@@ -399,20 +425,24 @@ const handleImportData = async () => {
     const result = await apiClient.requestUpload<ImportResult>('/backup/import', formData)
     analysis.value = result
     confirmation.value = ''
-    message.value = t('messages.dataImported', { rows: result.total_incoming_rows })
+    notify(t('messages.dataImported', { rows: result.total_incoming_rows }))
 
     // Everything in memory belongs to the replaced dataset.
     await refreshAll()
   } catch (error) {
-    message.value = error instanceof Error && error.message ? error.message : t('messages.operationFailed')
+    fail(error instanceof Error && error.message ? error.message : t('messages.operationFailed'))
   } finally {
     importing.value = false
   }
 }
 
+/* Fills three fields; it does not save. That was invisible before — the button sat at the
+   top of the page and changed values far below it, so pressing it and leaving looked like
+   it had done something and had not. */
 const applyColombiaPreset = () => {
   form.currencyCode = 'COP'
   form.timezone = 'America/Bogota'
   form.dateFormat = 'DD/MM/YYYY'
+  notify(t('settings.presetApplied'))
 }
 </script>

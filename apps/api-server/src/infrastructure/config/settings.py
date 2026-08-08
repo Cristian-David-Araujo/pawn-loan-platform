@@ -19,7 +19,9 @@ ROOT_ENV_FILE = _resolve_root_env_file()
 
 
 class Settings(BaseSettings):
-    app_name: str = "Pawn Loan API"
+    # The API's own name — the OpenAPI title at /docs. Distinct from
+    # GlobalSettings.app_name, which is what an installation calls itself on screen.
+    app_name: str = "Mutuum API"
     app_env: str = "development"
 
     database_url: str = "postgresql+psycopg://pawn_user:pawn_password@localhost:5432/pawn_loan_db"
@@ -39,6 +41,14 @@ class Settings(BaseSettings):
 
     auto_interest_generation_enabled: bool = True
     auto_interest_generation_interval_minutes: int = 1440
+
+    # The recurring backup itself is configured from the admin screen and stored in the
+    # database — what belongs in the environment is only whether this deployment runs the
+    # scheduler thread at all, how often it looks, and where a local copy lands. The
+    # directory is a deployment fact (which volume is mounted), not portfolio policy.
+    backup_scheduler_enabled: bool = True
+    backup_scheduler_interval_minutes: int = 15
+    backup_local_directory: str = "/var/backups/pawn-platform"
 
     model_config = SettingsConfigDict(env_file=str(ROOT_ENV_FILE), extra="ignore")
 

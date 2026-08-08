@@ -3,7 +3,52 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pawn Loan Platform</title>
+    <meta name="description" content="Mutuum — loan, collateral and payment management for a pawn and consumer lender." />
+    <!-- One SVG covers every size. The mark is drawn, not rasterised, so it stays crisp at
+         16px in a tab and at 180px on an iOS home screen. -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#faf9f7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171612" media="(prefers-color-scheme: dark)" />
+    <!--
+      Resolves the theme before first paint. Without this the document renders in the
+      light palette and repaints once the bundle boots, which on a dark-mode machine is a
+      full-screen white flash on every navigation to the app.
+
+      Deliberately duplicates three lines of useTheme.ts rather than importing it: the
+      module cannot run before the bundle it lives in has been fetched, which is the
+      problem. useTheme re-applies the same rules on mount, so this stays an optimisation
+      and never becomes a second source of truth.
+    -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('pawn-theme')
+          var dark =
+            stored === 'dark' ||
+            ((stored === 'system' || !stored) &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light')
+        }
+      })()
+    </script>
+    <title>Mutuum</title>
+    <!--
+      Loaded here rather than through an @import in main.css: an @import is only
+      discovered after the stylesheet itself has been fetched and parsed, which
+      serialises the two requests and shows the app in a fallback face first.
+      Manrope carries the interface; JetBrains Mono carries figures and codes,
+      where proportional digits would make a column of pesos jitter row to row.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    />
   </head>
   <body>
     <div id="app"></div>

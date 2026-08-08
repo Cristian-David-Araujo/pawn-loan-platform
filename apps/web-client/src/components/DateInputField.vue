@@ -14,18 +14,39 @@
         class="date-picker-trigger"
         type="button"
         :title="title"
-        :aria-label="`${label} (calendar)`"
+        :aria-label="t('common.openCalendar', { field: label })"
         @click="toggleCalendar"
       >
-        <CalendarDays :size="16" />
+        <CalendarDays :size="16" aria-hidden="true" />
       </button>
     </div>
 
-    <div v-if="isOpen" class="date-popover" role="dialog" :aria-label="`${label} calendar`">
+    <div
+      v-if="isOpen"
+      class="date-popover"
+      role="dialog"
+      :aria-label="t('common.calendarFor', { field: label })"
+    >
       <div class="date-popover-head">
-        <button class="date-nav-btn" type="button" @click="goPrevMonth" aria-label="Previous month">&lt;</button>
+        <!-- Drawn icons rather than the `<` and `>` glyphs these used to be: the rest of the
+             app is one icon set at one stroke weight, and two stray characters broke it. -->
+        <button
+          class="date-nav-btn"
+          type="button"
+          :aria-label="t('common.previousMonth')"
+          @click="goPrevMonth"
+        >
+          <ChevronLeft :size="15" aria-hidden="true" />
+        </button>
         <strong>{{ monthLabel }}</strong>
-        <button class="date-nav-btn" type="button" @click="goNextMonth" aria-label="Next month">&gt;</button>
+        <button
+          class="date-nav-btn"
+          type="button"
+          :aria-label="t('common.nextMonth')"
+          @click="goNextMonth"
+        >
+          <ChevronRight :size="15" aria-hidden="true" />
+        </button>
       </div>
 
       <div class="date-weekdays">
@@ -55,7 +76,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CalendarDays } from 'lucide-vue-next'
+import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 
 interface DayCell {
@@ -84,9 +105,13 @@ const emit = defineEmits<{
   (event: 'update:modelValue', value: string): void
 }>()
 
-const { locale } = useI18n()
+const { t, locale } = useI18n()
 const rootRef = ref<HTMLElement | null>(null)
 const isOpen = ref(false)
+
+/* Month and weekday names follow the interface language — unlike an amount, which follows
+   its currency. `es-CO` rather than `es-MX` only to keep one Spanish locale in the app. */
+const dateLocale = computed(() => (locale.value === 'es' ? 'es-CO' : 'en-US'))
 
 const todayIso = new Date().toISOString().slice(0, 10)
 const selectedIso = computed(() => toIsoDate(props.modelValue))
@@ -104,14 +129,14 @@ const monthCursor = computed(() => {
 })
 
 const monthLabel = computed(() =>
-  new Intl.DateTimeFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+  new Intl.DateTimeFormat(dateLocale.value, {
     month: 'long',
     year: 'numeric'
   }).format(monthCursor.value)
 )
 
 const weekdays = computed(() => {
-  const formatter = new Intl.DateTimeFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
+  const formatter = new Intl.DateTimeFormat(dateLocale.value, {
     weekday: 'short'
   })
 
@@ -195,11 +220,20 @@ const handleDocumentClick = (event: MouseEvent) => {
   }
 }
 
+// The popover covers the field below it, so it has to be dismissible from the keyboard.
+const handleKeydown = (event: KeyboardEvent) => {
+  if (isOpen.value && event.key === 'Escape') {
+    isOpen.value = false
+  }
+}
+
 onMounted(() => {
   document.addEventListener('mousedown', handleDocumentClick)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onBeforeUnmount(() => {
   document.removeEventListener('mousedown', handleDocumentClick)
+  document.removeEventListener('keydown', handleKeydown)
 })
 </script>

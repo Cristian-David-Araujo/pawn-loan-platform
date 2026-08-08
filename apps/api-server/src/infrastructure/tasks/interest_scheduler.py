@@ -4,11 +4,12 @@ from contextlib import contextmanager
 from datetime import date, timedelta
 from threading import Event, Thread
 
-from sqlalchemy import select, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.infrastructure.persistence.database import SessionLocal
 from src.infrastructure.persistence.models import GlobalSettings, Loan
+from src.infrastructure.tasks.locks import advisory_lock
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_generation import (
     ACCRUING_STATUSES,
@@ -28,48 +29,15 @@ INTEREST_CYCLE_LOCK_ID = 9021002
 
 @contextmanager
 def interest_cycle_lock(db: Session) -> Iterator[bool]:
-    """Hold the cycle lock on a connection of its own, for the whole block.
+    """Hold the interest cycle lock for the whole block.
 
-    ``pg_try_advisory_lock`` is session level: it lives on the *connection*, not on the
-    transaction. This used to be taken on the caller's ``Session``, which commits up to
-    three times before releasing — and a Session hands its connection back to the pool on
-    every commit. Any request served in between could check that connection out, leaving
-    the cycle on a different one: ``pg_advisory_unlock`` then ran where the lock had never
-    been taken, returned ``false`` (a value nobody looked at), and the lock stayed on a
-    pooled connection forever. From the next cycle on, every worker read "another worker is
-    already running it" and interest generation silently stopped until a restart.
-
-    Taking a dedicated connection makes the unlock run where the lock is, by construction.
-    Yields whether the lock was acquired; the caller decides what to do when it was not.
+    Kept as a named helper because three callers share this exact lock id — the scheduler,
+    ``POST /interest/generate`` and the backup restore — and any of them taking a different
+    one is a duplicate billing period. The connection handling lives in
+    :func:`advisory_lock`; see it for why the lock cannot ride the caller's session.
     """
-    if db.get_bind().dialect.name != "postgresql":
-        # SQLite has no advisory locks and serialises writes anyway — the same
-        # short-circuit the money-path row locks take.
-        yield True
-        return
-
-    connection = db.get_bind().connect()
-    acquired = False
-    try:
-        acquired = bool(
-            connection.scalar(text("SELECT pg_try_advisory_lock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID})
-        )
+    with advisory_lock(db, INTEREST_CYCLE_LOCK_ID, "interest generation") as acquired:
         yield acquired
-    finally:
-        try:
-            if acquired:
-                released = connection.scalar(
-                    text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": INTEREST_CYCLE_LOCK_ID}
-                )
-                if not released:
-                    # Cannot happen while the lock is held on this very connection, but a
-                    # lock that leaks stops the whole portfolio from being billed, so it
-                    # must never fail silently again.
-                    logger.error("The interest generation lock was not held by its own connection")
-        except Exception:
-            logger.exception("Could not release the interest generation lock")
-        finally:
-            connection.close()
 
 
 def run_interest_generation_cycle(

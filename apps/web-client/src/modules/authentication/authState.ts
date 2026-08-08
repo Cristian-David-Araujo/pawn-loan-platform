@@ -37,6 +37,22 @@ const state = reactive({
   currentUser: null as UserProfile | null
 })
 
+/** A rejection the server actually sent, carrying the status the caller needs to tell apart.
+ *
+ * Anything thrown by `fetch` itself — an unreachable host, DNS, TLS, a dead proxy — is *not*
+ * this: it never reached the API. The login screen reported both as "invalid username or
+ * password", so a browser running a cached bundle that pointed at a retired hostname blamed the
+ * operator's typing for a request that was never answered. */
+export class AuthRequestError extends Error {
+  constructor(
+    message: string,
+    readonly status: number
+  ) {
+    super(message)
+    this.name = 'AuthRequestError'
+  }
+}
+
 const extractErrorMessage = async (response: Response) => {
   try {
     const data = (await response.json()) as { detail?: string }
@@ -54,7 +70,7 @@ const login = async (payload: LoginPayload) => {
   })
 
   if (!response.ok) {
-    throw new Error(await extractErrorMessage(response))
+    throw new AuthRequestError(await extractErrorMessage(response), response.status)
   }
 
   const data = (await response.json()) as LoginResponse

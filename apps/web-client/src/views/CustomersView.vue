@@ -12,15 +12,43 @@
       </template>
     </PageHeader>
 
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
 
     <div class="card mt-16">
       <div class="table-toolbar">
-        <input v-model="search" class="table-search" type="text" :placeholder="t('customers.searchPlaceholder')" />
+        <!-- A placeholder is not a label: it is gone the moment the field has a value, and a
+             screen reader announces nothing. -->
+        <input
+          v-model="search"
+          class="table-search"
+          type="search"
+          :placeholder="t('customers.searchPlaceholder')"
+          :aria-label="t('customers.searchPlaceholder')"
+        />
         <CustomSelect v-model="customerStatusFilter" inputClass="table-select" :options="customerStatusFilterOptions" />
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>
-      <div class="table-wrap">
+      <!-- This table used to render its six headings over nothing on a fresh installation
+           or a search with no match: no empty row, no empty state. -->
+      <div v-if="!filteredCustomers.length" class="empty-state">
+        <div class="empty-state-icon"><Users :size="22" /></div>
+        <p class="empty-state-title">
+          {{ search || customerStatusFilter !== 'all' ? t('customers.noMatchesTitle') : t('customers.noneYetTitle') }}
+        </p>
+        <p class="empty-state-hint">
+          {{ search || customerStatusFilter !== 'all' ? t('customers.noMatchesHint') : t('customers.noneYetHint') }}
+        </p>
+        <button
+          v-if="!search && customerStatusFilter === 'all'"
+          class="btn"
+          type="button"
+          @click="openCreateModal"
+        >
+          <UserPlus :size="16" />
+          {{ t('customers.createCustomer') }}
+        </button>
+      </div>
+      <div v-else class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -62,12 +90,12 @@
         </thead>
         <tbody>
           <tr v-for="customer in paginatedCustomers" :key="customer.id" class="clickable-row" @click="openCustomerDetail(customer.id)">
-            <td>{{ customer.id }}</td>
-            <td>{{ customer.fullName }}</td>
-            <td>{{ customer.documentType }} / {{ customer.documentNumber }}</td>
-            <td>{{ customer.phone }}</td>
-            <td>{{ customer.city }}</td>
-            <td>
+            <td :data-label="t('common.id')">{{ customer.id }}</td>
+            <td :data-label="t('common.name')">{{ customer.fullName }}</td>
+            <td :data-label="t('customers.document')">{{ customer.documentType }} / {{ customer.documentNumber }}</td>
+            <td :data-label="t('common.phone')">{{ customer.phone }}</td>
+            <td :data-label="t('common.city')">{{ customer.city }}</td>
+            <td :data-label="t('common.status')">
               <span :class="['pill', customer.status === 'active' ? 'pill-current' : '']">
                 {{ customer.status === 'active' ? t('common.active') : t('common.archived') }}
               </span>
@@ -149,11 +177,11 @@
               <Trash2 :size="16" />
               {{ t('customers.deleteCustomer') }}
             </button>
-            <a :href="'/print/invoice/customer/' + selectedCustomer.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+            <a :href="'/print/invoice/customer/' + selectedCustomer.id" target="_blank" class="btn btn-secondary">
               <Printer :size="16" />
               {{ t('common.printStatement') }}
             </a>
-            <a :href="'/print/invoice/history/' + selectedCustomer.id" target="_blank" class="btn btn-secondary" style="text-decoration: none;">
+            <a :href="'/print/invoice/history/' + selectedCustomer.id" target="_blank" class="btn btn-secondary">
               <Printer :size="16" />
               {{ t('common.printHistory') }}
             </a>
@@ -174,7 +202,9 @@
           </span>
         </div>
 
-        <p v-if="hasCustomerCreditTraceability" class="notice mt-16" style="background: var(--warning-soft); color: #92400e; border-color: var(--warning-border);">{{ t('customers.traceabilityDeleteHint') }}</p>
+        <!-- Was a `.notice` with an inline style repainting it amber; `.notice-warning` is
+             that same tone as a system class. -->
+        <p v-if="hasCustomerCreditTraceability" class="notice notice-warning mt-16">{{ t('customers.traceabilityDeleteHint') }}</p>
 
         <article class="card mt-16">
           <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
@@ -208,7 +238,7 @@
           <button class="tab-btn" :class="{ active: detailTab === 'loans' }" type="button" @click="detailTab = 'loans'">
             <HandCoins :size="14" />
             {{ t('customers.tabLoans') }}
-            <span v-if="selectedCustomerLoans.length" class="tab-count">{{ selectedCustomerLoans.length }}</span>
+            <span v-if="allSelectedCustomerLoans.length" class="tab-count">{{ allSelectedCustomerLoans.length }}</span>
           </button>
           <button class="tab-btn" :class="{ active: detailTab === 'payments' }" type="button" @click="detailTab = 'payments'">
             <Wallet :size="14" />
@@ -367,13 +397,13 @@
             </thead>
             <tbody>
               <tr v-for="item in paginatedPendingInterestItems" :key="item.interest_charge_id">
-                <td>#{{ item.loan_id }}</td>
-                <td>{{ item.billing_period }}</td>
-                <td>{{ formatDateDMY(item.due_date) }}</td>
-                <td>{{ formatCurrency(item.remaining_pending_amount) }}</td>
-                <td>{{ formatCurrency(item.penalty_amount) }}</td>
-                <td>{{ formatCurrency(item.current_outstanding_balance) }}</td>
-                <td>
+                <td :data-label="t('common.loan')">#{{ item.loan_id }}</td>
+                <td :data-label="t('payments.period')">{{ item.billing_period }}</td>
+                <td :data-label="t('payments.dueDate')">{{ formatDateDMY(item.due_date) }}</td>
+                <td :data-label="t('payments.pendingInterest')">{{ formatCurrency(item.remaining_pending_amount) }}</td>
+                <td :data-label="t('payments.penalty')">{{ formatCurrency(item.penalty_amount) }}</td>
+                <td :data-label="t('payments.outstandingPeriod')">{{ formatCurrency(item.current_outstanding_balance) }}</td>
+                <td :data-label="t('common.status')">
                   <span class="pill" :class="getPendingStatusClass(item)">
                     {{ t(getPendingStatusKey(item)) }}
                   </span>
@@ -408,15 +438,15 @@
             </thead>
             <tbody>
               <tr v-for="event in paginatedAuditFilteredEvents" :key="event.id">
-                <td>{{ formatDateDMY(event.payment_date) }}</td>
-                <td>{{ paymentTypeLabel(event.payment_type) }}</td>
-                <td>#{{ event.loan_id }}</td>
-                <td>{{ event.billing_period || '-' }}</td>
-                <td>{{ formatCurrency(event.total_entered_amount) }}</td>
-                <td>{{ formatCurrency(event.allocated_to_interest) }}</td>
-                <td>{{ formatCurrency(event.allocated_to_penalty) }}</td>
-                <td>{{ formatCurrency(event.allocated_to_principal) }}</td>
-                <td>{{ paymentMethodLabel(event.payment_method) }}</td>
+                <td :data-label="t('common.date')">{{ formatDateDMY(event.payment_date) }}</td>
+                <td :data-label="t('payments.paymentType')">{{ paymentTypeLabel(event.payment_type) }}</td>
+                <td :data-label="t('common.loan')">#{{ event.loan_id }}</td>
+                <td :data-label="t('payments.period')">{{ event.billing_period || '-' }}</td>
+                <td :data-label="t('common.total')">{{ formatCurrency(event.total_entered_amount) }}</td>
+                <td :data-label="t('common.interest')">{{ formatCurrency(event.allocated_to_interest) }}</td>
+                <td :data-label="t('payments.penalty')">{{ formatCurrency(event.allocated_to_penalty) }}</td>
+                <td :data-label="t('common.principal')">{{ formatCurrency(event.allocated_to_principal) }}</td>
+                <td :data-label="t('common.method')">{{ paymentMethodLabel(event.payment_method) }}</td>
               </tr>
             </tbody>
           </table>
@@ -431,7 +461,7 @@
           <div class="flex-between">
             <h3>{{ t('customers.customerLoans') }}</h3>
           </div>
-          <p class="muted" v-if="!selectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
+          <p class="muted" v-if="!allSelectedCustomerLoans.length">{{ t('customers.noLoans') }}</p>
           <div v-else class="table-wrap">
           <table>
             <thead>
@@ -453,19 +483,19 @@
                 class="clickable-row"
                 @click="openCustomerLoanDetail(loan.id)"
               >
-                <td>#{{ loan.id }}</td>
-                <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-                <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
-                <td>{{ formatCurrency(loan.principalAmount) }}</td>
-                <td>{{ formatCurrency(loan.outstandingPrincipal) }}</td>
-                <td>{{ loan.monthlyInterestRate }}%</td>
-                <td>{{ t(`common.${loan.status}`) }}</td>
+                <td :data-label="t('common.id')">#{{ loan.id }}</td>
+                <td :data-label="t('common.type')">{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+                <td :data-label="t('customers.loanDisbursementDate')">{{ formatDateDMY(loan.disbursementDate) }}</td>
+                <td :data-label="t('common.principal')">{{ formatCurrency(loan.principalAmount) }}</td>
+                <td :data-label="t('loans.outstanding')">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
+                <td :data-label="t('loans.rate')">{{ loan.monthlyInterestRate }}%</td>
+                <td :data-label="t('common.status')">{{ t(`common.${loan.status}`) }}</td>
                 <td>
                   <div class="form-inline">
                     <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.editLoan')" @click.stop="openLoanEditModal(loan)">
                       <Pencil :size="14" />
                     </button>
-                    <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
+                    <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" @click.stop>
                       <Printer :size="16" />
                     </a>
                     <button v-if="hasRole([UserRole.Administrator])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
@@ -476,7 +506,7 @@
               </tr>
             </tbody>
           </table>
-              <Pagination v-model="loansCurrentPage" :totalItems="selectedCustomerLoans.length" :itemsPerPage="10" />
+              <Pagination v-model="loansCurrentPage" :totalItems="allSelectedCustomerLoans.length" :itemsPerPage="10" />
           </div>
         </div>
         </template>
@@ -484,7 +514,7 @@
         <!-- ── Tab: Payments (customer payments) continues ── -->
         <template v-if="detailTab === 'payments'">
         <div class="mt-16">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div class="section-head-split">
             <div>
               <h3>{{ t('customers.customerPayments') }}</h3>
               <p class="muted">{{ t('customers.totalPaid', { amount: formatCurrency(totalCustomerPaid) }) }}</p>
@@ -515,19 +545,19 @@
             </thead>
             <tbody>
               <tr v-for="payment in paginatedCustomerPayments" :key="payment.id">
-                <td>#{{ payment.id }}</td>
-                <td>#{{ payment.loanId }}</td>
-                <td>{{ formatDateDMY(payment.paymentDate) }}</td>
-                <td>{{ formatCurrency(payment.totalAmount) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
-                <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-                <td>
+                <td :data-label="t('common.id')">#{{ payment.id }}</td>
+                <td :data-label="t('common.loan')">#{{ payment.loanId }}</td>
+                <td :data-label="t('common.date')">{{ formatDateDMY(payment.paymentDate) }}</td>
+                <td :data-label="t('common.total')">{{ formatCurrency(payment.totalAmount) }}</td>
+                <td :data-label="t('payments.penalty')">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                <td :data-label="t('common.interest')">{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                <td :data-label="t('common.fees')">{{ formatCurrency(payment.allocatedToFees) }}</td>
+                <td :data-label="t('common.principal')">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                <td :data-label="t('common.method')">
                   {{ paymentMethodLabel(payment.paymentMethod) }}
                 </td>
-                <td class="muted">{{ payment.notes || '-' }}</td>
-                <td>
+                <td class="muted" :data-label="t('payments.notes')">{{ payment.notes || '-' }}</td>
+                <td :data-label="t('common.status')">
                   <span :class="['pill', payment.isReversed ? 'pill-overdue' : 'pill-current']">
                     {{ payment.isReversed ? t('payments.reversed') : t('common.active') }}
                   </span>
@@ -537,7 +567,7 @@
                 </td>
                 <td>
                   <div class="form-inline">
-                    <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')" style="text-decoration: none;">
+                    <a :href="'/print/invoice/payment/' + payment.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printReceipt')">
                       <Printer :size="16" />
                     </a>
                     <button
@@ -593,14 +623,14 @@
             </thead>
             <tbody>
               <tr v-for="item in paginatedCustomerCollateral" :key="item.id">
-                <td>#{{ item.id }}</td>
-                <td>#{{ item.loanId }}</td>
-                <td>{{ getLoanTypeLabel(item.loanId) }}</td>
-                <td>{{ getLoanStatusLabel(item.loanId) }}</td>
-                <td>{{ item.description }}</td>
-                <td>{{ formatCurrency(item.appraisedValue) }}</td>
-                <td>{{ item.custodyCode }}</td>
-                <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+                <td :data-label="t('common.id')">#{{ item.id }}</td>
+                <td :data-label="t('common.loan')">#{{ item.loanId }}</td>
+                <td :data-label="t('customers.associatedLoanType')">{{ getLoanTypeLabel(item.loanId) }}</td>
+                <td :data-label="t('customers.associatedLoanStatus')">{{ getLoanStatusLabel(item.loanId) }}</td>
+                <td :data-label="t('common.description')">{{ item.description }}</td>
+                <td :data-label="t('collateral.appraisedValue')">{{ formatCurrency(item.appraisedValue) }}</td>
+                <td :data-label="t('collateral.custodyCode')">{{ item.custodyCode }}</td>
+                <td :data-label="t('common.status')">{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
                 <td>
                   <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary" type="button" @click="openCollateralEditModal(item)">
                     <Pencil :size="16" />
@@ -677,9 +707,19 @@
                 :required="true"
               />
             </label>
+            <!--
+              Read-only, for the same reason the pledge's custody status next door is.
+              `active` and `overdue` are owned by the server's overdue-transition job, so
+              setting either by hand is reverted on the next interest cycle. `closed` is
+              reached by paying the principal to zero or by a forced close that records a
+              reason — writing it here wrote the balance off with nobody's name on it. And
+              `defaulted` was not even in the option list, so opening this form on a
+              foreclosed loan showed a control whose current value was not among its choices.
+            -->
             <label>
               {{ t('common.status') }}
-              <CustomSelect v-model="loanEditForm.status" :options="loanStatusOptions" />
+              <p class="form-static-value">{{ t(`common.${loanEditForm.status}`) }}</p>
+              <span class="field-hint">{{ t('loans.statusIsAutomatic') }}</span>
             </label>
           </div>
           <label class="mt-8">
@@ -795,6 +835,7 @@ import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import { useRoute } from 'vue-router'
@@ -806,7 +847,8 @@ import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
-import { formatDateDMY, toIsoDate } from '../utils/date'
+import { formatCurrency } from '../utils/currency'
+import { formatDateDMY, formatDateTime, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
 
 interface InterestPendingItem {
@@ -875,12 +917,11 @@ const {
   ensureInitialized
 } =
   usePlatformStore()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { confirm } = useConfirmDialog()
 const route = useRoute()
 const { hasRole } = useAuthState()
-const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
-const message = ref('')
+const { message, messageClass, notify, fail, report } = usePageMessage()
 const search = ref('')
 const customerStatusFilter = ref<'all' | 'active' | 'archived'>('all')
 const customerSortPriority = ref<SortCriterion<CustomerSortKey>[]>([{ key: 'name', direction: 'asc' }])
@@ -1005,11 +1046,16 @@ const allSelectedCustomerLoans = computed(() => {
     .sort((a, b) => new Date(b.disbursementDate).getTime() - new Date(a.disbursementDate).getTime())
 })
 
-const selectedCustomerLoans = computed(() => {
-  return allSelectedCustomerLoans.value.filter(
-    (loan: Loan) => isLoanSelectedByAuditFilter(loan.id) && isInAuditDateRange(loan.disbursementDate)
-  )
-})
+/* `selectedCustomerLoans` used to sit here, narrowing the customer's loans by the audit
+   card's date range and loan picker — and then feeding the Loans tab, its count badge, the
+   overview counters, `getLoanById` (which labels loan numbers on payment rows) and the loan
+   dropdown inside the collateral edit modal.
+
+   So setting a date range to read an audit trail made loans vanish from the customer's loan
+   list, dropped the tab badge, blanked loan labels on payment rows, and could leave a
+   pledge's own loan out of the dropdown used to edit that pledge — with nothing on screen
+   saying why. The audit range now scopes only what it is about: the traceability tables,
+   through `selectedCustomerPayments` below. Everything else reads the full list. */
 
 const selectedCustomerLoanIds = computed(
   () => new Set(allSelectedCustomerLoans.value.filter((loan: Loan) => isLoanSelectedByAuditFilter(loan.id)).map((loan) => loan.id))
@@ -1095,9 +1141,9 @@ const totalCustomerPaid = computed(() =>
   selectedCustomerPayments.value.reduce((sum: number, payment: Payment) => sum + payment.totalAmount, 0)
 )
 
-const totalCustomerLoans = computed(() => selectedCustomerLoans.value.length)
-const activeCustomerLoans = computed(() => selectedCustomerLoans.value.filter((loan) => loan.status === 'active').length)
-const overdueCustomerLoans = computed(() => selectedCustomerLoans.value.filter((loan) => loan.status === 'overdue').length)
+const totalCustomerLoans = computed(() => allSelectedCustomerLoans.value.length)
+const activeCustomerLoans = computed(() => allSelectedCustomerLoans.value.filter((loan) => loan.status === 'active').length)
+const overdueCustomerLoans = computed(() => allSelectedCustomerLoans.value.filter((loan) => loan.status === 'overdue').length)
 
 const normalizeToIsoDate = (value: string) => {
   const directMatch = value.match(/^(\d{4}-\d{2}-\d{2})/)
@@ -1153,32 +1199,13 @@ const firstLoanDisbursementDate = computed(() => {
     .disbursementDate
 })
 
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(
-    amount
-  )
-
-const formatDateTime = (value: string) => {
-  if (!value) {
-    return '-'
-  }
-
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) {
-    return '-'
-  }
-
-  return new Intl.DateTimeFormat(locale.value === 'es' ? 'es-CO' : 'en-US', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(parsed)
-}
+/* The third local copy of a shared formatter, and the only one that was also wrong about
+   the clock. It hard-coded a DD/MM/YYYY order, so this screen ignored
+   GlobalSettings.dateFormat like the other two did — but it also parsed with `new Date()`,
+   which reads a timestamp carrying no offset as *local* time. The API stores them as UTC,
+   so every audit entry was stamped with the viewer's own offset: the same action read five
+   hours apart on a laptop in Bogotá and a laptop set to UTC. utils/date's formatDateTime
+   appends the Z for exactly this reason. */
 
 const syncEditForm = () => {
   if (!selectedCustomer.value) {
@@ -1306,7 +1333,7 @@ const loadCustomerFinancialData = async (customerId: number) => {
 const handleCreateCustomer = async () => {
   try {
     const result = await createCustomer({ ...form })
-    message.value = t(result.messageKey)
+    report(result, t)
 
     if (result.ok) {
       form.fullName = ''
@@ -1317,7 +1344,7 @@ const handleCreateCustomer = async () => {
       closeCreateModal()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   }
 }
 
@@ -1340,12 +1367,12 @@ const handleUpdateCustomer = async () => {
       status: editForm.status
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     if (result.ok) {
       syncEditForm()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1370,13 +1397,13 @@ const updateSelectedCustomerStatus = async (statusValue: 'active' | 'archived') 
       status: statusValue
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     if (result.ok) {
       editForm.status = statusValue
       syncEditForm()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1421,7 +1448,7 @@ const handleDeleteCustomer = async () => {
   isSaving.value = true
   try {
     const result = await deleteCustomer(selectedCustomer.value.id)
-    message.value = t(result.messageKey)
+    report(result, t)
 
     if (result.ok) {
       selectedCustomerId.value = null
@@ -1429,7 +1456,7 @@ const handleDeleteCustomer = async () => {
       closeDetailModal()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1441,13 +1468,13 @@ const handleUpdateLoan = async () => {
   }
 
   if (loanEditForm.outstandingPrincipal > loanEditForm.principalAmount) {
-    message.value = t('messages.loanOutstandingExceedsPrincipal')
+    fail(t('messages.loanOutstandingExceedsPrincipal'))
     return
   }
 
   const disbursementDate = toIsoDate(loanEditForm.disbursementDate)
   if (!disbursementDate) {
-    message.value = t('messages.invalidDateFormat')
+    fail(t('messages.invalidDateFormat'))
     return
   }
 
@@ -1465,14 +1492,14 @@ const handleUpdateLoan = async () => {
       status: loanEditForm.status
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     closeLoanEditModal()
     if (result.ok) {
       // Editing the rate or the dates recalculates the interest charges server-side.
       await reloadSelectedCustomerFinancials()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1491,7 +1518,7 @@ const handleDeleteLoan = async (loanId: number) => {
   isSaving.value = true
   try {
     const result = await deleteLoan(loanId)
-    message.value = t(result.messageKey)
+    report(result, t)
 
     if (result.ok) {
       if (selectedLoanDetailId.value === loanId) {
@@ -1500,7 +1527,7 @@ const handleDeleteLoan = async (loanId: number) => {
       await reloadSelectedCustomerFinancials()
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1521,10 +1548,10 @@ const handleUpdateCollateral = async () => {
       storageLocation: collateralEditForm.storageLocation
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     closeCollateralEditModal()
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
@@ -1545,7 +1572,7 @@ const reloadSelectedCustomerFinancials = async () => {
 }
 
 const onPaymentDeleted = async (paymentId: number) => {
-  message.value = t('payments.paymentDeleted', { id: paymentId })
+  notify(t('payments.paymentDeleted', { id: paymentId }))
   if (selectedCustomer.value) {
     await loadCustomerFinancialData(selectedCustomer.value.id)
   }
@@ -1558,7 +1585,7 @@ const handleUpdatePayment = async () => {
 
   const paymentDate = toIsoDate(paymentEditForm.paymentDate)
   if (!paymentDate) {
-    message.value = t('messages.invalidDateFormat')
+    fail(t('messages.invalidDateFormat'))
     return
   }
 
@@ -1571,19 +1598,19 @@ const handleUpdatePayment = async () => {
       notes: paymentEditForm.notes
     })
 
-    message.value = t(result.messageKey)
+    report(result, t)
     if (result.ok && selectedCustomer.value) {
       closePaymentEditModal()
       await loadCustomerFinancialData(selectedCustomer.value.id)
     }
   } catch {
-    message.value = t('messages.operationFailed')
+    fail(t('messages.operationFailed'))
   } finally {
     isSaving.value = false
   }
 }
 
-const getLoanById = (loanId: number) => selectedCustomerLoans.value.find((loan) => loan.id === loanId) ?? null
+const getLoanById = (loanId: number) => allSelectedCustomerLoans.value.find((loan) => loan.id === loanId) ?? null
 
 const getLoanTypeLabel = (loanId: number) => {
   const loan = getLoanById(loanId)
@@ -1593,8 +1620,14 @@ const getLoanTypeLabel = (loanId: number) => {
   return loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal')
 }
 
+/* Was `window.print()`, which printed the application — sidebar, open modal, whatever tab
+   was showing, in the operator's theme — instead of the payment-history document. The
+   button 340 lines above it in the same modal already linked to the right route. */
 const printHistory = () => {
-  window.print()
+  if (!selectedCustomer.value) {
+    return
+  }
+  window.open(`/print/invoice/history/${selectedCustomer.value.id}`, '_blank')
 }
 
 const getLoanStatusLabel = (loanId: number) => {
@@ -1728,7 +1761,7 @@ const filteredCustomers = computed(() => {
 const { currentPage: customerCurrentPage, paginatedArray: paginatedCustomers } = usePagination(filteredCustomers)
 const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingInterestItems } = usePagination(pendingInterestItems)
 const { currentPage: auditCurrentPage, paginatedArray: paginatedAuditFilteredEvents } = usePagination(auditFilteredEvents)
-const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(selectedCustomerLoans)
+const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(allSelectedCustomerLoans)
 const { currentPage: paymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
 const { currentPage: collateralsCurrentPage, paginatedArray: paginatedCustomerCollateral } = usePagination(selectedCustomerCollateral)
 const customerStatusFilterOptions = computed(() => [
@@ -1759,14 +1792,12 @@ const loanTypeOptions = computed(() => [
   { value: 'personal', label: t('common.personal') }
 ])
 
-const loanStatusOptions = computed(() => [
-  { value: 'active', label: t('common.active') },
-  { value: 'overdue', label: t('common.overdue') },
-  { value: 'closed', label: t('common.closed') }
-])
+/* `loanStatusOptions` used to sit here. The payload still carries `status`, because the
+   API's shape requires it — but it now always carries the value the loan already has, so
+   it is a no-op rather than an edit. */
 
 const collateralLoanIdOptions = computed(() => 
-  selectedCustomerLoans.value.map(l => ({ value: l.id, label: '#' + l.id }))
+  allSelectedCustomerLoans.value.map(l => ({ value: l.id, label: '#' + l.id }))
 )
 
 const collateralStatusLabel = (status: string) => {

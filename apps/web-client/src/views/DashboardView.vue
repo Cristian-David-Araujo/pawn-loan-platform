@@ -6,54 +6,68 @@
       </template>
     </PageHeader>
 
-    <div class="grid grid-3 mt-16">
-      <StatCard :label="t('dashboard.customers')" :value="stats.customers" :icon="Users" tone="indigo" />
-      <StatCard :label="t('dashboard.activeLoans')" :value="stats.activeLoans" :icon="BadgeDollarSign" tone="green" />
-      <StatCard :label="t('dashboard.overdueLoans')" :value="stats.overdueLoans" :icon="ClockAlert" tone="amber" />
-      <StatCard :label="t('dashboard.collateralInCustody')" :value="stats.collateralInCustody" :icon="ShieldCheck" tone="blue" />
+    <!-- The book: what is owed to the business right now, and how much of it is late.
+         These two are the reason anyone opens this screen, so they lead and they are the
+         only tiles that carry a figure at display size. -->
+    <h3 class="group-title">{{ t('dashboard.theBook') }}</h3>
+    <div class="grid grid-2">
       <StatCard
         :label="t('dashboard.outstandingPortfolio')"
         :value="formatCurrency(stats.portfolioOutstanding)"
         :icon="HandCoins"
-        tone="amber"
+        tone="indigo"
       />
-      <StatCard :label="t('dashboard.lentThisMonth')" :value="formatCurrency(stats.lentThisMonth)" :icon="HandCoins" tone="indigo" />
       <StatCard
-        :label="t('dashboard.interestCollectedMonth')"
-        :value="formatCurrency(stats.interestCollectedMonth)"
-        :icon="TrendingUp"
-        tone="green"
+        :label="t('dashboard.overdueLoans')"
+        :value="String(stats.overdueLoans)"
+        :caption="stats.overdueLoans ? t('dashboard.overdueAmount', { amount: formatCurrency(overdueOutstanding) }) : t('dashboard.nothingOverdue')"
+        :icon="ClockAlert"
+        :tone="stats.overdueLoans ? 'danger' : 'green'"
+        :to="stats.overdueLoans ? { path: '/loans', query: { status: 'overdue' } } : undefined"
       />
-      <StatCard :label="t('dashboard.cashCollectedMonth')" :value="formatCurrency(stats.cashCollectedMonth)" :icon="Wallet" tone="green" />
     </div>
 
-    <article class="card mt-16">
-      <h3>{{ t('dashboard.quickActions') }}</h3>
-      <div class="quick-actions mt-16">
-        <button class="btn btn-secondary" type="button" @click="goTo('/customers')">
-          <Users :size="15" /> {{ t('dashboard.goCustomers') }}
-        </button>
-        <button class="btn btn-secondary" type="button" @click="goTo('/loans')">
-          <HandCoins :size="15" /> {{ t('dashboard.goLoans') }}
-        </button>
-        <button class="btn btn-secondary" type="button" @click="goTo('/payments')">
-          <Wallet :size="15" /> {{ t('dashboard.goPayments') }}
-        </button>
-        <button class="btn btn-secondary" type="button" @click="goTo('/reporting')">
-          <BarChart3 :size="15" /> {{ t('dashboard.goReporting') }}
-        </button>
-      </div>
-    </article>
+    <!-- This month: the pulse. Quieter than the book, because it reports rather than asks. -->
+    <h3 class="group-title mt-24">{{ t('dashboard.thisMonth') }}</h3>
+    <div class="grid grid-3">
+      <StatCard :label="t('dashboard.cashCollectedMonth')" :value="formatCurrency(stats.cashCollectedMonth)" :icon="Wallet" tone="green" />
+      <StatCard :label="t('dashboard.interestCollectedMonth')" :value="formatCurrency(stats.interestCollectedMonth)" :icon="TrendingUp" tone="green" />
+      <StatCard :label="t('dashboard.lentThisMonth')" :value="formatCurrency(stats.lentThisMonth)" :icon="HandCoins" tone="blue" />
+    </div>
+
+    <!-- Counts, last: they are context, not a call to act. -->
+    <h3 class="group-title mt-24">{{ t('dashboard.portfolio') }}</h3>
+    <div class="grid grid-3">
+      <StatCard
+        :label="t('dashboard.activeLoans')"
+        :value="String(stats.activeLoans)"
+        :icon="BadgeDollarSign"
+        tone="blue"
+        :to="{ path: '/loans' }"
+      />
+      <StatCard
+        :label="t('dashboard.customers')"
+        :value="String(stats.customers)"
+        :icon="Users"
+        tone="blue"
+        :to="{ path: '/customers' }"
+      />
+      <StatCard
+        :label="t('dashboard.collateralInCustody')"
+        :value="String(stats.collateralInCustody)"
+        :icon="ShieldCheck"
+        tone="blue"
+        :to="{ path: '/collaterals' }"
+      />
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import {
   BadgeDollarSign,
-  BarChart3,
   ClockAlert,
   HandCoins,
   LayoutDashboard,
@@ -65,26 +79,33 @@ import {
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
+import { formatCurrency } from '../utils/currency'
 
+/**
+ * The landing screen used to be eight identical tiles in a three-column grid — a ragged
+ * 3+3+2 that mixed counts with money and gave the overdue figure exactly the same weight as
+ * the customer count. Nothing was clickable, so a number that named a problem was a dead
+ * end, and a "Quick actions" card underneath duplicated four sidebar links verbatim.
+ *
+ * It is now three named groups in descending order of "does this ask me to do something":
+ * the book, this month, the portfolio. Tiles that correspond to a list link to it.
+ */
 const { state, dashboardStats, ensureInitialized } = usePlatformStore()
-const { t, locale } = useI18n()
-const router = useRouter()
+const { t } = useI18n()
 const stats = computed(() => dashboardStats.value)
-const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
+
+/* A count of overdue loans does not say how much is at stake. Nine small ones and one large
+   one are not the same morning. */
+const overdueOutstanding = computed(() =>
+  state.loans
+    .filter((loan) => loan.status === 'overdue')
+    .reduce((sum, loan) => sum + loan.outstandingPrincipal, 0)
+)
 
 onMounted(async () => {
   await ensureInitialized()
 })
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(
-    amount
-  )
-
-const goTo = (path: string) => {
-  void router.push(path)
-}
 </script>
+
+<!-- `.dashboard-group-title` lived here as a scoped copy until the settings page needed the
+     same thing. It is `.group-title` in main.css now. -->

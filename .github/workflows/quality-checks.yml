@@ -86,3 +86,15 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      # `t()` renders a missing key as the key itself, so an unmapped string reaches the
+      # operator as raw text like `common.loading` and nothing anywhere fails. Six such keys
+      # had already shipped, one of them onto a printed customer document. Typecheck cannot
+      # see them: the key is just a string.
+      - name: Translation keys
+        run: npm run check:i18n
+
+      # Two themes double the surface area for a contrast regression, and eyeballing does
+      # not catch it: --placeholder shipped at 3.4:1 behind a comment claiming 4.6:1.
+      - name: Colour contrast
+        run: npm run check:contrast

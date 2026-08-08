@@ -33,11 +33,20 @@ ROW_BATCH_SIZE = 1000
 # Keeps small exports in memory and spills bigger ones to a temporary file.
 SPOOL_MAX_BYTES = 32 * 1024 * 1024
 
-# Live password reset credentials: exporting them would let anyone holding the file take
-# over an account. They are short lived operational state, not client data.
+# Credentials, not client data. Exporting them puts a live secret inside a file that is
+# copied off the server by design — and, once recurring backups are on, into the very Google
+# Drive folder those credentials unlock.
+#
+# `users.reset_token` would let anyone holding the archive take over an account.
+# `backup_settings.drive_*` is the OAuth client and refresh token of the Google account the
+# archives land in: an archive carrying them hands over the whole backup destination. The
+# cost is that a restore leaves Google Drive disconnected and the administrator reconnects
+# it, which the schedule screen states plainly.
 REDACTED_COLUMNS: set[tuple[str, str]] = {
     ("users", "reset_token"),
     ("users", "reset_token_expires_at"),
+    ("backup_settings", "drive_client_secret"),
+    ("backup_settings", "drive_refresh_token"),
 }
 
 README = """Pawn & Personal Loan Platform - data export
@@ -192,7 +201,10 @@ def build_export_archive(db: Session, generated_by: str | None) -> ExportArchive
 
 
 def _filename_slug(settings: GlobalSettings | None) -> str:
-    raw = (settings.company_name or settings.app_name) if settings is not None else "pawn-platform"
+    # Only reached before any settings row exists, or when both names are blank. Retention
+    # orders copies by the timestamp in the filename rather than by this prefix, so changing
+    # it does not disturb archives already written under the old one.
+    raw = (settings.company_name or settings.app_name) if settings is not None else "mutuum"
     slug = "".join(character if character.isalnum() else "-" for character in (raw or "").lower())
     slug = "-".join(part for part in slug.split("-") if part)
-    return slug or "pawn-platform"
+    return slug or "mutuum"

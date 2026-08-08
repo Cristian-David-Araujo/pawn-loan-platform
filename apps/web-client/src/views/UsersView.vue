@@ -12,11 +12,26 @@
       </template>
     </PageHeader>
 
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
-    <p v-if="error" class="notice notice-error mt-16">{{ error }}</p>
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
 
     <div class="card mt-16">
-      <div class="table-wrap">
+      <!-- Skeleton in the shape of the table, then a real empty state. Both used to be a
+           single bare cell under six headings. -->
+      <div v-if="loading" class="table-wrap" role="status" :aria-label="t('common.loading')">
+        <div v-for="row in 4" :key="row" class="skeleton-row">
+          <span class="skeleton" v-for="cell in 5" :key="cell"></span>
+        </div>
+      </div>
+      <div v-else-if="!users.length" class="empty-state">
+        <div class="empty-state-icon"><Shield :size="22" /></div>
+        <p class="empty-state-title">{{ t('users.noUsers') }}</p>
+        <p class="empty-state-hint">{{ t('users.noUsersHint') }}</p>
+        <button class="btn" type="button" @click="openCreateModal">
+          <UserPlus :size="16" />
+          {{ t('users.createUser') }}
+        </button>
+      </div>
+      <div v-else class="table-wrap">
         <table>
           <thead>
             <tr>
@@ -30,28 +45,30 @@
           </thead>
           <tbody>
             <tr v-for="user in users" :key="user.id">
-              <td>{{ user.id }}</td>
-              <td>{{ user.username }}</td>
-              <td>{{ user.full_name || user.email }}</td>
-              <td>{{ t('roles.' + user.role, user.role) }}</td>
-              <td>
+              <td :data-label="t('common.id', 'ID')">{{ user.id }}</td>
+              <td :data-label="t('users.username', 'Username')">{{ user.username }}</td>
+              <td :data-label="t('users.fullName', 'Full Name')">{{ user.full_name || user.email }}</td>
+              <td :data-label="t('users.role', 'Role')">{{ t('roles.' + user.role, user.role) }}</td>
+              <td :data-label="t('common.status', 'Status')">
                 <span class="pill" :class="user.is_active ? 'pill-current' : 'pill-overdue'">
                   {{ user.is_active ? t('common.active', 'Active') : t('users.inactive', 'Inactive') }}
                 </span>
               </td>
               <td>
                 <div class="form-inline">
-                  <button class="btn btn-secondary btn-icon" type="button" @click="openEditModal(user)">
-                    <Pencil :size="16" />
+                  <!-- Icon-only, so the action needs a name of its own; the pencil says
+                       nothing to a screen reader and nothing on hover. -->
+                  <button
+                    class="btn btn-secondary btn-icon"
+                    type="button"
+                    :title="t('users.editUser')"
+                    :aria-label="t('users.editUserNamed', { name: user.full_name || user.username })"
+                    @click="openEditModal(user)"
+                  >
+                    <Pencil :size="16" aria-hidden="true" />
                   </button>
                 </div>
               </td>
-            </tr>
-            <tr v-if="!users.length && !loading">
-              <td colspan="5">{{ t('users.noUsers', 'No users found.') }}</td>
-            </tr>
-            <tr v-if="loading">
-              <td colspan="5">{{ t('common.loading', 'Loading...') }}</td>
             </tr>
           </tbody>
         </table>
@@ -133,6 +150,7 @@ import { Shield, UserPlus, Pencil, Save, X } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import PasswordInput from '../components/PasswordInput.vue'
+import { usePageMessage } from '../composables/usePageMessage'
 import { apiClient } from '../services/api'
 import { type UserProfile, UserRole } from '../modules/authentication/authState'
 
@@ -143,8 +161,12 @@ const loading = ref(false)
 const showModal = ref(false)
 const editingUser = ref<UserProfile | null>(null)
 const isSaving = ref(false)
-const message = ref('')
-const error = ref('')
+
+/* This view imported usePageMessage but never called it, keeping a local `message` ref and
+   a second `error` ref alongside it. So `messageClass` was undefined in the template and the
+   banner rendered with no class at all — not even `.notice` — while failures went to a
+   separate paragraph below. One banner, one tone, and the tone cannot be forgotten. */
+const { message, messageClass, notify, fail, clearMessage } = usePageMessage()
 
 const form = ref({
   username: '',
@@ -166,12 +188,12 @@ const roleOptions = [
 
 const fetchUsers = async () => {
   loading.value = true
-  error.value = ''
   try {
     const data = await apiClient.request<UserProfile[]>('/users')
     users.value = data
   } catch (err: any) {
-    error.value = err.message || 'Failed to load users'
+    // Was the literal 'Failed to load users' — English, whatever the operator's locale.
+    fail(err.message || t('users.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -215,8 +237,7 @@ const closeModal = () => {
 
 const handleSubmit = async () => {
   isSaving.value = true
-  message.value = ''
-  error.value = ''
+  clearMessage()
 
   try {
     if (editingUser.value) {
@@ -237,7 +258,7 @@ const handleSubmit = async () => {
         method: 'PUT',
         body: JSON.stringify(payload)
       })
-      message.value = t('users.updatedSuccess', 'User updated successfully')
+      notify(t('users.updatedSuccess'))
     } else {
       await apiClient.request('/users', {
         method: 'POST',
@@ -252,12 +273,12 @@ const handleSubmit = async () => {
           role: form.value.role
         })
       })
-      message.value = t('users.createdSuccess', 'User created successfully')
+      notify(t('users.createdSuccess'))
     }
     closeModal()
     await fetchUsers()
   } catch (err: any) {
-    error.value = err.message || 'Action failed'
+    fail(err.message || t('users.actionFailed'))
   } finally {
     isSaving.value = false
   }

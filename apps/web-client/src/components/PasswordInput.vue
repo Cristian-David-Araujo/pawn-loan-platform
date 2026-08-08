@@ -45,24 +45,29 @@ const visible = ref(false)
   padding-right: 2.6rem;
 }
 
+/* These referenced --color-text-muted and --color-text, which this design system has never
+   defined, so both fell through to the hardcoded cool greys in the fallback slot — the one
+   place in the app still painting in the old palette. */
 .password-toggle {
   position: absolute;
   top: 50%;
-  right: 0.6rem;
+  right: 0.4rem;
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem;
+  padding: 0.35rem;
   border: none;
   background: transparent;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--muted);
   cursor: pointer;
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
+  transition: background-color var(--transition), color var(--transition);
 }
 
 .password-toggle:hover,
 .password-toggle:focus-visible {
-  color: var(--color-text, #111827);
+  color: var(--text);
+  background: var(--surface-hover);
 }
 </style>

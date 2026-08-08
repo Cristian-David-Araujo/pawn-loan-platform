@@ -1,8 +1,19 @@
+# Docker's json-file driver keeps no bound by default: a container log grows until the disk is
+# full, and this droplet has 24 GB shared with the database. Turning on access logging without
+# this is how a deploy that fixed observability takes the box down a month later. Anchored so
+# every service gets the same cap rather than three that drift.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   reverse-proxy:
     image: caddy:2.9-alpine
     container_name: pawn-reverse-proxy
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - ./.env.production
     ports:
@@ -22,6 +33,7 @@ services:
     image: ghcr.io/cristian-david-araujo/pawn-loan-platform/web-client:${IMAGE_TAG:-latest}
     container_name: pawn-web-client-prod
     restart: unless-stopped
+    logging: *default-logging
     healthcheck:
       test: ["CMD-SHELL", "nginx -t -q || exit 1"]
       interval: 10s
@@ -33,6 +45,7 @@ services:
     image: ghcr.io/cristian-david-araujo/pawn-loan-platform/api-server:${IMAGE_TAG:-latest}
     container_name: pawn-db-bootstrap-prod
     restart: "no"
+    logging: *default-logging
     env_file:
       - ./.env.production
     environment:
@@ -54,6 +67,7 @@ services:
     image: ghcr.io/cristian-david-araujo/pawn-loan-platform/api-server:${IMAGE_TAG:-latest}
     container_name: pawn-api-server-prod
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - ./.env.production
     environment:
@@ -69,6 +83,16 @@ services:
       DB_INIT_ON_STARTUP: ${DB_INIT_ON_STARTUP:-true}
       DB_SEED_ON_STARTUP: ${DB_SEED_ON_STARTUP:-false}
       DB_SEED_FORCE: ${DB_SEED_FORCE:-false}
+      BACKUP_SCHEDULER_ENABLED: ${BACKUP_SCHEDULER_ENABLED:-true}
+      BACKUP_SCHEDULER_INTERVAL_MINUTES: ${BACKUP_SCHEDULER_INTERVAL_MINUTES:-15}
+      BACKUP_LOCAL_DIRECTORY: ${BACKUP_LOCAL_DIRECTORY:-/var/backups/pawn-platform}
+    volumes:
+      # A named volume, not a container path: a scheduled copy written inside the container
+      # would be discarded by the next deploy, which recreates it — so the backups would
+      # disappear exactly when a rollback needed them. It is still the *same droplet*, so this
+      # protects against a bad release, not against losing the box; that is what the Google
+      # Drive destination is for.
+      - backup_data:/var/backups/pawn-platform
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,6 +113,7 @@ services:
     image: postgres:16-alpine
     container_name: pawn-postgres-prod
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - ./.env.production
     environment:
@@ -107,3 +132,4 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
+  backup_data:

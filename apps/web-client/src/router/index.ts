@@ -45,18 +45,20 @@ const router = createRouter({
       component: AppLayout,
       meta: { requiresAuth: true },
       children: [
-    {
-      path: '/collaterals',
-      name: 'collaterals',
-      component: () => import('../views/CollateralsView.vue'),
-      meta: { requiresAuth: true, labelKey: 'app.collateral' }
-    },
-
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: DashboardView, meta: { labelKey: 'app.dashboard' } },
         { path: 'customers', name: 'customers', component: CustomersView, meta: { labelKey: 'app.customers' } },
         { path: 'loans', name: 'loans', component: LoansView, meta: { labelKey: 'app.loans' } },
-        { path: 'collateral', redirect: '/loans' },
+        {
+          path: 'collaterals',
+          name: 'collaterals',
+          component: () => import('../views/CollateralsView.vue'),
+          meta: { labelKey: 'app.collateral' }
+        },
+        /* The singular spelling is the obvious guess and whatever older links exist. It used
+           to redirect to /loans, which put an operator looking for the vault on the loan
+           list with nothing saying they were on the wrong screen. */
+        { path: 'collateral', redirect: '/collaterals' },
         { path: 'payments', name: 'payments', component: PaymentsView, meta: { labelKey: 'app.payments' } },
         { path: 'reporting', name: 'reporting', component: ReportingView, meta: { labelKey: 'app.reporting', roles: [UserRole.Administrator, UserRole.LoanOfficer] } },
         { path: 'settings', name: 'settings', component: SettingsView, meta: { labelKey: 'app.settings', roles: [UserRole.Administrator] } },

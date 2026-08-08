@@ -1,5 +1,5 @@
 {
-  "name": "pawn-loan-web-client",
+  "name": "mutuum-web-client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,6 +8,8 @@
     "build": "vue-tsc -b && vite build",
     "build:ci": "vite build",
     "typecheck": "vue-tsc -b",
+    "check:i18n": "node scripts/check-i18n.mjs",
+    "check:contrast": "node scripts/check-contrast.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

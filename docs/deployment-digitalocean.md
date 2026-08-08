@@ -152,6 +152,24 @@ Tail logs:
 docker compose --env-file .env.production -f docker-compose.prod.yml logs -f
 ```
 
+Access logs live on `reverse-proxy`. Caddy is the only component that sees every request with the
+real client IP — nginx and the API are both behind it — so this is where to look first when a
+browser reports a failure the application has no record of:
+
+```bash
+# every request, as JSON
+docker compose --env-file .env.production -f docker-compose.prod.yml logs -f reverse-proxy
+
+# just the logins, with status
+docker compose --env-file .env.production -f docker-compose.prod.yml logs reverse-proxy \
+  | grep auth/login
+```
+
+An empty result there is itself the answer: the request never arrived, so the problem is DNS, the
+client's cache, or the network — not the credentials. The API adds its own uvicorn access line per
+request, and every service caps its log at 10 MB × 3 files (`x-logging` in the compose file);
+Docker's json-file driver keeps no bound of its own.
+
 If API appears unhealthy, check bootstrap logs first:
 
 ```bash
