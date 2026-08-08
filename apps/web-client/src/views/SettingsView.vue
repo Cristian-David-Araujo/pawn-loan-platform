@@ -28,7 +28,7 @@
           <label :title="t('settings.appNameHelp')">
             <span class="field-label-row">
               {{ t('settings.appName') }}
-              <span class="field-help" aria-hidden="true">ⓘ</span>
+              <Info class="field-help" :size="13" aria-hidden="true" />
             </span>
             <input v-model="form.appName" required :title="t('settings.appNameHelp')" />
           </label>
@@ -91,28 +91,28 @@
         <label :title="t('settings.currencyCodeHelp')">
           <span class="field-label-row">
             {{ t('settings.currencyCode') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <CustomSelect v-model="form.currencyCode" :options="currencyOptions" />
         </label>
         <label :title="t('settings.timezoneHelp')">
           <span class="field-label-row">
             {{ t('settings.timezone') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <input v-model="form.timezone" required :title="t('settings.timezoneHelp')" />
         </label>
         <label :title="t('settings.dateFormatHelp')">
           <span class="field-label-row">
             {{ t('settings.dateFormat') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <CustomSelect v-model="form.dateFormat" :options="dateFormatOptions" />
         </label>
         <label :title="t('settings.defaultLatePenaltyRateHelp')">
           <span class="field-label-row">
             {{ t('settings.defaultLatePenaltyRate') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <input
             v-model.number="form.defaultLatePenaltyRate"
@@ -126,7 +126,7 @@
         <label :title="t('settings.interestGenerationLeadDaysHelp')">
           <span class="field-label-row">
             {{ t('settings.interestGenerationLeadDays') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <input
             v-model.number="form.interestGenerationLeadDays"
@@ -141,7 +141,7 @@
         <label :title="t('settings.defaultGraceDaysHelp')">
           <span class="field-label-row">
             {{ t('settings.defaultGraceDays') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <input
             v-model.number="form.defaultGraceDays"
@@ -257,7 +257,7 @@
 import CustomSelect from '../components/CustomSelect.vue'
 import { onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Download, Save, Settings, Sparkles, Upload } from 'lucide-vue-next'
+import { Download, Info, Save, Settings, Sparkles, Upload } from 'lucide-vue-next'
 import PageHeader from '../components/PageHeader.vue'
 import ScheduledBackupCard from '../components/ScheduledBackupCard.vue'
 import { usePageMessage } from '../composables/usePageMessage'

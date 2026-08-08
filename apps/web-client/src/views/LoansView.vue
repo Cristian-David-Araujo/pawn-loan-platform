@@ -45,7 +45,7 @@
         <label :title="t('loans.monthlyInterestRateHelp')">
           <span class="field-label-row">
             {{ t('loans.monthlyInterestRate') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <input
             v-model.number="form.monthlyInterestRate"
@@ -59,7 +59,7 @@
         <label :title="t('loans.disbursementDateHelp')">
           <span class="field-label-row">
             {{ t('loans.disbursementDate') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <DateInputField
             v-model="form.disbursementDate"
@@ -84,14 +84,14 @@
           <input v-model="applyLatePenalty" type="checkbox" />
           <span class="field-label-row">
             {{ t('loans.applyLatePenalty') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
         </label>
         <div v-if="applyLatePenalty">
           <label :title="t('loans.latePenaltyRateHelp')">
             <span class="field-label-row">
               {{ t('loans.latePenaltyRate') }}
-              <span class="field-help" aria-hidden="true">ⓘ</span>
+              <Info class="field-help" :size="13" aria-hidden="true" />
             </span>
             <input
               v-model.number="form.latePenaltyRate"
@@ -114,7 +114,7 @@
         <input v-model="applyCollateralAssociation" type="checkbox" />
         <span class="field-label-row">
           {{ t('loans.applyCollateral') }}
-          <span class="field-help" aria-hidden="true">ⓘ</span>
+          <Info class="field-help" :size="13" aria-hidden="true" />
         </span>
       </label>
 
@@ -190,7 +190,13 @@
 
     <div class="card mt-16">
       <div class="table-toolbar">
-        <input v-model="search" class="table-search" type="text" :placeholder="t('loans.searchPlaceholder')" />
+        <input
+          v-model="search"
+          class="table-search"
+          type="search"
+          :placeholder="t('loans.searchPlaceholder')"
+          :aria-label="t('loans.searchPlaceholder')"
+        />
         <CustomSelect v-model="statusFilter" inputClass="table-select" :options="statusFilterOptions" />
         <button class="btn btn-secondary" type="button" @click="resetLoanFilters">
           <FilterX :size="16" />
@@ -323,7 +329,7 @@ import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
-import { BadgeDollarSign, ClockAlert, FilePlus2, FilterX, HandCoins, Trash2, TrendingUp, X, Printer } from 'lucide-vue-next'
+import { BadgeDollarSign, ClockAlert, FilePlus2, FilterX, HandCoins, Info, Trash2, TrendingUp, X, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'

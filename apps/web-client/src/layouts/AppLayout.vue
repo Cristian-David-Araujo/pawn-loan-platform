@@ -58,6 +58,7 @@
             :customers="state.customers"
             inputClass="topbar-search"
             :placeholder="t('customers.searchPlaceholder')"
+            :aria-label="t('customers.searchPlaceholder')"
           />
           <CustomSelect
             id="locale-select"

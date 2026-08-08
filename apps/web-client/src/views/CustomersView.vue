@@ -16,7 +16,15 @@
 
     <div class="card mt-16">
       <div class="table-toolbar">
-        <input v-model="search" class="table-search" type="text" :placeholder="t('customers.searchPlaceholder')" />
+        <!-- A placeholder is not a label: it is gone the moment the field has a value, and a
+             screen reader announces nothing. -->
+        <input
+          v-model="search"
+          class="table-search"
+          type="search"
+          :placeholder="t('customers.searchPlaceholder')"
+          :aria-label="t('customers.searchPlaceholder')"
+        />
         <CustomSelect v-model="customerStatusFilter" inputClass="table-select" :options="customerStatusFilterOptions" />
         <span class="table-count">{{ t('customers.totalRecords', { count: filteredCustomers.length }) }}</span>
       </div>

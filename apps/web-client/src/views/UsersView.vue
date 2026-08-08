@@ -56,8 +56,16 @@
               </td>
               <td>
                 <div class="form-inline">
-                  <button class="btn btn-secondary btn-icon" type="button" @click="openEditModal(user)">
-                    <Pencil :size="16" />
+                  <!-- Icon-only, so the action needs a name of its own; the pencil says
+                       nothing to a screen reader and nothing on hover. -->
+                  <button
+                    class="btn btn-secondary btn-icon"
+                    type="button"
+                    :title="t('users.editUser')"
+                    :aria-label="t('users.editUserNamed', { name: user.full_name || user.username })"
+                    @click="openEditModal(user)"
+                  >
+                    <Pencil :size="16" aria-hidden="true" />
                   </button>
                 </div>
               </td>

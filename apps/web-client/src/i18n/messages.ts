@@ -126,6 +126,7 @@ export const messages = {
       noUsersHint: 'Every person who signs in needs an account. Create the first one to get started.',
       createdSuccess: 'User created successfully',
       updatedSuccess: 'User updated successfully',
+      editUserNamed: 'Edit {name}',
       loadFailed: "We couldn't load the users. Check the connection and try again.",
       actionFailed: "We couldn't save the user. Check the fields and try again."
     },
@@ -934,6 +935,7 @@ export const messages = {
       noUsersHint: 'Cada persona que inicie sesión necesita una cuenta. Crea la primera para empezar.',
       createdSuccess: 'Usuario creado exitosamente',
       updatedSuccess: 'Usuario actualizado exitosamente',
+      editUserNamed: 'Editar {name}',
       loadFailed: 'No pudimos cargar los usuarios. Revisa la conexión e inténtalo otra vez.',
       actionFailed: 'No pudimos guardar el usuario. Revisa los campos e inténtalo otra vez.'
     },

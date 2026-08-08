@@ -22,11 +22,12 @@
 
     <div class="card mt-16">
       <div class="table-toolbar">
-        <input 
-          v-model="searchQuery" 
-          class="table-search" 
-          type="text" 
-          :placeholder="t('common.searchPlaceholder')" 
+        <input
+          v-model="searchQuery"
+          class="table-search"
+          type="search"
+          :placeholder="t('common.searchPlaceholder')"
+          :aria-label="t('common.searchPlaceholder')"
         />
         <CustomSelect 
           v-model="filterStatus" 

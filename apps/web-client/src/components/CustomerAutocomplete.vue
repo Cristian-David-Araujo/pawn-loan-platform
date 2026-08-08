@@ -10,6 +10,7 @@
       :aria-expanded="isOpen"
       :aria-controls="listboxId"
       :aria-activedescendant="isOpen && activeIndex >= 0 ? `${listboxId}-opt-${activeIndex}` : undefined"
+      :aria-label="ariaLabel || placeholder"
       v-model="searchQuery"
       @focus="isOpen = true"
       @input="onInput"
@@ -59,6 +60,8 @@ const props = defineProps<{
   placeholder?: string
   inputClass?: string
   id?: string
+  /** For the topbar copy, which has no visible <label> beside it. */
+  ariaLabel?: string
 }>()
 
 const emit = defineEmits<{
