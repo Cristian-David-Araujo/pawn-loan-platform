@@ -3,7 +3,7 @@
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
-          <KeyRound :size="28" />
+          <BrandMark :size="30" />
         </span>
       </div>
       <header class="login-header">
@@ -14,28 +14,28 @@
       <p v-if="error" class="notice notice-error">{{ error }}</p>
       <p v-if="successMessage" class="notice notice-success">{{ successMessage }}</p>
 
-      <div v-if="devResetToken" class="notice notice-info" style="margin-top: 1rem; word-break: break-all; font-size: 0.9rem;">
+      <div v-if="devResetToken" class="notice notice-info auth-dev-token">
         <span>{{ t('auth.devModeNotice') }}: </span>
-        <router-link :to="`/reset-password?token=${devResetToken}`" style="font-weight: bold; text-decoration: underline; color: inherit;">
+        <router-link :to="`/reset-password?token=${devResetToken}`">
           {{ devResetToken }}
         </router-link>
       </div>
 
-      <form v-if="!successMessage || devResetToken" class="login-form" style="margin-top: 1.5rem;" @submit.prevent="handleSubmit">
+      <form v-if="!successMessage || devResetToken" class="login-form mt-24" @submit.prevent="handleSubmit">
         <label>
           {{ t('auth.usernameOrEmail') }}
           <input v-model="identifier" type="text" autocomplete="username" required />
         </label>
 
-        <button class="btn" type="submit" :disabled="isSubmitting" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
-          <Send v-if="!isSubmitting" :size="16" />
+        <button class="btn" type="submit" :disabled="isSubmitting" :class="{ 'is-loading': isSubmitting }">
+          <Send v-if="!isSubmitting" :size="16" aria-hidden="true" />
           {{ isSubmitting ? t('auth.sendingLink') : t('auth.sendResetLink') }}
         </button>
       </form>
 
-      <div style="margin-top: 1.5rem; text-align: center;">
-        <router-link to="/login" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: var(--color-primary, #2563eb); text-decoration: none; font-weight: 500;">
-          <ArrowLeft :size="16" />
+      <div class="auth-link-center">
+        <router-link class="auth-link" to="/login">
+          <ArrowLeft :size="16" aria-hidden="true" />
           {{ t('auth.backToLogin') }}
         </router-link>
       </div>
@@ -46,7 +46,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { KeyRound, Send, ArrowLeft } from 'lucide-vue-next'
+import { Send, ArrowLeft } from 'lucide-vue-next'
+import BrandMark from '../components/BrandMark.vue'
 import { useAuthState } from '../modules/authentication/authState'
 
 const { t } = useI18n()

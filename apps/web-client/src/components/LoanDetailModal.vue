@@ -4,20 +4,23 @@
       <div class="modal-header">
         <h3>{{ t('loans.loanDetail') }}</h3>
         <div class="form-inline">
-          <button v-if="canForeclose" class="btn btn-danger btn-sm" type="button" :disabled="isForeclosing" @click="confirmForeclose" style="background: #dc2626; color: white; border-color: #dc2626;">
-            <AlertTriangle :size="14" style="margin-right: 4px;" />
+          <!-- `.btn-danger` already carries this colour; the inline style repeated it in the
+               old palette's red, and `.btn-sm` was never a class anywhere. -->
+          <button v-if="canForeclose" class="btn btn-danger" type="button" :disabled="isForeclosing" @click="confirmForeclose">
+            <AlertTriangle :size="14" aria-hidden="true" />
             <span v-if="isForeclosing" class="spinner-small"></span>
             <span v-else>{{ t('loans.forecloseLoan') }}</span>
           </button>
-          <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;">
-
-            <Printer :size="16" />
+          <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')">
+            <Printer :size="16" aria-hidden="true" />
           </a>
           <button class="btn btn-secondary btn-icon" type="button" @click="closeModal">
             <X :size="16" />
           </button>
         </div>
       </div>
+
+      <p v-if="forecloseError" class="notice notice-error mt-16">{{ forecloseError }}</p>
 
       <p class="muted mt-16">{{ t('loans.selectedLoan', { id: loan.id }) }}</p>
 
@@ -76,8 +79,17 @@
         </div>
       </div>
 
-      <div v-if="financialDataLoading" class="mt-16 text-center muted">
-        {{ t('common.loading') }}
+      <!-- Skeleton tiles in the shape of the two figures that are coming, so the modal does
+           not resize under the reader the moment they arrive. -->
+      <div v-if="financialDataLoading" class="grid grid-2 mt-16" role="status" :aria-label="t('common.loading')">
+        <div class="card stat-card">
+          <span class="skeleton skeleton-text" style="width: 45%"></span>
+          <span class="skeleton skeleton-text" style="width: 70%; height: 1.2rem"></span>
+        </div>
+        <div class="card stat-card">
+          <span class="skeleton skeleton-text" style="width: 45%"></span>
+          <span class="skeleton skeleton-text" style="width: 70%; height: 1.2rem"></span>
+        </div>
       </div>
       <div v-else>
         <div class="grid grid-2 mt-16">
@@ -111,14 +123,14 @@
               </thead>
               <tbody>
                 <tr v-for="payment in paginatedLoanPayments" :key="payment.id">
-                  <td>{{ formatDateDMY(payment.paymentDate) }}</td>
-                  <td>{{ formatCurrency(payment.totalAmount) }}</td>
-                  <td>{{ formatCurrency(payment.allocatedToPenalty) }}</td>
-                  <td>{{ formatCurrency(payment.allocatedToInterest) }}</td>
-                  <td>{{ formatCurrency(payment.allocatedToFees) }}</td>
-                  <td>{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
-                  <td>{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
-                  <td class="muted">
+                  <td :data-label="t('common.date')">{{ formatDateDMY(payment.paymentDate) }}</td>
+                  <td :data-label="t('common.total')">{{ formatCurrency(payment.totalAmount) }}</td>
+                  <td :data-label="t('payments.penalty')">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
+                  <td :data-label="t('common.interest')">{{ formatCurrency(payment.allocatedToInterest) }}</td>
+                  <td :data-label="t('common.fees')">{{ formatCurrency(payment.allocatedToFees) }}</td>
+                  <td :data-label="t('common.principal')">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
+                  <td :data-label="t('common.method')">{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
+                  <td class="muted" :data-label="t('payments.notes')">
                     {{ payment.notes || '-' }}
                     <div v-if="payment.isReversed" class="pill pill-overdue mt-1">
                       {{ t('payments.reversed') }}<template v-if="payment.reversalReason">: {{ payment.reversalReason }}</template>
@@ -161,12 +173,12 @@
               </thead>
               <tbody>
                 <tr v-for="item in paginatedLoanCollateral" :key="item.id">
-                  <td>#{{ item.id }}</td>
-                  <td>{{ item.description }}</td>
-                  <td>{{ formatCurrency(item.appraisedValue) }}</td>
-                  <td>{{ item.custodyCode }}</td>
-                  <td>{{ item.storageLocation }}</td>
-                  <td>{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
+                  <td :data-label="t('common.id')">#{{ item.id }}</td>
+                  <td :data-label="t('common.description')">{{ item.description }}</td>
+                  <td :data-label="t('collateral.appraisedValue')">{{ formatCurrency(item.appraisedValue) }}</td>
+                  <td :data-label="t('collateral.custodyCode')">{{ item.custodyCode }}</td>
+                  <td :data-label="t('collateral.location')">{{ item.storageLocation }}</td>
+                  <td :data-label="t('common.status')">{{ item.status === 'in-custody' ? t('common.inCustody') : t(`common.${item.status}`) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -192,7 +204,10 @@ import { Printer, X, Pencil, Save, AlertTriangle, Trash2 } from 'lucide-vue-next
 import { usePlatformStore } from '../stores/platformStore'
 
 import Pagination from './Pagination.vue'
-import { billingAnchorDay } from '../utils/date'
+import { formatCurrency } from '../utils/currency'
+/* `formatDateDMY` was written out again in this file and hard-coded `DD/MM/YYYY`, so the
+   loan detail ignored `GlobalSettings.dateFormat` the same way the collateral screen did. */
+import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import PaymentReversalModal from './PaymentReversalModal.vue'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { Loan, Payment, CollateralItem } from '../types/domain'
@@ -234,22 +249,6 @@ const billingDay = computed(() =>
 const loanPaymentsCurrentPage = ref(1)
 const loanCollateralsCurrentPage = ref(1)
 
-const locale = useI18n().locale
-const currencyCode = computed(() => store.state.globalSettings?.currencyCode ?? 'COP')
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(amount)
-
-const formatDateDMY = (dateString: string) => {
-  if (!dateString) return '-'
-  const [y, m, d] = dateString.split('-')
-  return `${d}/${m}/${y}`
-}
-
-
 const paginatedLoanPayments = computed(() => {
   const start = (loanPaymentsCurrentPage.value - 1) * 10
   return props.payments.slice(start, start + 10)
@@ -281,17 +280,26 @@ const canForeclose = computed(() => {
          ['active', 'overdue'].includes(props.loan?.status)
 })
 
+const forecloseError = ref('')
+
 const confirmForeclose = async () => {
   if (await confirmDialog(t('collaterals.foreclosureWarning'))) {
     if (!props.loan) return
     try {
       isForeclosing.value = true
+      forecloseError.value = ''
       await store.forecloseLoan(props.loan.id)
+      /* Was `window.location.reload()` with the comment "simple refresh to update tables".
+         It threw away the operator's filters, sort order and page — and, when this modal was
+         opened from a customer detail, the whole customer they were working in — immediately
+         after the most consequential action in the product. `refreshAll` is what the store
+         has for this, and the parent already listens for the event. */
+      await store.refreshAll()
+      emit('payments-changed')
       emit('close')
-      window.location.reload() // simple refresh to update tables
     } catch (e: any) {
-      console.error(e)
-      alert('Error: ' + (e.response?.data?.detail || e.message))
+      // Was a native `alert('Error: ' + ...)`, in English regardless of locale.
+      forecloseError.value = e?.response?.data?.detail || e?.message || t('loans.forecloseFailed')
     } finally {
       isForeclosing.value = false
     }

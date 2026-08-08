@@ -50,14 +50,14 @@
           <label v-if="form.frequency === 'monthly'" :title="t('backups.dayOfMonthHelp')">
             <span class="field-label-row">
               {{ t('backups.dayOfMonth') }}
-              <span class="field-help" aria-hidden="true">ⓘ</span>
+              <Info class="field-help" :size="13" aria-hidden="true" />
             </span>
             <CustomSelect v-model="form.dayOfMonth" :options="monthDayOptions" />
           </label>
           <label :title="t('backups.retentionHelp')">
             <span class="field-label-row">
               {{ t('backups.retention') }}
-              <span class="field-help" aria-hidden="true">ⓘ</span>
+              <Info class="field-help" :size="13" aria-hidden="true" />
             </span>
             <input v-model.number="form.retentionCopies" type="number" min="0" max="365" step="1" />
           </label>
@@ -78,7 +78,7 @@
           <label v-if="form.destination === 'local_directory'" :title="t('backups.localDirectoryHelp')">
             <span class="field-label-row">
               {{ t('backups.localDirectory') }}
-              <span class="field-help" aria-hidden="true">ⓘ</span>
+              <Info class="field-help" :size="13" aria-hidden="true" />
             </span>
             <!-- Empty means "follow the deployment default", so the effective path is the
                  placeholder rather than the value: filling it in would silently pin it. -->
@@ -203,7 +203,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { DatabaseBackup, Link2, PlugZap, Save, Unlink } from 'lucide-vue-next'
+import { DatabaseBackup, Info, Link2, PlugZap, Save, Unlink } from 'lucide-vue-next'
 import CustomSelect from './CustomSelect.vue'
 import PasswordInput from './PasswordInput.vue'
 import { apiClient, apiErrorMessage } from '../services/api'
@@ -525,7 +525,7 @@ onMounted(async () => {
   padding-left: 1.2rem;
   display: grid;
   gap: 0.3rem;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 /* An error message can be a full sentence from Google; it wraps rather than stretching the

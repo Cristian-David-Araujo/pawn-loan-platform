@@ -6,6 +6,11 @@
       </template>
     </PageHeader>
 
+    <!-- This view had no banner at all, which is why four failures were reported through
+         native alert() dialogs — modal, unstyled, untranslatable and impossible to read
+         beside the row they were about. -->
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
+
     <div class="tabs mt-16">
       <button class="tab-btn" :class="{ active: activeTab === 'custody' }" @click="activeTab = 'custody'" type="button">
         {{ t('collaterals.tabCustody') }}
@@ -17,11 +22,12 @@
 
     <div class="card mt-16">
       <div class="table-toolbar">
-        <input 
-          v-model="searchQuery" 
-          class="table-search" 
-          type="text" 
-          :placeholder="t('common.searchPlaceholder')" 
+        <input
+          v-model="searchQuery"
+          class="table-search"
+          type="search"
+          :placeholder="t('common.searchPlaceholder')"
+          :aria-label="t('common.searchPlaceholder')"
         />
         <CustomSelect 
           v-model="filterStatus" 
@@ -31,49 +37,53 @@
         <span class="table-count">{{ t('collaterals.totalItems', { count: filteredItems.length }, { default: `Total: ${filteredItems.length}` }) }}</span>
       </div>
 
-      <div v-if="loading" class="text-center muted mt-16 p-16">
-        {{ t('common.loading') }}
+      <!-- A skeleton in the shape of the table that is coming, rather than the word
+           "Loading" centred in an empty panel: the layout no longer jumps when rows land. -->
+      <div v-if="loading" class="table-wrap" role="status" :aria-label="t('common.loading')">
+        <div v-for="row in 6" :key="row" class="skeleton-row">
+          <span class="skeleton" v-for="cell in 5" :key="cell"></span>
+        </div>
       </div>
       <div v-else class="table-wrap">
         <table>
           <thead>
             <tr v-if="activeTab === 'custody'">
-              <th width="60">{{ t('common.id') }}</th>
-              <th width="120">{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('collateral.custodyCode') }}</th>
               <th>{{ t('common.description') }}</th>
-              <th width="110" class="text-right">{{ t('collateral.appraisedValue') }}</th>
-              <th width="100">{{ t('common.loan') }}</th>
-              <th width="110" class="text-right">{{ t('common.principal') }}</th>
-              <th width="110" class="text-right">{{ t('loans.outstanding') }}</th>
-              <th width="110" class="text-right">{{ t('common.interest', 'Interés') }}</th>
-              <th width="120">{{ t('common.status') }}</th>
-              <th width="90" class="text-center">{{ t('common.actions') }}</th>
+              <th class="text-right">{{ t('collateral.appraisedValue') }}</th>
+              <th>{{ t('common.loan') }}</th>
+              <th class="text-right">{{ t('common.principal') }}</th>
+              <th class="text-right">{{ t('loans.outstanding') }}</th>
+              <th class="text-right">{{ t('common.interest', 'Interés') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th class="text-center">{{ t('common.actions') }}</th>
             </tr>
             <tr v-else>
-              <th width="60">{{ t('common.id') }}</th>
-              <th width="120">{{ t('collateral.custodyCode') }}</th>
+              <th>{{ t('common.id') }}</th>
+              <th>{{ t('collateral.custodyCode') }}</th>
               <th>{{ t('common.description') }}</th>
-              <th width="110" class="text-right">{{ t('collateral.appraisedValue') }}</th>
-              <th width="100">{{ t('common.loan') }}</th>
-              <th width="110" class="text-right">{{ t('common.principal') }}</th>
-              <th width="110" class="text-right">{{ t('loans.outstanding') }}</th>
-              <th width="110" class="text-right">{{ t('common.interest', 'Interés') }}</th>
-              <th width="120">{{ t('common.status') }}</th>
-              <th width="110" class="text-right">{{ t('collaterals.salePrice') }}</th>
-              <th width="100">{{ t('collaterals.saleDate') }}</th>
-              <th width="80" class="text-center">{{ t('common.actions') }}</th>
+              <th class="text-right">{{ t('collateral.appraisedValue') }}</th>
+              <th>{{ t('common.loan') }}</th>
+              <th class="text-right">{{ t('common.principal') }}</th>
+              <th class="text-right">{{ t('loans.outstanding') }}</th>
+              <th class="text-right">{{ t('common.interest', 'Interés') }}</th>
+              <th>{{ t('common.status') }}</th>
+              <th class="text-right">{{ t('collaterals.salePrice') }}</th>
+              <th>{{ t('collaterals.saleDate') }}</th>
+              <th class="text-center">{{ t('common.actions') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="item in paginatedItems" :key="item.id">
-              <td>{{ item.id }}</td>
-              <td>{{ item.custody_code || item.custodyCode }}</td>
-              <td>{{ item.description }}</td>
-              <td class="text-right">{{ formatCurrency(item.appraised_value || item.appraisedValue) }}</td>
+              <td :data-label="t('common.id')">{{ item.id }}</td>
+              <td :data-label="t('collateral.custodyCode')">{{ item.custody_code || item.custodyCode }}</td>
+              <td :data-label="t('common.description')">{{ item.description }}</td>
+              <td class="text-right" :data-label="t('collateral.appraisedValue')">{{ formatCurrency(item.appraised_value || item.appraisedValue) }}</td>
               
               <!-- Tab Custody Columns -->
               <template v-if="activeTab === 'custody'">
-                <td>
+                <td :data-label="t('common.loan')">
                   <div class="fw-bold">#{{ item.loan_id || item.loanId }}</div>
                   <div v-if="item.loan_status || item.loanStatus" class="mt-1">
                     <span :class="['pill', getLoanStatusClass(item.loan_status || item.loanStatus)]">
@@ -81,20 +91,20 @@
                     </span>
                   </div>
                 </td>
-                <td class="text-right">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
-                <td class="text-right">
+                <td class="text-right" :data-label="t('common.principal')">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
+                <td class="text-right" :data-label="t('loans.outstanding')">
                   <span v-if="item.loan_outstanding || item.loanOutstanding" class="text-danger-dark fw-bold">
                     {{ formatCurrency(item.loan_outstanding || item.loanOutstanding) }}
                   </span>
                   <span v-else>-</span>
                 </td>
-                <td class="text-right">
+                <td class="text-right" :data-label="t('common.interest', 'Interés')">
                   <span v-if="(item.loan_interest_due !== undefined && item.loan_interest_due !== null) || (item.loanInterestDue !== undefined && item.loanInterestDue !== null)" class="text-warning-dark fw-bold">
                     {{ formatCurrency(item.loan_interest_due ?? item.loanInterestDue) }}
                   </span>
                   <span v-else>-</span>
                 </td>
-                <td>
+                <td :data-label="t('common.status')">
                   <span :class="['pill', getStatusClass(item.status)]">
                     {{ getStatusLabel(item.status) }}
                   </span>
@@ -115,7 +125,7 @@
 
               <!-- Tab Inventory Columns -->
               <template v-else>
-                <td>
+                <td :data-label="t('common.loan')">
                   <div class="fw-bold">#{{ item.loan_id || item.loanId }}</div>
                   <div v-if="item.loan_status || item.loanStatus" class="mt-1">
                     <span :class="['pill', getLoanStatusClass(item.loan_status || item.loanStatus)]">
@@ -123,26 +133,26 @@
                     </span>
                   </div>
                 </td>
-                <td class="text-right">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
-                <td class="text-right">
+                <td class="text-right" :data-label="t('common.principal')">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
+                <td class="text-right" :data-label="t('loans.outstanding')">
                   <span v-if="item.loan_outstanding || item.loanOutstanding" class="text-danger-dark fw-bold">
                     {{ formatCurrency(item.loan_outstanding || item.loanOutstanding) }}
                   </span>
                   <span v-else>-</span>
                 </td>
-                <td class="text-right">
+                <td class="text-right" :data-label="t('common.interest', 'Interés')">
                   <span v-if="(item.loan_interest_due !== undefined && item.loan_interest_due !== null) || (item.loanInterestDue !== undefined && item.loanInterestDue !== null)" class="text-warning-dark fw-bold">
                     {{ formatCurrency(item.loan_interest_due ?? item.loanInterestDue) }}
                   </span>
                   <span v-else>-</span>
                 </td>
-                <td>
+                <td :data-label="t('common.status')">
                   <span :class="['pill', getStatusClass(item.status)]">
                     {{ getStatusLabel(item.status) }}
                   </span>
                 </td>
-                <td class="text-right">{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
-                <td>{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
+                <td class="text-right" :data-label="t('collaterals.salePrice')">{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
+                <td :data-label="t('collaterals.saleDate')">{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
                 <td class="text-center">
                   <button 
                     v-if="item.status === 'for_sale'" 
@@ -182,21 +192,23 @@
           <div v-if="confirmStep === 1">
             <label>
               {{ t('collaterals.salePrice') }}
-              <input type="number" v-model="salePrice" min="0" step="0.01" class="w-full mt-4" />
+              <input type="number" v-model="salePrice" min="0" step="0.01" />
             </label>
             <label class="mt-16">
               {{ t('collaterals.notes') }}
-              <textarea v-model="saleNotes" rows="3" class="w-full mt-4"></textarea>
+              <textarea v-model="saleNotes" rows="3"></textarea>
             </label>
           </div>
-          <div v-else class="text-center p-16">
-            <AlertTriangle :size="32" class="text-warning mx-auto mb-8" style="color: #d97706;" />
+          <!-- Step two: selling someone's pledge is irreversible, so the step states the
+               item and the price before the button that does it. -->
+          <div v-else class="sell-confirm">
+            <AlertTriangle :size="30" class="sell-confirm-icon" aria-hidden="true" />
             <p><strong>{{ t('collaterals.confirmSellStepOne', { item: selectedItem?.description, price: formatCurrency(salePrice || 0) }) }}</strong></p>
             <p class="muted mt-8">{{ t('collaterals.confirmSellStepTwo') }}</p>
           </div>
         </div>
 
-        <div class="form-actions mt-16" style="display: flex; justify-content: flex-end; gap: 1rem;">
+        <div class="form-actions mt-16">
           <button class="btn btn-secondary" type="button" @click="closeSellModal" :disabled="isSubmitting">
             {{ t('common.cancel') }}
           </button>
@@ -218,11 +230,15 @@ import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { usePageMessage } from '../composables/usePageMessage'
 import { Shield, DollarSign, X, AlertTriangle, PackageCheck } from 'lucide-vue-next'
+import { formatCurrency } from '../utils/currency'
+import { formatDateDMY } from '../utils/date'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const store = usePlatformStore()
 const { confirm } = useConfirmDialog()
+const { message, messageClass, notify, fail, clearMessage } = usePageMessage()
 
 const items = ref<any[]>([])
 const loading = ref(true)
@@ -259,17 +275,10 @@ const inventoryStatusOptions = computed(() => [
   { value: 'liquidated', label: t('collaterals.statusLiquidated') }
 ])
 
-const currencyCode = computed(() => store.state.globalSettings?.currencyCode ?? 'COP')
-const formatCurrency = (val: number) => {
-  if (val === null || val === undefined) return '-'
-  return new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', { style: 'currency', currency: currencyCode.value }).format(val)
-}
-
-const formatDateDMY = (dateString: string) => {
-  if (!dateString) return '-'
-  const [y, m, d] = dateString.split('-')
-  return `${d}/${m}/${y}`
-}
+/* Both formatters used to be local to this file: the currency one grouped with `es-MX`
+   while the printed documents used `es-CO`, and the date one hard-coded `DD/MM/YYYY` and so
+   ignored `GlobalSettings.dateFormat` entirely — this was the one screen where changing
+   that setting did nothing. */
 
 const getStatusClass = (status: string) => {
   switch(status) {
@@ -316,7 +325,11 @@ const loadItems = async () => {
     loading.value = true
     items.value = await store.fetchCollateralItems()
   } catch (err: any) {
-    alert(t('common.errors?.generic') || 'Error fetching data')
+    /* Was `alert(t('common.errors?.generic') || 'Error fetching data')`. That key does not
+       exist, and `t()` renders a missing key as the key itself — which is truthy, so the
+       `||` fallback never fired and a failed load popped a browser dialog reading the
+       literal string `common.errors?.generic`. */
+    fail(err.message || t('collaterals.loadFailed'))
   } finally {
     loading.value = false
   }
@@ -382,10 +395,13 @@ const handBackItem = async (item: any) => {
 
   try {
     isSubmitting.value = true
+    clearMessage()
     await store.releaseCollateralItem(item.id)
     await loadItems()
+    // Handing goods back said nothing at all before: the row simply left the tab.
+    notify(t('collaterals.handbackItemDone', { code: item.custody_code ?? item.custodyCode }))
   } catch (err: any) {
-    alert(err.message || t('collaterals.handbackFailed'))
+    fail(err.message || t('collaterals.handbackFailed'))
   } finally {
     isSubmitting.value = false
   }
@@ -410,7 +426,7 @@ const closeSellModal = () => {
 const handleSell = async () => {
   if (confirmStep.value === 1) {
     if (!salePrice.value || salePrice.value <= 0) {
-      alert(t('collaterals.invalidPrice'))
+      fail(t('collaterals.invalidPrice'))
       return
     }
     confirmStep.value = 2
@@ -418,17 +434,37 @@ const handleSell = async () => {
   }
 
   if (!selectedItem.value) return
+  const soldCode = selectedItem.value.custody_code ?? selectedItem.value.custodyCode
+  const soldFor = salePrice.value!
   try {
     isSubmitting.value = true
-    await store.sellCollateralItem(selectedItem.value.id, salePrice.value!, saleNotes.value)
+    clearMessage()
+    await store.sellCollateralItem(selectedItem.value.id, soldFor, saleNotes.value)
     closeSellModal()
     await loadItems()
+    notify(t('collaterals.sellDone', { code: soldCode, amount: formatCurrency(soldFor) }))
   } catch (err: any) {
-    alert(err.message || t('collaterals.sellError'))
+    fail(err.message || t('collaterals.sellError'))
     confirmStep.value = 1
   } finally {
     isSubmitting.value = false
   }
 }
 </script>
+
+<style scoped>
+/* Replaces `class="text-center p-16"` plus `class="text-warning mx-auto mb-8"` and an
+   inline amber `style` attribute. None of those utility names existed anywhere in the
+   stylesheet, so the only thing actually colouring the icon was the inline attribute — and
+   in a tone that belonged to the previous palette. */
+.sell-confirm {
+  text-align: center;
+  padding: 1rem;
+}
+
+.sell-confirm-icon {
+  color: var(--warning);
+  margin-bottom: 0.5rem;
+}
+</style>
 

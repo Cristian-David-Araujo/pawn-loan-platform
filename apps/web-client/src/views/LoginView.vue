@@ -3,7 +3,7 @@
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
-          <Shield :size="28" />
+          <BrandMark :size="30" />
         </span>
       </div>
       <header class="login-header">
@@ -24,18 +24,32 @@
           <PasswordInput v-model="form.password" autocomplete="current-password" required />
         </label>
 
-        <div style="text-align: right; margin-top: -0.2rem; margin-bottom: 0.5rem;">
-          <router-link to="/forgot-password" style="font-size: 0.85rem; color: var(--color-primary, #2563eb); text-decoration: none; font-weight: 500;">
+        <div class="auth-link-end">
+          <router-link class="auth-link" to="/forgot-password">
             {{ t('auth.forgotPassword') }}
           </router-link>
         </div>
 
-        <button class="btn" type="submit" :disabled="isSubmitting" style="width: 100%; justify-content: center;">
-          <LogIn v-if="!isSubmitting" :size="16" />
+        <button class="btn" type="submit" :disabled="isSubmitting" :class="{ 'is-loading': isSubmitting }">
+          <LogIn v-if="!isSubmitting" :size="16" aria-hidden="true" />
           {{ isSubmitting ? t('auth.signingIn') : t('auth.signIn') }}
         </button>
       </form>
     </section>
+
+    <!--
+      The product's own signature, below the card rather than inside it: the card belongs to
+      whoever the installation says it is (its name and company come from settings), and this
+      says what the software is and who built it.
+
+      It lives on the sign-in screen, which only staff ever see. It deliberately does not
+      appear on the four printed documents — those carry the lender's identity, and a vendor
+      credit on a customer's receipt would be the wrong signature.
+    -->
+    <footer class="brand-footer">
+      <BrandLockup :height="16" />
+      <p>{{ t('app.developedBy', { company: 'Nexbridge' }) }}</p>
+    </footer>
   </main>
 </template>
 
@@ -43,7 +57,9 @@
 import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { Shield, LogIn } from 'lucide-vue-next'
+import { LogIn } from 'lucide-vue-next'
+import BrandLockup from '../components/BrandLockup.vue'
+import BrandMark from '../components/BrandMark.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { AuthRequestError, useAuthState } from '../modules/authentication/authState'
 

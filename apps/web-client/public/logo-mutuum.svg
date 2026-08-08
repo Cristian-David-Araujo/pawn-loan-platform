@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 193 24" width="193" height="24" role="img" aria-label="Mutuum">
+  <title>Mutuum</title>
+  <desc>
+    The Mutuum logo: brackets holding a solid form, followed by the wordmark. The wordmark is
+    drawn as geometry rather than typeset, so this file needs no font to render correctly
+    anywhere it is opened. Ink (#232019) on transparent; recolour the whole thing by changing
+    the two colour attributes on the group below, or drop the fill/stroke to inherit
+    currentColor when inlined.
+  </desc>
+  <g fill="none" stroke="#232019" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M7 2H2v20h5M21 2h5v20h-5"/>
+    <g transform="translate(44,0)"><path d="M2 22V2l9 11 9-11v20"/></g>
+    <g transform="translate(73,0)"><path d="M2 2v13a7 7 0 0 0 14 0V2"/></g>
+    <g transform="translate(98,0)"><path d="M2 2h12M8 2v20"/></g>
+    <g transform="translate(121,0)"><path d="M2 2v13a7 7 0 0 0 14 0V2"/></g>
+    <g transform="translate(146,0)"><path d="M2 2v13a7 7 0 0 0 14 0V2"/></g>
+    <g transform="translate(171,0)"><path d="M2 22V2l9 11 9-11v20"/></g>
+  </g>
+  <circle cx="14" cy="12" r="3" fill="#232019"/>
+</svg>

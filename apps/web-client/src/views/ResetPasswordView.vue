@@ -3,7 +3,7 @@
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
-          <LockReset :size="28" />
+          <BrandMark :size="30" />
         </span>
       </div>
       <header class="login-header">
@@ -14,7 +14,7 @@
       <p v-if="error" class="notice notice-error">{{ error }}</p>
       <p v-if="successMessage" class="notice notice-success">{{ successMessage }}</p>
 
-      <form v-if="!successMessage" class="login-form" style="margin-top: 1.5rem;" @submit.prevent="handleSubmit">
+      <form v-if="!successMessage" class="login-form mt-24" @submit.prevent="handleSubmit">
         <label>
           {{ t('auth.newPassword') }}
           <PasswordInput v-model="form.newPassword" autocomplete="new-password" required minlength="8" />
@@ -25,15 +25,15 @@
           <PasswordInput v-model="form.confirmPassword" autocomplete="new-password" required minlength="8" />
         </label>
 
-        <button class="btn" type="submit" :disabled="isSubmitting" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
-          <CheckCircle2 v-if="!isSubmitting" :size="16" />
+        <button class="btn" type="submit" :disabled="isSubmitting" :class="{ 'is-loading': isSubmitting }">
+          <CheckCircle2 v-if="!isSubmitting" :size="16" aria-hidden="true" />
           {{ isSubmitting ? t('auth.resettingPassword') : t('auth.resetPasswordTitle') }}
         </button>
       </form>
 
-      <div style="margin-top: 1.5rem; text-align: center;">
-        <router-link to="/login" style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; color: var(--color-primary, #2563eb); text-decoration: none; font-weight: 500;">
-          <ArrowLeft :size="16" />
+      <div class="auth-link-center">
+        <router-link class="auth-link" to="/login">
+          <ArrowLeft :size="16" aria-hidden="true" />
           {{ t('auth.backToLogin') }}
         </router-link>
       </div>
@@ -45,7 +45,8 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { KeyRound as LockReset, CheckCircle2, ArrowLeft } from 'lucide-vue-next'
+import { CheckCircle2, ArrowLeft } from 'lucide-vue-next'
+import BrandMark from '../components/BrandMark.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { useAuthState } from '../modules/authentication/authState'
 
@@ -75,8 +76,9 @@ const handleSubmit = async () => {
   error.value = ''
   successMessage.value = ''
 
+  // Was a hardcoded Spanish literal, so an English session was answered in Spanish.
   if (!token.value) {
-    error.value = 'Token inválido o no proporcionado.'
+    error.value = t('auth.missingResetToken')
     return
   }
 
@@ -96,7 +98,7 @@ const handleSubmit = async () => {
     const res = await resetPassword(token.value, form.newPassword)
     successMessage.value = res.message || t('auth.passwordResetSuccess')
   } catch (err: any) {
-    error.value = err.message || 'Error al restablecer la contraseña.'
+    error.value = err.message || t('auth.resetPasswordFailed')
   } finally {
     isSubmitting.value = false
   }

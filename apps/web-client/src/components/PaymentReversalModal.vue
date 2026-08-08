@@ -46,8 +46,8 @@ import { useI18n } from 'vue-i18n'
 import { Trash2, X } from 'lucide-vue-next'
 
 import { apiClient, apiErrorMessage } from '../services/api'
-import { usePlatformStore } from '../stores/platformStore'
 import type { Payment } from '../types/domain'
+import { formatCurrency } from '../utils/currency'
 
 /**
  * Collects the reason and performs the reversal that "deletes" a payment.
@@ -66,8 +66,7 @@ const emit = defineEmits<{
   deleted: [paymentId: number]
 }>()
 
-const { t, locale } = useI18n()
-const store = usePlatformStore()
+const { t } = useI18n()
 
 const reason = ref('')
 const error = ref('')
@@ -80,14 +79,6 @@ watch(
     error.value = ''
   }
 )
-
-const currencyCode = computed(() => store.state.globalSettings?.currencyCode ?? 'COP')
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(amount)
 
 // Mirrors the API's minimum: an unexplained deletion is not traceable.
 const canSubmit = computed(() => reason.value.trim().length >= 3 && !submitting.value)

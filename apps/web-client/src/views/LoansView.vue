@@ -12,6 +12,8 @@
       </template>
     </PageHeader>
 
+    <p v-if="message" :class="[messageClass, 'mt-16']">{{ message }}</p>
+
     <!-- ── Create Loan Modal ──────────────────────────── -->
     <div v-if="showCreateLoanModal" class="modal-backdrop" @click.self="closeCreateLoanModal">
       <div class="modal-panel card modal-panel-lg">
@@ -43,7 +45,7 @@
         <label :title="t('loans.monthlyInterestRateHelp')">
           <span class="field-label-row">
             {{ t('loans.monthlyInterestRate') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <input
             v-model.number="form.monthlyInterestRate"
@@ -57,7 +59,7 @@
         <label :title="t('loans.disbursementDateHelp')">
           <span class="field-label-row">
             {{ t('loans.disbursementDate') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
           <DateInputField
             v-model="form.disbursementDate"
@@ -82,14 +84,14 @@
           <input v-model="applyLatePenalty" type="checkbox" />
           <span class="field-label-row">
             {{ t('loans.applyLatePenalty') }}
-            <span class="field-help" aria-hidden="true">ⓘ</span>
+            <Info class="field-help" :size="13" aria-hidden="true" />
           </span>
         </label>
         <div v-if="applyLatePenalty">
           <label :title="t('loans.latePenaltyRateHelp')">
             <span class="field-label-row">
               {{ t('loans.latePenaltyRate') }}
-              <span class="field-help" aria-hidden="true">ⓘ</span>
+              <Info class="field-help" :size="13" aria-hidden="true" />
             </span>
             <input
               v-model.number="form.latePenaltyRate"
@@ -112,7 +114,7 @@
         <input v-model="applyCollateralAssociation" type="checkbox" />
         <span class="field-label-row">
           {{ t('loans.applyCollateral') }}
-          <span class="field-help" aria-hidden="true">ⓘ</span>
+          <Info class="field-help" :size="13" aria-hidden="true" />
         </span>
       </label>
 
@@ -165,8 +167,8 @@
       </div>
 
       <p v-if="formError" class="notice notice-warning mt-16">{{ formError }}</p>
-      <div class="form-actions" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-        <label class="checkbox-row" style="margin-bottom: 0;">
+      <div class="form-actions form-actions-split">
+        <label class="checkbox-row">
           <input v-model="printInvoiceOnSave" type="checkbox" />
           {{ t('common.printInvoiceOnSave') }}
         </label>
@@ -188,7 +190,13 @@
 
     <div class="card mt-16">
       <div class="table-toolbar">
-        <input v-model="search" class="table-search" type="text" :placeholder="t('loans.searchPlaceholder')" />
+        <input
+          v-model="search"
+          class="table-search"
+          type="search"
+          :placeholder="t('loans.searchPlaceholder')"
+          :aria-label="t('loans.searchPlaceholder')"
+        />
         <CustomSelect v-model="statusFilter" inputClass="table-select" :options="statusFilterOptions" />
         <button class="btn btn-secondary" type="button" @click="resetLoanFilters">
           <FilterX :size="16" />
@@ -238,12 +246,12 @@
               </button>
             </th>
             <th class="text-right">
-              <button class="sort-header-btn" type="button" style="justify-content: flex-end" @click="toggleLoanSort('interest')">
+              <button class="sort-header-btn sort-header-end" type="button" @click="toggleLoanSort('interest')">
                 {{ t('common.interest', 'Interés') }}
                 <span v-if="getLoanSortBadge('interest')" class="sort-indicator">{{ getLoanSortBadge('interest') }}</span>
               </button>
             </th>
-            <th class="text-center">{{ t('common.collaterals', 'Garantías') }}</th>
+            <th class="text-center">{{ t('common.collaterals') }}</th>
             <th>
               <button class="sort-header-btn" type="button" @click="toggleLoanSort('status')">
                 {{ t('common.status') }}
@@ -256,42 +264,44 @@
         </thead>
         <tbody>
           <tr v-for="loan in paginatedLoans" :key="loan.id" class="clickable-row" @click="openLoanDetail(loan.id)">
-            <td>{{ loan.id }}</td>
-            <td>{{ getCustomerLabel(loan.customerId) }}</td>
-            <td>{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
-            <td>{{ formatDateDMY(loan.disbursementDate) }}</td>
-            <td class="text-right">{{ formatCurrency(loan.principalAmount) }}</td>
-            <td class="text-right">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
-            <td class="text-center">{{ loan.monthlyInterestRate }}%</td>
-            <td class="text-right">
-              <span v-if="loan.interestDue !== undefined && loan.interestDue !== null" class="text-warning-dark fw-bold">
+            <td :data-label="t('common.id')">{{ loan.id }}</td>
+            <td :data-label="t('common.customer')">{{ getCustomerLabel(loan.customerId) }}</td>
+            <td :data-label="t('common.type')">{{ loan.loanType === 'pawn' ? t('common.pawn') : t('common.personal') }}</td>
+            <td :data-label="t('common.date')">{{ formatDateDMY(loan.disbursementDate) }}</td>
+            <td class="text-right" :data-label="t('common.principal')">{{ formatCurrency(loan.principalAmount) }}</td>
+            <td class="text-right" :data-label="t('loans.outstanding')">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
+            <td class="text-center" :data-label="t('loans.rate')">{{ loan.monthlyInterestRate }}%</td>
+            <td class="text-right" :data-label="t('common.interest', 'Interés')">
+              <!-- The amber emphasis marks a debt to collect, so a zero does not get it:
+                   a loan that owes nothing is the good outcome, not a warning. It was
+                   applied to every loan with a defined value, including the settled ones. -->
+              <span v-if="loan.interestDue" class="text-warning-dark fw-bold">
                 {{ formatCurrency(loan.interestDue) }}
               </span>
+              <span v-else-if="loan.interestDue === 0">{{ formatCurrency(0) }}</span>
               <span v-else>-</span>
             </td>
-            <td class="text-center">{{ loan.collateralsCount ?? (loan.loanType === 'personal' ? '-' : 0) }}</td>
-            <td>
+            <td class="text-center" :data-label="t('common.collaterals')">{{ loan.collateralsCount ?? (loan.loanType === 'personal' ? '-' : 0) }}</td>
+            <td :data-label="t('common.status')">
               <span :class="['pill', getLoanStatusClass(loan.status)]">
                 {{ t(`common.${loan.status}`) }}
               </span>
             </td>
-            <td>{{ loan?.created_by?.full_name || loan?.created_by?.username || '-' }}</td>
+            <td :data-label="t('common.createdBy', 'Generated by')">{{ loan?.created_by?.full_name || loan?.created_by?.username || '-' }}</td>
             <td>
-              <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" style="text-decoration: none;" @click.stop>
+              <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" @click.stop>
                 <Printer :size="16" />
               </a>
             </td>
           </tr>
           <tr v-if="!filteredLoans.length">
-            <td colspan="10">{{ t('loans.noLoansForFilter') }}</td>
+            <td colspan="12">{{ t('loans.noLoansForFilter') }}</td>
           </tr>
         </tbody>
       </table>
       <Pagination v-model="loansCurrentPage" :totalItems="filteredLoans.length" :itemsPerPage="10" />
       </div>
     </div>
-
-    <p v-if="message" class="notice mt-16">{{ message }}</p>
 
     <!-- ── Loan Detail Modal ──────────────────────────── -->
     <LoanDetailModal
@@ -314,11 +324,12 @@ import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
+import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
-import { BadgeDollarSign, ClockAlert, FilePlus2, FilterX, HandCoins, Trash2, TrendingUp, X, Printer } from 'lucide-vue-next'
+import { BadgeDollarSign, ClockAlert, FilePlus2, FilterX, HandCoins, Info, Trash2, TrendingUp, X, Printer } from 'lucide-vue-next'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
@@ -326,6 +337,8 @@ import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
+import { useCustomerLabel } from '../composables/useCustomerLabel'
+import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 import { apiClient } from '../services/api'
 
@@ -365,10 +378,12 @@ interface InterestPendingResponse {
 }
 
 
-const { state, createLoan, createCollateral, getCustomerName, ensureInitialized } = usePlatformStore()
+const { state, createLoan, createCollateral, ensureInitialized } = usePlatformStore()
+const { customerLabel: getCustomerLabel } = useCustomerLabel()
 const { hasRole } = useAuthState()
 const router = useRouter()
-const { t, locale } = useI18n()
+const route = useRoute()
+const { t } = useI18n()
   const { confirm } = useConfirmDialog()
 
 const loanTypeOptions = computed(() => [
@@ -376,14 +391,18 @@ const loanTypeOptions = computed(() => [
   { value: 'personal', label: t('common.personal') }
 ])
 
+/* `defaulted` was missing here even though the table styles it and the collateral view
+   filters on it — so a foreclosed loan could only be found under "all", mixed into
+   everything else. Those are precisely the loans an administrator goes looking for. */
 const statusFilterOptions = computed(() => [
   { value: 'all', label: t('loans.allStatuses') },
   { value: 'active', label: t('common.active') },
   { value: 'overdue', label: t('common.overdue') },
-  { value: 'closed', label: t('common.closed') }
+  { value: 'closed', label: t('common.closed') },
+  { value: 'defaulted', label: t('loans.foreclosed') }
 ])
 const search = ref('')
-const message = ref('')
+const { message, messageClass, notify } = usePageMessage()
 const formError = ref('')
 
 const getLoanStatusClass = (status: string) => {
@@ -399,7 +418,20 @@ const getLoanStatusClass = (status: string) => {
 const applyLatePenalty = ref(false)
 const applyCollateralAssociation = ref(false)
 const printInvoiceOnSave = ref(true)
-const statusFilter = ref<'all' | 'active' | 'overdue' | 'closed'>('all')
+/* Seeded from `?status=`, so the dashboard's overdue tile lands on the overdue loans rather
+   than on the full list with the operator left to filter it themselves. Only the values the
+   filter actually offers are honoured; anything else falls back to "all". */
+const STATUS_FILTERS = ['all', 'active', 'overdue', 'closed', 'defaulted'] as const
+type StatusFilter = (typeof STATUS_FILTERS)[number]
+
+const statusFromQuery = (): StatusFilter => {
+  const value = route.query.status
+  return typeof value === 'string' && (STATUS_FILTERS as readonly string[]).includes(value)
+    ? (value as StatusFilter)
+    : 'all'
+}
+
+const statusFilter = ref<StatusFilter>(statusFromQuery())
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
 const showLoanDetailModal = ref(false)
@@ -437,7 +469,6 @@ const totalPendingPenalty = computed(() => {
 })
 
 const collateralQueue = ref<CollateralQueueItem[]>([])
-const currencyCode = computed(() => state.globalSettings?.currencyCode ?? 'COP')
 const datePlaceholder = computed(() => getGlobalDateFormat())
 const todayIso = new Date().toISOString().slice(0, 10)
 const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
@@ -461,7 +492,9 @@ const form = reactive({
 
 const handleCreateLoan = async () => {
   if (!form.customerId) {
-    formError.value = 'Por favor selecciona un cliente.'
+    // Was `messages.selectCustomerFirst`, a namespace that has no such key, so the form
+    // printed the literal string `messages.selectCustomerFirst` at the operator.
+    formError.value = t('payments.selectCustomerFirst')
     return
   }
 
@@ -515,7 +548,7 @@ const handleCreateLoan = async () => {
   form.disbursementDate = formatDateDMY(todayIso)
   form.loanType = 'pawn'
   form.description = ''
-  message.value = t('messages.loanRegistered')
+  notify(t('messages.loanRegistered'))
   collateralQueue.value = []
   collateralForm.description = ''
   collateralForm.appraisedValue = 1000
@@ -554,19 +587,6 @@ const addCollateralToQueue = () => {
 
 const removeCollateralFromQueue = (index: number) => {
   collateralQueue.value = collateralQueue.value.filter((_, itemIndex) => itemIndex !== index)
-}
-
-const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat(locale.value === 'es' ? 'es-MX' : 'en-US', {
-    style: 'currency',
-    currency: currencyCode.value
-  }).format(
-    amount
-  )
-
-const getCustomerLabel = (customerId: number) => {
-  const value = getCustomerName(customerId)
-  return value === '__UNKNOWN_CUSTOMER__' ? t('messages.unknownCustomer') : value
 }
 
 const getSortDirectionSymbol = (direction: SortDirection) => (direction === 'asc' ? '↑' : '↓')
