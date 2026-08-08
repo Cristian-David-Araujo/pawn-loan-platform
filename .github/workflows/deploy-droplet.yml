@@ -43,3 +43,4 @@ jobs:
           postgres_password: ${{ secrets.POSTGRES_PASSWORD }}
           jwt_secret_key: ${{ secrets.JWT_SECRET_KEY }}
           admin_password: ${{ secrets.ADMIN_PASSWORD }}
+          hostinger_mail_api_token: ${{ secrets.HOSTINGER_MAIL_API_TOKEN }}

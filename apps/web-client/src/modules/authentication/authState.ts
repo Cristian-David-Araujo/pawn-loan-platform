@@ -1,4 +1,5 @@
 import { computed, reactive } from 'vue'
+import { getStoredLocale } from '../../i18n'
 import { clearAuthSession, getStoredAccessToken, getStoredUsername, setAuthSession } from './session'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'
@@ -105,10 +106,14 @@ export const hasRole = (roles: UserRole[]) => {
 }
 
 const forgotPassword = async (usernameOrEmail: string) => {
+  /* The interface language is a choice the operator made and we stored; the browser's
+     Accept-Language is whatever their OS was installed with. Sending ours means the recovery
+     email arrives in the language they are actually reading the app in. The API falls back
+     to the header, then to Spanish. */
   const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username_or_email: usernameOrEmail })
+    body: JSON.stringify({ username_or_email: usernameOrEmail, locale: getStoredLocale() })
   })
 
   if (!response.ok) {

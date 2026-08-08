@@ -1,6 +1,6 @@
 import secrets
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -23,6 +23,7 @@ from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
+from src.infrastructure.email import normalise_locale, send_password_reset_email
 
 router = APIRouter(tags=["authentication"])
 
@@ -50,7 +51,9 @@ def get_me(current_user: User = Depends(get_current_user)) -> User:
 
 @router.post("/auth/forgot-password", response_model=ForgotPasswordResponse)
 def forgot_password(
+    request: Request,
     payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> ForgotPasswordResponse:
     settings = get_settings()
@@ -77,8 +80,28 @@ def forgot_password(
             new_data="password_reset_requested=true",
         )
 
+        if user.email:
+            # Queued, never awaited. FastAPI runs background tasks after the response has
+            # been written, so the time this request takes does not depend on whether the
+            # identifier matched anybody. Sending inline undid the guarantee below by the
+            # clock instead of by the wording: an HTTPS round trip to the mail provider made
+            # a hit answer in a few hundred milliseconds and a miss in a few, which tells a
+            # caller exactly what the identical message refuses to.
+            #
+            # Only plain values cross into the task. The session is closed by the time it
+            # runs, so anything read off `user` in there would be a detached-instance error.
+            background_tasks.add_task(
+                send_password_reset_email,
+                user.email,
+                token,
+                normalise_locale(payload.locale, request.headers.get("accept-language")),
+            )
+
     # Anti-user enumeration guarantee: identical response message regardless of user existence.
-    # In production, never leak the token in API responses.
+    #
+    # The token still comes back outside production, and now it matters more rather than
+    # less: an installation with no mail credentials is a supported state, and this is the
+    # only way the flow can be finished there.
     expose_token = token if settings.app_env != "production" else None
     return ForgotPasswordResponse(
         message="Si la cuenta existe y está activa, recibirás instrucciones para restablecer tu contraseña.",

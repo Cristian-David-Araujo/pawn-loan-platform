@@ -25,3 +25,12 @@ export const i18n = createI18n({
 export const persistLocale = (locale: AppLocale) => {
   localStorage.setItem(STORAGE_KEY, locale)
 }
+
+/**
+ * The locale to tell the API about, readable without a component instance.
+ *
+ * The forgot-password call happens on a screen with no session, and the recovery email has
+ * to arrive in the language the operator is reading the app in — which is this, not
+ * `navigator.language`.
+ */
+export const getStoredLocale = (): AppLocale => detectLocale()

@@ -49,6 +49,13 @@ inputs:
   admin_password:
     description: secrets.ADMIN_PASSWORD
     required: true
+  hostinger_mail_api_token:
+    # Optional on purpose. An installation that sends no mail is a supported state — the
+    # password reset hands the token back in the response instead — so a missing value here
+    # must not fail a deploy the way the three above do.
+    description: secrets.HOSTINGER_MAIL_API_TOKEN (optional; no mail is sent without it)
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -104,6 +111,7 @@ runs:
         POSTGRES_PASSWORD: ${{ inputs.postgres_password }}
         JWT_SECRET_KEY: ${{ inputs.jwt_secret_key }}
         ADMIN_PASSWORD: ${{ inputs.admin_password }}
+        HOSTINGER_MAIL_API_TOKEN: ${{ inputs.hostinger_mail_api_token }}
         DO_APP_DIR: ${{ inputs.app_dir }}
       with:
         host: ${{ inputs.host }}
@@ -111,7 +119,7 @@ runs:
         key_path: /tmp/do_key
         # No `script_stop`: this action version does not accept it and warns on every run. The
         # `set -euo pipefail` below is what actually aborts the deploy on the first failure.
-        envs: IMAGE_TAG,GHCR_USER,GHCR_TOKEN,POSTGRES_PASSWORD,JWT_SECRET_KEY,ADMIN_PASSWORD,DO_APP_DIR
+        envs: IMAGE_TAG,GHCR_USER,GHCR_TOKEN,POSTGRES_PASSWORD,JWT_SECRET_KEY,ADMIN_PASSWORD,HOSTINGER_MAIL_API_TOKEN,DO_APP_DIR
         script: |
           set -euo pipefail
 
