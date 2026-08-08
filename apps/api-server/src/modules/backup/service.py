@@ -201,7 +201,10 @@ def build_export_archive(db: Session, generated_by: str | None) -> ExportArchive
 
 
 def _filename_slug(settings: GlobalSettings | None) -> str:
-    raw = (settings.company_name or settings.app_name) if settings is not None else "pawn-platform"
+    # Only reached before any settings row exists, or when both names are blank. Retention
+    # orders copies by the timestamp in the filename rather than by this prefix, so changing
+    # it does not disturb archives already written under the old one.
+    raw = (settings.company_name or settings.app_name) if settings is not None else "mutuum"
     slug = "".join(character if character.isalnum() else "-" for character in (raw or "").lower())
     slug = "-".join(part for part in slug.split("-") if part)
-    return slug or "pawn-platform"
+    return slug or "mutuum"
