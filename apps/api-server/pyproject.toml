@@ -16,7 +16,11 @@ dependencies = [
   "python-multipart>=0.0.12,<1.0.0",
   # Uploading a scheduled backup to Google Drive: three HTTPS calls, so the Google SDK and
   # its dependency tree would be paid for nothing. Also what TestClient runs on.
-  "httpx>=0.27.0,<1.0.0"
+  "httpx>=0.27.0,<1.0.0",
+  # Outbound mail (the password recovery link today). Bounded like everything else here: the
+  # send request's shape is what this code is written against, and an unbounded major would
+  # let CI and the droplet build against a different one on an unrelated day.
+  "hostinger-mail-api>=1.17.2,<2.0.0",
 ]
 
 [project.optional-dependencies]

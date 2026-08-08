@@ -59,6 +59,10 @@ class UserUpdate(BaseModel):
 
 class ForgotPasswordRequest(BaseModel):
     username_or_email: str = Field(..., min_length=1)
+    # What language to write the email in. The interface locale is a choice the operator made
+    # and stored in the browser, which is not necessarily what the browser reports in
+    # Accept-Language — so the client says it outright, and the header is only the fallback.
+    locale: str | None = Field(default=None, max_length=16)
 
 
 class ForgotPasswordResponse(BaseModel):

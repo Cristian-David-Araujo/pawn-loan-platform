@@ -13,21 +13,27 @@ sequenceDiagram
     participant WebClient as Web Client (Vue 3)
     participant API as API Server (FastAPI)
     participant DB as PostgreSQL (users / audit_logs)
+    participant Mail as Hostinger Mail API
 
     Note over User, API: Phase 1: Recovery Request
     User->>WebClient: Enter username or email address
-    WebClient->>API: POST /api/v1/auth/forgot-password
+    WebClient->>API: POST /api/v1/auth/forgot-password { username_or_email, locale }
     API->>DB: SELECT * FROM users WHERE username=? OR email=?
     
     alt User Exists & Active
         API->>API: Generate cryptographic token (32 bytes urlsafe)
         API->>DB: UPDATE users SET reset_token=token, reset_token_expires_at=+15m
         API->>DB: INSERT INTO audit_logs (action="forgot_password")
+        API->>API: Queue the email as a BackgroundTask
     end
 
-    Note right of API: Anti-Enumeration Guarantee:<br/>Identical HTTP 200 status & message
+    Note right of API: Anti-Enumeration Guarantee:<br/>Identical HTTP 200 status & message,<br/>and the send is queued, never awaited
     API-->>WebClient: 200 OK { message: "If account exists...", reset_token: null/dev_token }
     WebClient-->>User: Display confirmation notice
+
+    Note over API, Mail: After the response has been written
+    API->>Mail: POST /api/mail/v1/mailboxes/{resourceId}/send
+    Mail-->>User: Reset link (FRONTEND_URL/reset-password?token=...)
 
     Note over User, DB: Phase 2: Set New Password
     User->>WebClient: Access /reset-password?token=XYZ
@@ -69,9 +75,14 @@ Associated Alembic Migration: `20260625_0005_user_password_reset_token.py` (Idem
 - **Request Payload (`ForgotPasswordRequest`)**:
   ```json
   {
-    "username_or_email": "loan_officer@company.com"
+    "username_or_email": "loan_officer@company.com",
+    "locale": "es"
   }
   ```
+  `locale` is optional and only decides what language the email is written in. The client sends
+  the interface locale the operator chose and we stored, because that is not necessarily what
+  the browser reports in `Accept-Language` — the header is the fallback, and Spanish is the
+  fallback after that.
 - **Response (`ForgotPasswordResponse`)**:
   - **HTTP Status**: `200 OK` *(Always, to enforce anti-user enumeration)*
   - **JSON Body**:
@@ -112,6 +123,7 @@ When deployed via `docker-compose.prod.yml`, the system enforces strict cybersec
 1. **Immunity Against User Enumeration (*Anti-User Enumeration Guarantee*)**:
    - External attackers often submit massive email lists to discovery endpoints to verify registered platform users.
    - The backend neutralizes this by enforcing uniform processing logic and returning the **exact same HTTP 200 status code and message** regardless of whether the identifier matches an active user or `None`.
+   - **The guarantee has a timing dimension, and the mailer is what threatens it.** The send is handed to FastAPI's `BackgroundTasks` and runs after the response has been written, so how long the request takes does not depend on whether the identifier matched. Awaiting it inline would give the answer away by the clock instead of by the wording: a hit costs an HTTPS round trip to the mail provider, a miss costs nothing. Never make this call synchronous, and never surface a mail failure to the caller — "the provider is down" is itself a statement that there was an address to write to.
 2. **Zero Production Token Leakage (*Token Exposure Hiding*)**:
    - The API evaluates `settings.app_env`. If running in `"production"` mode, the `reset_token` JSON field is strictly forced to `null`. Intercepting HTTP network traffic yields zero sensitive secrets.
 3. **High Cryptographic Entropy**:
@@ -124,7 +136,53 @@ When deployed via `docker-compose.prod.yml`, the system enforces strict cybersec
 
 ---
 
-## 5. Frontend Components (Vue 3 Client)
+## 5. Delivery (Hostinger Mail API)
+
+The token reaches the operator by email. Two modules, deliberately split:
+
+| File | Responsibility |
+| :--- | :--- |
+| [client.py](file:///c:/Personal/pawn-loan-platform/apps/api-server/src/infrastructure/email/client.py) | The transport. Knows how to send *a* message, nothing about this flow. |
+| [password_reset.py](file:///c:/Personal/pawn-loan-platform/apps/api-server/src/infrastructure/email/password_reset.py) | What this particular message says, in `es` and `en`. |
+
+A second kind of mail — a receipt, an arrears notice — adds a module beside the second one and
+touches neither the transport nor the sender.
+
+### 5.1. Configuration
+
+| Variable | Secret | Notes |
+| :--- | :--- | :--- |
+| `HOSTINGER_MAIL_API_TOKEN` | **yes** | GitHub secret, injected into `.env.production` by `remote_deploy.sh`. |
+| `HOSTINGER_MAILBOX_RESOURCE_ID` | no | Versioned in `production.env`. The `resourceId` of a mailbox the token is authorised for. |
+| `MAIL_FROM_NAME` | no | Display name only. |
+| `FRONTEND_URL` | no | Composed as `https://$DOMAIN` at deploy time so the link cannot outlive a domain change. |
+
+**There is no from-address setting.** The Hostinger send request has no `from` field: the sender
+is whichever mailbox `HOSTINGER_MAILBOX_RESOURCE_ID` names. An earlier `MAIL_FROM_ADDRESS`
+looked like it chose the sender and did nothing at all — it has been removed.
+
+**`"me"` is not a valid mailbox id.** The real value is an opaque `AC…` string listed by
+`AccountApi.get_current_account()`, and passing a placeholder is refused with a **403 that is
+indistinguishable from a revoked token**. That misdiagnosis cost real time; `EmailSendFailed`
+now says so in its message.
+
+### 5.2. An installation with no mail credentials is supported
+
+Both values unset means `email_is_configured()` is `False`, nothing is sent, and the flow falls
+back to what it did before a mailer existed: outside production the token comes back in the
+response body for the operator to hand over. This is why the deploy does **not** fail on a
+missing mail token the way it fails on a missing `JWT_SECRET_KEY`.
+
+`send_email` itself always **raises** — `EmailNotConfigured` or `EmailSendFailed`. The first
+version logged and returned, which meant a reset that never arrived looked exactly like one that
+did: the operator was told to check their inbox and nothing was ever coming. Only
+`send_password_reset_email` swallows, because it runs as a background task where an exception
+would die unseen; it logs the failure instead, at `info` for the unconfigured case and `error`
+for a real one.
+
+---
+
+## 6. Frontend Components (Vue 3 Client)
 
 - **Dedicated Views**:
   - [ForgotPasswordView.vue](file:///c:/Personal/pawn-loan-platform/apps/web-client/src/views/ForgotPasswordView.vue): Identifier input form featuring feedback notices and development mode helper links.

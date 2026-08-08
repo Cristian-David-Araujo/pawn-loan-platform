@@ -15,6 +15,8 @@
 # Optional:
 #   IMAGE_TAG   image tag to deploy (default: latest)
 #   GHCR_USER / GHCR_TOKEN   registry login, only needed if the packages are private
+#   HOSTINGER_MAIL_API_TOKEN  outbound mail; unset means the app sends none, which is a
+#                             supported state and must not stop a deploy
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -71,9 +73,13 @@ umask 077
   echo "POSTGRES_PASSWORD=$POSTGRES_PASSWORD"
   echo "JWT_SECRET_KEY=$JWT_SECRET_KEY"
   echo "ADMIN_PASSWORD=$ADMIN_PASSWORD"
+  echo "HOSTINGER_MAIL_API_TOKEN=${HOSTINGER_MAIL_API_TOKEN:-}"
   # Composed here so the credentials exist in exactly one place. Keeping a second literal copy
   # of the password inside a URL is how the two silently stop matching.
   echo "DATABASE_URL=postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+  # Same reason, and it matters more: this is what a password-recovery link points at. Derived
+  # from DOMAIN so changing the domain cannot leave the emails aimed at the old one.
+  echo "FRONTEND_URL=https://${DOMAIN}"
 } > "$TARGET_ENV.tmp"
 mv "$TARGET_ENV.tmp" "$TARGET_ENV"
 chmod 600 "$TARGET_ENV"
