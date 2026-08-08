@@ -23,6 +23,24 @@ class Settings(BaseSettings):
     # GlobalSettings.app_name, which is what an installation calls itself on screen.
     app_name: str = "Mutuum API"
     app_env: str = "development"
+    # Where the reset link points. The **web client**, not this API — the link lands on
+    # ResetPasswordView. Defaulted to the dev server's port; the old 3000 was nothing this
+    # repository runs.
+    frontend_url: str = "http://localhost:5173"
+
+    # Both must be set for mail to leave. An installation with neither is supported: the
+    # password reset falls back to handing the token to the operator, which is what it did
+    # before a mailer existed.
+    #
+    # The mailbox id is the `resourceId` of a mailbox the token is authorised for, not a
+    # placeholder like "me" — `AccountApi.get_current_account()` lists them, and the wrong
+    # value comes back as a 403 that looks exactly like a bad token.
+    #
+    # There is no from-address setting: V1SendRequest has no `from` field, so the sender is
+    # whichever mailbox the id names. Only the display name is ours to choose.
+    hostinger_mail_api_token: str = ""
+    hostinger_mailbox_resource_id: str = ""
+    mail_from_name: str = "Mutuum"
 
     database_url: str = "postgresql+psycopg://pawn_user:pawn_password@localhost:5432/pawn_loan_db"
 

@@ -62,13 +62,7 @@
             :placeholder="t('customers.searchPlaceholder')"
             :aria-label="t('customers.searchPlaceholder')"
           />
-          <CustomSelect
-            id="locale-select"
-            v-model="selectedLocale"
-            inputClass="locale-select"
-            :options="localeOptions"
-            @change="onLocaleChange"
-          />
+          <LocaleSelect id="locale-select" inputClass="locale-select" />
           <!-- Cycles system → light → dark. The label names the state it is in and the one
                it will move to, because a lone icon cannot say which of the three applies. -->
           <button
@@ -117,15 +111,14 @@ import {
   UserCog,
   Users
 } from 'lucide-vue-next'
-import { persistLocale, type AppLocale } from '../i18n'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { usePlatformStore } from '../stores/platformStore'
 import BrandMark from '../components/BrandMark.vue'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
-import CustomSelect from '../components/CustomSelect.vue'
+import LocaleSelect from '../components/LocaleSelect.vue'
 import { useTheme, type ThemePreference } from '../composables/useTheme'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const { state: authState, logout, hasRole } = useAuthState()
@@ -162,11 +155,6 @@ const navItems = computed(() => {
 
 const { state } = usePlatformStore()
 
-const selectedLocale = ref(locale.value as AppLocale)
-const localeOptions = [
-  { value: 'en', label: 'EN' },
-  { value: 'es', label: 'ES' }
-]
 const customerSearch = ref('')
 const selectedCustomerId = ref<number | null>(null)
 const mobileMenuOpen = ref(false)
@@ -220,11 +208,6 @@ watch(selectedCustomerId, (id) => {
     // Actually just do nothing.
   }
 })
-
-const onLocaleChange = () => {
-  locale.value = selectedLocale.value
-  persistLocale(selectedLocale.value)
-}
 
 const handleLogout = () => {
   logout()

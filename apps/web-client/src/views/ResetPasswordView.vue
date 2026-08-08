@@ -1,5 +1,9 @@
 <template>
   <main class="login-page">
+    <div class="login-page-toolbar">
+      <LocaleSelect id="reset-locale" />
+    </div>
+
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
@@ -47,6 +51,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { CheckCircle2, ArrowLeft } from 'lucide-vue-next'
 import BrandMark from '../components/BrandMark.vue'
+import LocaleSelect from '../components/LocaleSelect.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { useAuthState } from '../modules/authentication/authState'
 
@@ -95,10 +100,16 @@ const handleSubmit = async () => {
   isSubmitting.value = true
 
   try {
-    const res = await resetPassword(token.value, form.newPassword)
-    successMessage.value = res.message || t('auth.passwordResetSuccess')
-  } catch (err: any) {
-    error.value = err.message || t('auth.resetPasswordFailed')
+    await resetPassword(token.value, form.newPassword)
+    // Same reason as the forgot-password screen: the API's confirmation is a Spanish literal
+    // that is always present, so the translated key below it could never be reached.
+    successMessage.value = t('auth.passwordResetSuccess')
+  } catch {
+    /* The only thing the server can report here is a token that is unknown, expired, or
+       belongs to a deactivated user — and it collapses all three into one 400 on purpose, so
+       there is exactly one thing to say. Said in the reader's language rather than forwarded
+       from the response, which is a Spanish literal. */
+    error.value = t('auth.resetPasswordFailed')
   } finally {
     isSubmitting.value = false
   }

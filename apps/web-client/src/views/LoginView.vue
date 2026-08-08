@@ -1,5 +1,9 @@
 <template>
   <main class="login-page">
+    <div class="login-page-toolbar">
+      <LocaleSelect id="login-locale" />
+    </div>
+
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
@@ -60,6 +64,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { LogIn } from 'lucide-vue-next'
 import BrandLockup from '../components/BrandLockup.vue'
 import BrandMark from '../components/BrandMark.vue'
+import LocaleSelect from '../components/LocaleSelect.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { AuthRequestError, useAuthState } from '../modules/authentication/authState'
 

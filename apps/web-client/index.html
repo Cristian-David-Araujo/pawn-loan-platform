@@ -1,5 +1,9 @@
 <!doctype html>
-<html lang="en">
+<!-- `lang` is a placeholder: the script below replaces it with the resolved locale before
+     first paint, and i18n/index.ts re-applies the same rule once the bundle boots. It was
+     hardcoded `en`, so a Spanish interface was announced by screen readers in an English
+     voice and browsers kept offering to translate a page already in the reader's language. -->
+<html lang="es">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -32,6 +36,28 @@
           document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
         } catch (e) {
           document.documentElement.setAttribute('data-theme', 'light')
+        }
+
+        // Same reasoning, same storage key as i18n/index.ts. Assistive technology reads the
+        // document's language from the served markup, before any bundle has run.
+        try {
+          var savedLocale = localStorage.getItem('pawn-platform-locale')
+          if (savedLocale !== 'en' && savedLocale !== 'es') {
+            var asked = navigator.languages && navigator.languages.length
+              ? navigator.languages
+              : [navigator.language]
+            savedLocale = 'es'
+            for (var i = 0; i < asked.length; i++) {
+              var primary = String(asked[i] || '').toLowerCase().split('-')[0]
+              if (primary === 'en' || primary === 'es') {
+                savedLocale = primary
+                break
+              }
+            }
+          }
+          document.documentElement.setAttribute('lang', savedLocale)
+        } catch (e) {
+          document.documentElement.setAttribute('lang', 'es')
         }
       })()
     </script>
