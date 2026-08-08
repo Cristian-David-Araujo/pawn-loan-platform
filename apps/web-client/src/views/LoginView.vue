@@ -36,6 +36,20 @@
         </button>
       </form>
     </section>
+
+    <!--
+      The product's own signature, below the card rather than inside it: the card belongs to
+      whoever the installation says it is (its name and company come from settings), and this
+      says what the software is and who built it.
+
+      It lives on the sign-in screen, which only staff ever see. It deliberately does not
+      appear on the four printed documents — those carry the lender's identity, and a vendor
+      credit on a customer's receipt would be the wrong signature.
+    -->
+    <footer class="brand-footer">
+      <BrandLockup :height="16" />
+      <p>{{ t('app.developedBy', { company: 'Nexbridge' }) }}</p>
+    </footer>
   </main>
 </template>
 
@@ -44,6 +58,7 @@ import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { LogIn } from 'lucide-vue-next'
+import BrandLockup from '../components/BrandLockup.vue'
 import BrandMark from '../components/BrandMark.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { AuthRequestError, useAuthState } from '../modules/authentication/authState'

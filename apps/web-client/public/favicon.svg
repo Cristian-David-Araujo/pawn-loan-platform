@@ -1,14 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Mutuum">
   <title>Mutuum</title>
   <!--
-    The favicon carries its own colours: it is rendered by the browser chrome, outside the
-    page, so it cannot inherit currentColor or the theme. Ink tile, paper mark — the same
-    pair the primary button uses, and legible against a light or a dark tab strip.
-    Stroke is heavier than the in-app mark because this is read at 16px.
+    The favicon carries its own colours: the browser draws it outside the page, so it cannot
+    inherit currentColor or the theme. Ink tile, paper mark — the same pair the primary
+    button uses, and legible against a light or a dark tab strip.
+
+    Stroke is heavier and the brackets are shorter than in BrandMark.vue, because at 16px the
+    in-app proportions close up into a blob.
   -->
   <rect width="32" height="32" rx="7" fill="#232019"/>
   <g fill="none" stroke="#faf9f7" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M8 21V8l8 7.5L24 8v13"/>
-    <path d="M6.5 25.5h19"/>
+    <path d="M11.5 7.5H8v17h3.5M20.5 7.5H24v17h-3.5"/>
   </g>
+  <circle cx="16" cy="16" r="3.4" fill="#faf9f7"/>
 </svg>

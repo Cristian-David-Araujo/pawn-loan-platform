@@ -124,24 +124,39 @@ components:
 ## Overview
 
 **The name.** *Mutuum* is the Roman-law contract this product runs on: a loan of fungible
-goods where ownership passes to the borrower and an **equivalent** must come back. It is the
-exact legal shape of what happens at this counter, and the mark says it — an **M** whose two
-outer stems are drawn to the same height, resting on a ledger rule.
+goods where ownership passes to the borrower and an **equivalent** must come back.
 
-The mark lives in one place, [BrandMark.vue](apps/web-client/src/components/BrandMark.vue),
-built on lucide's grid (24×24, stroke 2, round caps and joins) so it sits beside the
-navigation icons without reading as a different set, and painted in `currentColor` so the
-sidebar, the login card and any other host get it in their own ink. It replaced a `Shield`
-that was also the Collateral nav item — the brand and a destination rendering the same glyph.
+**The mark is not a letterform.** Two brackets holding a solid form, because the wordmark
+already carries the name and that frees the mark to carry the meaning: something of the
+customer's is *held* while the debt lives, and handed back when it is paid. That is the one
+fact separating this business from a generic lender.
 
-`public/favicon.svg` is the one exception that carries its own colours, because it is drawn
-by the browser chrome outside the page and cannot inherit the theme: ink tile, paper mark,
-with a heavier stroke because it is read at 16px.
+Three pieces, and they are not interchangeable:
 
-**The mark never goes on a printed document.** Those carry the *lender's* identity, not the
-software's — `InvoicePrintView` prints `company_name`, and its footer names the installation
+- **[BrandMark.vue](apps/web-client/src/components/BrandMark.vue)** — the mark alone, on
+  lucide's grid (24×24, stroke 2, round caps) so it sits beside the navigation icons without
+  reading as a different set. `currentColor`. Legible to 16px. This is what goes in the app
+  chrome, because the sidebar and the login card both display the *installation's* name from
+  `GlobalSettings.app_name`, which an operator can change — the product wordmark has no
+  business overriding it.
+- **[BrandLockup.vue](apps/web-client/src/components/BrandLockup.vue)** — mark plus wordmark,
+  one vector. The wordmark is drawn, not typeset: MUTUUM is M-U-T-U-U-M, three identical
+  bowls and two identical angles around one upright, so it constructs cleanly and owes
+  nothing to whether Manrope has loaded. The mark is **redrawn** here at the wordmark's cap
+  height and stroke rather than scaled down — at 24px tall with a stroke of 2 it read thin
+  beside letters at 4 and the pair stopped looking like one object.
+- **`public/logo-mutuum.svg`** — the lockup as a standalone file for anything outside the
+  app. Self-contained: no font, no external reference.
+
+`public/favicon.svg` carries its own colours, because the browser draws it outside the page
+and it cannot inherit the theme: ink tile, paper mark, heavier stroke and shorter brackets
+because at 16px the in-app proportions close into a blob.
+
+**Neither the mark nor the credit goes on a printed document.** Those carry the *lender's*
+identity — `InvoicePrintView` prints `company_name`, and its footer names the installation
 through `GlobalSettings.app_name` precisely so a white-labelled deployment prints its own
-brand. Putting a vendor mark on a customer's receipt would be the wrong signature.
+brand. A vendor mark or a "developed by" line on a customer's receipt would be the wrong
+signature. The product signature lives under the sign-in card, which only staff ever see.
 
 **Creative North Star: "The Counter Ledger"**
 

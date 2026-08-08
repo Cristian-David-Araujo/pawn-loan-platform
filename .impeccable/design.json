@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-07T12:00:00.000Z",
+  "generatedAt": "2026-08-07T18:00:00.000Z",
   "title": "Design System: Pawn Loan Platform",
   "extensions": {
     "responsive": {
@@ -148,6 +148,7 @@
     }
   ],
   "narrative": {
+    "brand": "Mutuum — the Roman-law contract for a loan of fungible goods, where an equivalent must come back. The mark is two brackets holding a solid form: not a letterform, because the wordmark carries the name and the mark is free to carry the meaning. BrandMark is the mark alone (app chrome), BrandLockup is mark plus drawn wordmark, public/logo-mutuum.svg is the standalone file. Neither the mark nor the Nexbridge credit appears on a printed document: those carry the lender's identity, not the software's.",
     "northStar": "The Counter Ledger",
     "overview": "This is a tool held in someone's hands while a customer waits on the other side of the desk. It takes its character from the thing it replaced: a warm paper ledger, ruled in hairlines, written in a hand that stays legible after the hundredth entry. Not the vault, not the strongroom, not a fintech app — the book the amounts were kept in.\n\nEverything follows from the fact that every number on these screens is money that belongs to somebody else. Figures are set in a monospaced face and aligned so a column of pesos cannot shift under the eye between rows. Colour is scarce enough that when it appears it means something: a status, a selection, a place. Surfaces are quiet so the figures on them are not. Motion reports that something changed and then gets out of the way.\n\nThe rejected world is specific and was the incumbent: the generic AI dashboard — indigo gradients on the sidebar and on every button, frosted panels, a decorative circle behind each stat tile, Inter everywhere. It looked like a product demo rather than a place of record, and some of it worked against the reading: proportional digits in money columns, a hover lift on cards that cannot be clicked, four competing background states in one table.",
     "keyCharacteristics": [

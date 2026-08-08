@@ -2184,6 +2184,22 @@ ul {
   text-decoration: underline;
 }
 
+/* The product signature under the sign-in card. Quiet on purpose: it names the
+   software and its builder, and the operator came here to start work. */
+.brand-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 1.75rem;
+  color: var(--muted);
+}
+
+.brand-footer p {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
+}
+
 /* ═══════════════════════════════════════════════
    UTILITIES
    ═══════════════════════════════════════════════ */
