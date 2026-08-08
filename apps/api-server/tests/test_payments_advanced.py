@@ -5,15 +5,27 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent
+from src.infrastructure.persistence.models import GlobalSettings, InterestCharge, Loan, Payment, PaymentEvent
+from src.infrastructure.utils.datetime_utils import get_local_date
 
 
 def _create_interest_charge(db_session: Session, loan_id: int, amount: float = 100.0) -> InterestCharge:
+    """A charge whose period the application considers ended.
+
+    The dates come from `get_local_date`, not `date.today()`. The endpoints compare
+    `period_end` against the date in `GlobalSettings.timezone` (America/Bogota by default),
+    while `date.today()` is the *machine's* date — UTC on a CI runner. Between 00:00 and
+    05:00 UTC those are different days, so a charge built on the machine clock landed one day
+    in the future of the application clock and
+    `test_principal_payment_requires_flag_when_unpaid_interest_exists` saw 200 instead of
+    400. The suite passed locally and failed in CI for five hours a day.
+    """
+    today = get_local_date(db_session)
     charge = InterestCharge(
         loan_id=loan_id,
-        period_start=date.today(),
-        period_end=date.today(),
-        charge_date=date.today(),
+        period_start=today,
+        period_end=today,
+        charge_date=today,
         amount=amount,
         status="generated",
     )
@@ -430,6 +442,58 @@ def test_principal_payment_requires_flag_when_unpaid_interest_exists(
     )
     assert allowed.status_code == 200
     assert allowed.json()["allocated_to_principal"] == 20
+
+
+def test_principal_block_survives_a_server_timezone_behind_the_machine(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+    db_session: Session,
+) -> None:
+    """The block must not depend on the machine and the portfolio sharing a calendar day.
+
+    `GlobalSettings.timezone` is what the endpoints call "today", and it is routinely behind
+    the host clock — America/Bogota is five hours behind UTC, which is what a CI runner uses.
+    A charge built from `date.today()` therefore landed a day in the *future* of the
+    application's date for five hours out of every twenty-four, `period_end <= payment_date`
+    came out false, and a principal payment that should have been refused was accepted.
+
+    This pins the skew open deliberately: the portfolio is put a full day behind the host, and
+    a period that ended before that date must still block.
+    """
+    settings = db_session.get(GlobalSettings, 1)
+    if settings is None:
+        settings = GlobalSettings(id=1)
+        db_session.add(settings)
+    settings.timezone = "Pacific/Niue"  # UTC-11, behind every runner we use
+    db_session.commit()
+
+    loan = create_loan(principal=800)
+
+    # Ended before the portfolio's own date, whatever the host clock says.
+    charge = InterestCharge(
+        loan_id=loan["id"],
+        period_start=get_local_date(db_session) - timedelta(days=31),
+        period_end=get_local_date(db_session) - timedelta(days=1),
+        charge_date=get_local_date(db_session) - timedelta(days=1),
+        amount=50,
+        status="generated",
+    )
+    db_session.add(charge)
+    db_session.commit()
+
+    blocked = client.post(
+        "/api/v1/payments/principal",
+        headers=auth_headers,
+        json={
+            "loan_id": loan["id"],
+            "total_amount": 20,
+            "payment_method": "cash",
+            "allow_with_unpaid_interest": False,
+        },
+    )
+    assert blocked.status_code == 400, blocked.text
+    assert "unpaid accrued interest" in blocked.json()["detail"]
 
 
 def _create_loan_for(

@@ -1,18 +1,21 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, PaymentEvent
+from src.infrastructure.utils.datetime_utils import get_local_date
 
 
 def _create_interest_charge(db_session: Session, loan_id: int, amount: float = 100.0) -> InterestCharge:
+    # Same clock as the endpoints compare against — see the note in test_payments_advanced.
+    today = get_local_date(db_session)
     charge = InterestCharge(
         loan_id=loan_id,
-        period_start=date.today() - timedelta(days=30),
-        period_end=date.today(),
-        charge_date=date.today(),
+        period_start=today - timedelta(days=30),
+        period_end=today,
+        charge_date=today,
         amount=amount,
         status="generated",
     )
