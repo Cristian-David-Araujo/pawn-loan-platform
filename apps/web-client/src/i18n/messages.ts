@@ -883,7 +883,7 @@ export const messages = {
       subtitle: 'Inicia sesion con tus credenciales de administrador.',
       username: 'Usuario',
       password: 'Contrasena',
-      signIn: 'Iniciar sesion',
+      signIn: 'Iniciar sesión',
       signingIn: 'Ingresando...',
       invalidCredentials: 'Usuario o contraseña inválidos.',
       serviceUnreachable: 'No se pudo contactar al servidor. Recarga la página e intenta de nuevo.',

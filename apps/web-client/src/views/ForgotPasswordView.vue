@@ -1,5 +1,11 @@
 <template>
   <main class="login-page">
+    <!-- Not only so this screen can be read: the recovery email is written in whatever is
+         selected here, and this is the last moment the operator can say. -->
+    <div class="login-page-toolbar">
+      <LocaleSelect id="forgot-locale" />
+    </div>
+
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
@@ -48,6 +54,7 @@ import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Send, ArrowLeft } from 'lucide-vue-next'
 import BrandMark from '../components/BrandMark.vue'
+import LocaleSelect from '../components/LocaleSelect.vue'
 import { useAuthState } from '../modules/authentication/authState'
 
 const { t } = useI18n()
@@ -69,12 +76,21 @@ const handleSubmit = async () => {
 
   try {
     const res = await forgotPassword(identifier.value.trim())
-    successMessage.value = res.message || t('auth.recoverySentNotice')
+    /* Deliberately ignores `res.message`. The API answers with one hardcoded Spanish
+       sentence, and it is always present — so the `||` fallback never ran and the translated
+       key was dead: an operator working in English submitted this form and was answered in
+       Spanish. The anti-enumeration guarantee is unaffected, because this is one constant
+       string shown for every outcome, exactly like the server's. */
+    successMessage.value = t('auth.recoverySentNotice')
     if (res.reset_token) {
       devResetToken.value = res.reset_token
     }
-  } catch (err: any) {
-    error.value = err.message || t('auth.invalidCredentials')
+  } catch {
+    /* This endpoint answers 200 for every identifier, so the only way to land here is that
+       the request never got an answer. It used to print the raw thrown message — a browser's
+       untranslated "Failed to fetch" — and fall back to "invalid credentials", which names a
+       rejection that cannot happen on this screen. */
+    error.value = t('auth.serviceUnreachable')
   } finally {
     isSubmitting.value = false
   }

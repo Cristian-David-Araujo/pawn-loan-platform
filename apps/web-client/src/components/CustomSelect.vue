@@ -7,6 +7,7 @@
       class="select-button"
       :class="[inputClass, { 'is-placeholder': !selectedLabel }]"
       role="combobox"
+      :aria-label="ariaLabel"
       aria-haspopup="listbox"
       :aria-expanded="isOpen"
       :aria-controls="listboxId"
@@ -54,6 +55,11 @@ const props = defineProps<{
   inputClass?: string
   id?: string
   disabled?: boolean
+  /* A declared prop, not a passed-through attribute: the root of this component is the
+     wrapper div, so an `aria-label` written by a caller would have landed there and left the
+     combobox itself named only by whichever option is currently selected — a control that
+     announces "Español" and never says what it sets. */
+  ariaLabel?: string
 }>()
 
 const emit = defineEmits<{

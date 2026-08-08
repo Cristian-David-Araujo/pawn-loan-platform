@@ -2073,12 +2073,31 @@ ul {
    the only marketing gesture in the product, on the one screen where the user
    just wants to get to work.
    ═══════════════════════════════════════════════ */
+/* Two rows — the switcher's, then the card's — rather than one centred cell with the switcher
+   floated over it. Absolute positioning looked identical on a desk and collided with the card
+   on a landscape phone, where the viewport is short enough that a vertically centred card
+   reaches the top corner. */
 .login-page {
   min-height: 100dvh;
   display: grid;
-  place-items: center;
+  grid-template-rows: auto 1fr;
+  justify-items: center;
   padding: 1.25rem;
   background: var(--bg);
+}
+
+/* The language switcher on the three signed-out screens.
+   Outside the card because it is not a field of the form, and present at all because these
+   screens are the only place an operator whose browser was detected as the wrong language can
+   change it — the switcher in the app bar is behind a login they cannot read. It also fixes
+   the language the password-recovery email is written in. */
+.login-page-toolbar {
+  justify-self: end;
+  width: 9.5rem;
+}
+
+.login-page > .login-card {
+  align-self: center;
 }
 
 .login-card {
