@@ -41,7 +41,9 @@ export const messages = {
     },
 
     app: {
-      title: 'Pawn Loan Platform',
+      // The product name. What an installation calls itself is GlobalSettings.app_name,
+      // which an administrator edits from the settings screen; this is the fallback.
+      title: 'Mutuum',
       subtitle: 'Loan Operations Prototype',
       language: 'Language',
       navigation: 'Navigation',
@@ -850,7 +852,7 @@ export const messages = {
       confirm: 'Confirmar'
     },
     app: {
-      title: 'Plataforma de Prestamos Prendarios',
+      title: 'Mutuum',
       subtitle: 'Prototipo de Operaciones de Prestamo',
       language: 'Idioma',
       navigation: 'Navegacion',

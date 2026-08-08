@@ -3,7 +3,7 @@
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
-          <Shield :size="28" />
+          <BrandMark :size="30" />
         </span>
       </div>
       <header class="login-header">
@@ -43,7 +43,8 @@
 import { reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { Shield, LogIn } from 'lucide-vue-next'
+import { LogIn } from 'lucide-vue-next'
+import BrandMark from '../components/BrandMark.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { AuthRequestError, useAuthState } from '../modules/authentication/authState'
 

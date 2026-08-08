@@ -3,8 +3,10 @@
     <a class="skip-link" href="#main-content">{{ t('app.skipToContent') }}</a>
     <aside class="sidebar" :class="{ 'sidebar-open': mobileMenuOpen }">
       <div class="brand-wrap">
+        <!-- The product's own mark, not a borrowed icon. `Shield` sat here and was also the
+             Collateral nav item, so the brand and a destination rendered the same glyph. -->
         <span class="brand-logo">
-          <Shield :size="18" />
+          <BrandMark :size="20" :title="state.globalSettings?.appName || t('app.title')" />
         </span>
         <div>
           <h1 class="brand">{{ state.globalSettings?.appName || t('app.title') }}</h1>
@@ -118,6 +120,7 @@ import {
 import { persistLocale, type AppLocale } from '../i18n'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { usePlatformStore } from '../stores/platformStore'
+import BrandMark from '../components/BrandMark.vue'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import { useTheme, type ThemePreference } from '../composables/useTheme'

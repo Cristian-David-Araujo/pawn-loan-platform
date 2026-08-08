@@ -316,7 +316,7 @@ const documentTypeOptions = ['CC', 'TI', 'NIT', 'CE', 'PAS', 'RUT'].map(o => ({
 }))
 
 const form = reactive({
-  appName: 'PawnPlatform',
+  appName: 'Mutuum',
   companyName: '',
   companyDocumentType: 'NIT',
   companyDocumentNumber: '',
@@ -334,7 +334,7 @@ const form = reactive({
 onMounted(async () => {
   await ensureInitialized()
   if (state.globalSettings) {
-    form.appName = state.globalSettings.appName || 'PawnPlatform'
+    form.appName = state.globalSettings.appName || 'Mutuum'
     form.companyName = state.globalSettings.companyName || ''
     form.companyDocumentType = state.globalSettings.companyDocumentType || 'NIT'
     form.companyDocumentNumber = state.globalSettings.companyDocumentNumber || ''

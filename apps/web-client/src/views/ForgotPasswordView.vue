@@ -3,7 +3,7 @@
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
-          <KeyRound :size="28" />
+          <BrandMark :size="30" />
         </span>
       </div>
       <header class="login-header">
@@ -46,7 +46,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { KeyRound, Send, ArrowLeft } from 'lucide-vue-next'
+import { Send, ArrowLeft } from 'lucide-vue-next'
+import BrandMark from '../components/BrandMark.vue'
 import { useAuthState } from '../modules/authentication/authState'
 
 const { t } = useI18n()

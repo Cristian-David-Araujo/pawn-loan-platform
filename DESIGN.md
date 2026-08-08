@@ -123,6 +123,26 @@ components:
 
 ## Overview
 
+**The name.** *Mutuum* is the Roman-law contract this product runs on: a loan of fungible
+goods where ownership passes to the borrower and an **equivalent** must come back. It is the
+exact legal shape of what happens at this counter, and the mark says it — an **M** whose two
+outer stems are drawn to the same height, resting on a ledger rule.
+
+The mark lives in one place, [BrandMark.vue](apps/web-client/src/components/BrandMark.vue),
+built on lucide's grid (24×24, stroke 2, round caps and joins) so it sits beside the
+navigation icons without reading as a different set, and painted in `currentColor` so the
+sidebar, the login card and any other host get it in their own ink. It replaced a `Shield`
+that was also the Collateral nav item — the brand and a destination rendering the same glyph.
+
+`public/favicon.svg` is the one exception that carries its own colours, because it is drawn
+by the browser chrome outside the page and cannot inherit the theme: ink tile, paper mark,
+with a heavier stroke because it is read at 16px.
+
+**The mark never goes on a printed document.** Those carry the *lender's* identity, not the
+software's — `InvoicePrintView` prints `company_name`, and its footer names the installation
+through `GlobalSettings.app_name` precisely so a white-labelled deployment prints its own
+brand. Putting a vendor mark on a customer's receipt would be the wrong signature.
+
 **Creative North Star: "The Counter Ledger"**
 
 This is a tool held in someone's hands while a customer waits on the other side of the desk.

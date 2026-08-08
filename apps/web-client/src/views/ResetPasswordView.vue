@@ -3,7 +3,7 @@
     <section class="login-card card">
       <div class="login-brand">
         <span class="login-brand-icon">
-          <LockReset :size="28" />
+          <BrandMark :size="30" />
         </span>
       </div>
       <header class="login-header">
@@ -45,7 +45,8 @@
 import { reactive, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
-import { KeyRound as LockReset, CheckCircle2, ArrowLeft } from 'lucide-vue-next'
+import { CheckCircle2, ArrowLeft } from 'lucide-vue-next'
+import BrandMark from '../components/BrandMark.vue'
 import PasswordInput from '../components/PasswordInput.vue'
 import { useAuthState } from '../modules/authentication/authState'
 
