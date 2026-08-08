@@ -19,7 +19,9 @@ ROOT_ENV_FILE = _resolve_root_env_file()
 
 
 class Settings(BaseSettings):
-    app_name: str = "Pawn Loan API"
+    # The API's own name — the OpenAPI title at /docs. Distinct from
+    # GlobalSettings.app_name, which is what an installation calls itself on screen.
+    app_name: str = "Mutuum API"
     app_env: str = "development"
 
     database_url: str = "postgresql+psycopg://pawn_user:pawn_password@localhost:5432/pawn_loan_db"

@@ -45,7 +45,7 @@ def _settings(**overrides) -> BackupSettings:
         "day_of_month": 1,
         "destination": "local_directory",
         "retention_copies": 7,
-        "drive_folder_name": "PawnPlatform Backups",
+        "drive_folder_name": "Mutuum Backups",
     }
     return BackupSettings(**{**defaults, **overrides})
 
@@ -60,7 +60,7 @@ def _configure(client: TestClient, headers: dict[str, str], **overrides) -> dict
         "destination": "local_directory",
         "local_directory": None,
         "retention_copies": 7,
-        "drive_folder_name": "PawnPlatform Backups",
+        "drive_folder_name": "Mutuum Backups",
     }
     payload.update(overrides)
     response = client.put("/api/v1/backup/schedule", headers=headers, json=payload)
@@ -696,7 +696,7 @@ def test_a_drive_backup_uploads_and_prunes(
     assert sorted(fake.deleted) == ["old-1", "old-2"]
 
     # The folder it had to create is remembered, so later runs do not look it up again.
-    assert fake.created_folders == ["PawnPlatform Backups"]
+    assert fake.created_folders == ["Mutuum Backups"]
     assert db_session.get(BackupSettings, 1).drive_folder_id == "created-folder-id"
 
 
@@ -718,7 +718,7 @@ def test_a_drive_folder_the_operator_deleted_is_recreated(
     run = client.post("/api/v1/backup/schedule/run-now", headers=auth_headers).json()
 
     assert run["status"] == "success", run["error"]
-    assert fake.created_folders == ["PawnPlatform Backups"]
+    assert fake.created_folders == ["Mutuum Backups"]
     assert db_session.get(BackupSettings, 1).drive_folder_id == "created-folder-id"
 
 
@@ -773,7 +773,7 @@ def test_renaming_the_drive_folder_drops_the_remembered_id(
     settings.drive_folder_id = "folder-abc"
     db_session.commit()
 
-    body = _configure(client, auth_headers, drive_folder_name="Copias PawnPlatform")
+    body = _configure(client, auth_headers, drive_folder_name="Copias Mutuum")
 
-    assert body["drive_folder_name"] == "Copias PawnPlatform"
+    assert body["drive_folder_name"] == "Copias Mutuum"
     assert body["drive_folder_id"] is None

@@ -271,7 +271,10 @@ class GlobalSettings(Base):
     __tablename__ = "global_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
-    app_name: Mapped[str] = mapped_column(String(100), default="PawnPlatform")
+    # The product name. An operator can rename this from the settings screen — it is what
+    # the sidebar, the login card and the printed footer show — but a fresh installation
+    # should say what the product is called rather than a placeholder.
+    app_name: Mapped[str] = mapped_column(String(100), default="Mutuum")
     company_name: Mapped[str | None] = mapped_column(String(150), nullable=True)
     company_document_type: Mapped[str | None] = mapped_column(String(20), nullable=True)
     company_document_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -323,7 +326,10 @@ class BackupSettings(Base):
     # Shown in the UI so the administrator can tell which Google account is connected.
     drive_account_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     drive_folder_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    drive_folder_name: Mapped[str] = mapped_column(String(255), default="PawnPlatform Backups")
+    # New installations only. Existing rows are deliberately left alone by the rename
+    # migration: this name is paired with drive_folder_id, and changing one without the
+    # other would leave the screen naming a folder the uploads do not go to.
+    drive_folder_name: Mapped[str] = mapped_column(String(255), default="Mutuum Backups")
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)
 
 
