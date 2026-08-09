@@ -573,8 +573,6 @@ export const messages = {
     settings: {
       title: 'Settings',
       subtitle: 'Manage global software configuration.',
-      appName: 'App name',
-      appNameHelp: 'The name displayed in the top bar.',
       companyInfoTitle: 'Company information',
       companyName: 'Company name',
       companyDocumentType: 'Document type',
@@ -1377,8 +1375,6 @@ export const messages = {
     settings: {
       title: 'Ajustes',
       subtitle: 'Administra la configuración global del sistema.',
-      appName: 'Nombre de la aplicación',
-      appNameHelp: 'El nombre que se muestra en la barra superior.',
       companyInfoTitle: 'Información de la empresa',
       companyName: 'Razón social / Nombre de la empresa',
       companyDocumentType: 'Tipo de documento (Ej: NIT, CC)',
