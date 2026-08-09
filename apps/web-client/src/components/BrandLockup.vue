@@ -11,9 +11,15 @@
     from BrandMark: at 24px tall with a stroke of 2 it read thin beside letters at 4, and the
     pair stopped looking like one object.
 
-    Use BrandMark on its own wherever the name is already present in text — the sidebar and
-    the login card both show the *installation's* name, which an operator can change, so the
-    product wordmark does not belong there.
+    This is the primary logo: the sidebar and the sign-in footer both use it. Reach for
+    BrandMark alone only where there is no room for the word — the favicon, the square badge
+    on the auth cards.
+
+    It used to say the opposite: that the sidebar showed the *installation's* name, which an
+    operator could change, so the product wordmark did not belong beside it. That stopped
+    being true when the app name became fixed. What an installation calls itself is
+    `companyName`, which sits under the logo as a subtitle — a caption to the product's mark,
+    not a competing name.
   -->
   <svg
     :width="width"
