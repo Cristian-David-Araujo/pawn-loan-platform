@@ -25,13 +25,10 @@
         <h3>{{ t('settings.companyInfoTitle') }}</h3>
         <p class="muted">{{ t('settings.companyInfoHint') }}</p>
         <div class="grid grid-2 mt-16">
-          <label :title="t('settings.appNameHelp')">
-            <span class="field-label-row">
-              {{ t('settings.appName') }}
-              <Info class="field-help" :size="13" aria-hidden="true" />
-            </span>
-            <input v-model="form.appName" required :title="t('settings.appNameHelp')" />
-          </label>
+          <!-- No hay campo para el nombre de la aplicación: Mutuum es el nombre del producto,
+               no algo que cada instalación elija. El que sí es de la instalación es el de la
+               empresa, aquí abajo, y tenerlos juntos en el mismo formulario fue lo que
+               permitió renombrar el producto desde ajustes. -->
           <label>
             <span class="field-label-row">
               {{ t('settings.companyName') }}
@@ -316,7 +313,6 @@ const documentTypeOptions = ['CC', 'TI', 'NIT', 'CE', 'PAS', 'RUT'].map(o => ({
 }))
 
 const form = reactive({
-  appName: 'Mutuum',
   companyName: '',
   companyDocumentType: 'NIT',
   companyDocumentNumber: '',
@@ -334,7 +330,6 @@ const form = reactive({
 onMounted(async () => {
   await ensureInitialized()
   if (state.globalSettings) {
-    form.appName = state.globalSettings.appName || 'Mutuum'
     form.companyName = state.globalSettings.companyName || ''
     form.companyDocumentType = state.globalSettings.companyDocumentType || 'NIT'
     form.companyDocumentNumber = state.globalSettings.companyDocumentNumber || ''

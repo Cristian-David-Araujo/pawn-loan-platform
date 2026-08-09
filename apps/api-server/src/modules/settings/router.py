@@ -36,9 +36,9 @@ def update_global_settings(
 ) -> GlobalSettings:
     settings = _ensure_global_settings(db)
 
-    if payload.app_name is not None:
-        settings.app_name = payload.app_name
-    
+    # `app_name` is never assigned here — see GlobalSettingsUpdate. An older client that still
+    # sends it is ignored rather than rejected, which is what keeps a stale browser tab from
+    # failing the whole save over a field it is no longer allowed to set.
     settings.company_name = payload.company_name
     settings.company_document_type = payload.company_document_type
     settings.company_document_number = payload.company_document_number

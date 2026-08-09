@@ -173,7 +173,6 @@ interface UpdatePaymentPayload {
 }
 
 interface UpdateGlobalSettingsPayload {
-  appName: string
   companyName: string | null
   companyDocumentType: string | null
   companyDocumentNumber: string | null
@@ -520,7 +519,7 @@ const updateGlobalSettings = async (payload: UpdateGlobalSettingsPayload) => {
   await apiClient.request<BackendGlobalSettings>('/settings', {
     method: 'PUT',
     body: JSON.stringify({
-      app_name: payload.appName,
+      // No `app_name`: the product's name is not configurable and the API no longer takes it.
       company_name: payload.companyName,
       company_document_type: payload.companyDocumentType,
       company_document_number: payload.companyDocumentNumber,
