@@ -465,51 +465,54 @@ th.text-right {
   border-right: 1px solid var(--sidebar-border);
 }
 
+/* Stacked, not side by side: the lockup already carries the mark next to the name, so
+   putting another glyph beside it would show the mark twice. */
 .brand-wrap {
   display: flex;
-  gap: 0.7rem;
-  align-items: center;
+  flex-direction: column;
+  /* One gap for all three children — logo, rule, company name — so the rule sits centred in
+     its own space instead of being nudged by margins on either neighbour. */
+  gap: 0.6rem;
+  min-width: 0;
   padding: 0.25rem 0.5rem;
 }
 
-.brand-logo {
-  display: inline-flex;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  align-items: center;
-  justify-content: center;
-  color: var(--sidebar-bg);
-  background: var(--sidebar-text);
-  flex-shrink: 0;
-}
-
-.brand-wrap > div {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
+/* Holds the logo, not text. The size comes from BrandLockup's own height prop, which is what
+   keeps its one aspect ratio; this only sets the colour it draws in and stops the heading's
+   default type styling from applying to an SVG. */
 .brand {
   margin: 0;
-  font-size: var(--fs-base);
-  font-weight: 700;
+  display: flex;
   color: var(--sidebar-text);
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  letter-spacing: -0.015em;
 }
 
-.brand-subtitle {
-  font-size: var(--fs-xs);
-  color: var(--sidebar-muted);
-  margin-top: 0.15rem;
-  white-space: nowrap;
+/* Whose business this is, under what the tool is — the same order the sign-in card and the
+   printed documents use.
+
+   Full sidebar text at base size, not the muted micro-type it started as: at --fs-xs in the
+   muted colour it read as a strapline attached to the wordmark instead of as the name of a
+   separate party. It is allowed to wrap onto a second line, because a business name cut to
+   "Nelsy Ara…" inside its own product is worse than one that takes two lines. */
+.brand-company {
+  font-size: var(--fs-base);
+  color: var(--sidebar-text);
+  /* No margin: .brand-wrap's gap owns the spacing, so the two cannot double up. */
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 500;
+}
+
+/* Between the logo and the company name, which is the boundary that was missing — the gap
+   below the pair is the sidebar's own, and needs no rule. */
+.brand-divider {
+  height: 1px;
+  background: var(--sidebar-hover-bg);
 }
 
 .nav-title {
@@ -519,9 +522,20 @@ th.text-right {
   color: var(--sidebar-muted);
   font-weight: 600;
   padding: 0 0.5rem;
+  /* The one gap the group's own `gap` cannot express: a heading needs a little more air
+     under it than the links need between each other. */
+  margin: 0 0 0.3rem;
 }
 
+/* Groups sit far enough apart to read as separate; links inside one sit tight. The two
+   distances are the whole grouping device, so they live here and nowhere else. */
 .nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+}
+
+.nav-group {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;

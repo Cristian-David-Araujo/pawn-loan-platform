@@ -3,29 +3,50 @@
     <a class="skip-link" href="#main-content">{{ t('app.skipToContent') }}</a>
     <aside class="sidebar" :class="{ 'sidebar-open': mobileMenuOpen }">
       <div class="brand-wrap">
-        <!-- The product's own mark, not a borrowed icon. `Shield` sat here and was also the
-             Collateral nav item, so the brand and a destination rendered the same glyph. -->
-        <span class="brand-logo">
-          <BrandMark :size="20" :title="state.globalSettings?.appName || t('app.title')" />
-        </span>
-        <div>
-          <h1 class="brand">{{ state.globalSettings?.appName || t('app.title') }}</h1>
-          <p v-if="state.globalSettings?.companyName" class="brand-subtitle">{{ state.globalSettings.companyName }}</p>
-        </div>
+        <!--
+          The full lockup, the same one that signs off the sign-in screen: the wordmark drawn
+          in the product's own letterforms rather than typeset in whatever the interface font
+          happens to be.
+
+          It replaced a mark beside an <h1> holding GlobalSettings.app_name. That field is no
+          longer editable, so the text could only ever read "Mutuum" — a second, weaker
+          rendering of a name the logo already carries.
+
+          Still an <h1>: PageHeader's title is an <h2>, so dropping this one would leave every
+          screen without a top-level heading. The SVG carries aria-label="Mutuum", which is
+          what gives the heading its accessible name.
+        -->
+        <h1 class="brand">
+          <BrandLockup :height="18" />
+        </h1>
+        <!-- Whose business this is. The product logo says what the tool is; this says whose
+             book you are looking at — the same order the sign-in card puts them in, and the
+             same name that heads every printed document.
+
+             The rule between them is doing real work: set directly under the wordmark, the
+             company name read as a tagline of Mutuum rather than as a separate party. The
+             rule appears only when there is a name, so it never divides the logo from
+             nothing. -->
+        <template v-if="state.globalSettings?.companyName">
+          <div class="brand-divider" role="presentation"></div>
+          <p class="brand-company">{{ state.globalSettings.companyName }}</p>
+        </template>
       </div>
 
-      <p class="nav-title">{{ t('app.navigation') }}</p>
-      <nav class="nav">
-        <RouterLink
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          class="nav-link"
-          @click="mobileMenuOpen = false"
-        >
-          <component :is="item.icon" :size="16" />
-          <span>{{ t(item.labelKey) }}</span>
-        </RouterLink>
+      <nav class="nav" :aria-label="t('app.navigation')">
+        <div v-for="group in navGroups" :key="group.titleKey" class="nav-group">
+          <p class="nav-title">{{ t(group.titleKey) }}</p>
+          <RouterLink
+            v-for="item in group.items"
+            :key="item.to"
+            :to="item.to"
+            class="nav-link"
+            @click="mobileMenuOpen = false"
+          >
+            <component :is="item.icon" :size="16" />
+            <span>{{ t(item.labelKey) }}</span>
+          </RouterLink>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -113,7 +134,7 @@ import {
 } from 'lucide-vue-next'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { usePlatformStore } from '../stores/platformStore'
-import BrandMark from '../components/BrandMark.vue'
+import BrandLockup from '../components/BrandLockup.vue'
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import LocaleSelect from '../components/LocaleSelect.vue'
 import { useTheme, type ThemePreference } from '../composables/useTheme'
@@ -124,33 +145,55 @@ const router = useRouter()
 const { state: authState, logout, hasRole } = useAuthState()
 
 /*
- * Ordered by who is standing there, not by entity.
+ * Two groups, because the list is not one kind of thing.
  *
- * Payments used to sit fifth, below three destinations a collector can read but not act in —
- * they cannot open a loan or register a pledge. It is the only screen they spend the day in
- * and the most time-pressured one in the product, so it leads. Dashboard drops below the
- * three working screens: it reports, it does not ask.
+ * It used to be a single flat run of up to eight links with the role-gated ones appended to
+ * the end, so the daily working screens and the administrative ones were told apart only by
+ * where they happened to stop. The split is the one the permissions already make: the top
+ * group is what a collector can reach, the bottom is what needs a loan officer or an
+ * administrator. Each carries its own heading, replacing a single "Navigation" label that
+ * named nothing a list of links does not already say.
+ *
+ * Dashboard leads. An earlier arrangement put Payments first on the argument that the
+ * collector lives there and the dashboard only reports — but the panel is where everyone
+ * lands after signing in and where the day gets oriented, and a home that is fifth in its own
+ * menu reads as an afterthought.
  *
  * Users takes UserCog. It shared `Shield` with Collateral, and in a flat dark sidebar the
  * icon is the fastest scan target — two destinations rendering the same glyph is how someone
  * lands on the vault when they wanted permissions.
  */
-const navItems = computed(() => {
-  const items = [
-    { to: '/payments', labelKey: 'app.payments', icon: ReceiptText },
-    { to: '/customers', labelKey: 'app.customers', icon: Users },
-    { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
-    { to: '/collaterals', labelKey: 'app.collateral', icon: Shield },
-    { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard }
+const navGroups = computed(() => {
+  const groups = [
+    {
+      titleKey: 'app.navOperation',
+      items: [
+        { to: '/dashboard', labelKey: 'app.dashboard', icon: LayoutDashboard },
+        { to: '/payments', labelKey: 'app.payments', icon: ReceiptText },
+        { to: '/customers', labelKey: 'app.customers', icon: Users },
+        { to: '/loans', labelKey: 'app.loans', icon: HandCoins },
+        { to: '/collaterals', labelKey: 'app.collateral', icon: Shield }
+      ]
+    }
   ]
+
+  // Typed off the group above rather than spelled out, so the icon's component type stays
+  // whatever lucide-vue-next exports and the two lists cannot drift apart.
+  const management: (typeof groups)[0]['items'] = []
   if (hasRole([UserRole.Administrator, UserRole.LoanOfficer])) {
-    items.push({ to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 })
+    management.push({ to: '/reporting', labelKey: 'app.reporting', icon: BarChart3 })
   }
   if (hasRole([UserRole.Administrator])) {
-    items.push({ to: '/settings', labelKey: 'app.settings', icon: Settings })
-    items.push({ to: '/users', labelKey: 'app.users', icon: UserCog })
+    management.push({ to: '/settings', labelKey: 'app.settings', icon: Settings })
+    management.push({ to: '/users', labelKey: 'app.users', icon: UserCog })
   }
-  return items
+
+  // A collector sees no second group at all, rather than an empty heading over nothing.
+  if (management.length) {
+    groups.push({ titleKey: 'app.navManagement', items: management })
+  }
+
+  return groups
 })
 
 const { state } = usePlatformStore()
