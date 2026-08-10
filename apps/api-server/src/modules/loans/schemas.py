@@ -67,6 +67,19 @@ class LoanRead(BaseModel):
     # Exposed so a written-off loan can say so on screen instead of just reading as closed.
     force_closed_reason: str = ""
     force_closed_at: datetime | None = None
+    # A pause does not change the status, so without these the screen has no way to tell a
+    # paused loan from one that simply has not been billed yet — and the operator would have
+    # no way to find the loan they paused in order to resume it.
+    interest_paused: bool = False
+    interest_paused_at: datetime | None = None
+    interest_pause_reason: str = ""
+    # Same reasoning as `force_closed_*`: a settled loan closes as `closed`, and these are
+    # what let the screen say it was settled for less rather than paid off.
+    settled_at: datetime | None = None
+    settlement_reason: str = ""
+    settlement_amount: float | None = None
+    written_off_principal: float | None = None
+    written_off_interest: float | None = None
     created_at: datetime
     created_by: UserSummary | None = None
 

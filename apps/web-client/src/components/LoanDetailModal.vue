@@ -6,6 +6,22 @@
         <div class="form-inline">
           <!-- `.btn-danger` already carries this colour; the inline style repeated it in the
                old palette's red, and `.btn-sm` was never a class anywhere. -->
+          <!-- Pause and resume are one control: the loan is either running or it is not, and
+               two buttons where only one is ever live reads as a broken screen. -->
+          <button
+            v-if="canPause"
+            class="btn btn-secondary"
+            type="button"
+            :disabled="isPausing"
+            @click="togglePause"
+          >
+            <component :is="loan.interestPaused ? Play : Pause" :size="14" aria-hidden="true" />
+            {{ loan.interestPaused ? t('loans.resumeInterest') : t('loans.pauseInterest') }}
+          </button>
+          <button v-if="canSettle" class="btn btn-destructive" type="button" @click="settleTarget = loan">
+            <HandCoins :size="14" aria-hidden="true" />
+            {{ t('loans.settleLoan') }}
+          </button>
           <button v-if="canForeclose" class="btn btn-danger" type="button" :disabled="isForeclosing" @click="confirmForeclose">
             <AlertTriangle :size="14" aria-hidden="true" />
             <span v-if="isForeclosing" class="spinner-small"></span>
@@ -194,13 +210,20 @@
     @close="paymentPendingReversal = null"
     @deleted="onPaymentDeleted"
   />
+
+  <SettleLoanModal
+    :loan="settleTarget"
+    :pendingInterest="totalPendingInterest + totalPendingPenalty"
+    @close="settleTarget = null"
+    @settled="onLoanSettled"
+  />
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
-import { Printer, X, Pencil, Save, AlertTriangle, Trash2 } from 'lucide-vue-next'
+import { Printer, X, Pencil, Save, AlertTriangle, Trash2, Pause, Play, HandCoins } from 'lucide-vue-next'
 import { usePlatformStore } from '../stores/platformStore'
 
 import Pagination from './Pagination.vue'
@@ -209,6 +232,8 @@ import { formatCurrency } from '../utils/currency'
    loan detail ignored `GlobalSettings.dateFormat` the same way the collateral screen did. */
 import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import PaymentReversalModal from './PaymentReversalModal.vue'
+import SettleLoanModal from './SettleLoanModal.vue'
+import { apiClient, apiErrorMessage } from '../services/api'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { Loan, Payment, CollateralItem } from '../types/domain'
 
@@ -235,6 +260,67 @@ const store = usePlatformStore()
 const { hasRole } = useAuthState()
 
 const paymentPendingReversal = ref<Payment | null>(null)
+const settleTarget = ref<Loan | null>(null)
+const isPausing = ref(false)
+
+/* Pausing changes the terms of live credit, so it sits with the roles that create it.
+   Settling forgives money, which is the administrator's decision alone — the same split the
+   endpoints enforce. Showing a control the API will refuse teaches the operator nothing. */
+const canPause = computed(
+  () =>
+    props.loan !== null &&
+    (props.loan.status === 'active' || props.loan.status === 'overdue') &&
+    hasRole([UserRole.Administrator, UserRole.LoanOfficer])
+)
+
+const canSettle = computed(
+  () =>
+    props.loan !== null &&
+    props.loan.settledAt === null &&
+    hasRole([UserRole.Administrator])
+)
+
+const togglePause = async () => {
+  const loan = props.loan
+  if (!loan || isPausing.value) return
+
+  // Resuming needs no reason: the record of why the months are empty is the pause's own
+  // reason, which stays on the row.
+  const reason = loan.interestPaused
+    ? null
+    : await promptPauseReason()
+  if (!loan.interestPaused && !reason) return
+
+  isPausing.value = true
+  forecloseError.value = ''
+  try {
+    await apiClient.request(`/loans/${loan.id}/${loan.interestPaused ? 'resume' : 'pause'}`, {
+      method: 'POST',
+      body: loan.interestPaused ? undefined : JSON.stringify({ reason })
+    })
+    await store.refreshAll()
+    emit('payments-changed')
+  } catch (caught) {
+    forecloseError.value = apiErrorMessage(caught) || t('messages.operationFailed')
+  } finally {
+    isPausing.value = false
+  }
+}
+
+/* A pause has to be answerable, like every other forgiveness in this product — the months it
+   covers are recorded as deliberately unbilled and can never be billed later. `window.prompt`
+   rather than a fourth modal: it is one short string with no other fields, and the app's own
+   confirm dialog takes no text input. */
+const promptPauseReason = async (): Promise<string | null> => {
+  const answer = window.prompt(t('loans.pauseReasonPrompt'))
+  const trimmed = (answer ?? '').trim()
+  return trimmed.length >= 3 ? trimmed : null
+}
+
+const onLoanSettled = async () => {
+  await store.refreshAll()
+  emit('payments-changed')
+}
 
 // The parent owns the payments list, so a deletion has to bubble up for it to reload.
 const onPaymentDeleted = async () => {
