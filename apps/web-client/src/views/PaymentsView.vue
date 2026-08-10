@@ -260,11 +260,11 @@
       <div class="filter-grid mt-16">
         <label>
           {{ t('payments.filterFromDate') }}
-          <DateInputField v-model="historyFromDate" :label="t('payments.filterFromDate')" :placeholder="t('settings.dateFormat')" />
+          <DateInputField v-model="historyFromDate" :label="t('payments.filterFromDate')" />
         </label>
         <label>
           {{ t('payments.filterToDate') }}
-          <DateInputField v-model="historyToDate" :label="t('payments.filterToDate')" :placeholder="t('settings.dateFormat')" />
+          <DateInputField v-model="historyToDate" :label="t('payments.filterToDate')" />
         </label>
         <label>
           {{ t('payments.filterLoan') }}
@@ -342,7 +342,7 @@
                   </button>
                   <button
                     v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
-                    class="btn btn-danger btn-icon"
+                    class="btn btn-destructive btn-icon"
                     type="button"
                     :title="t('payments.deletePayment')"
                     :aria-label="t('payments.deletePayment')"
@@ -425,7 +425,7 @@
               <DateInputField
                 v-model="paymentEditForm.paymentDate"
                 :label="t('common.date')"
-                :placeholder="t('settings.dateFormat')"
+               
                 :required="true"
               />
             </label>

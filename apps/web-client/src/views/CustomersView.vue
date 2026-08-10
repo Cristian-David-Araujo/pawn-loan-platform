@@ -173,7 +173,7 @@
               <CheckCircle2 :size="16" />
               {{ t('customers.activateCustomer') }}
             </button>
-            <button v-if="hasRole([UserRole.Administrator])" class="btn btn-secondary" type="button" :disabled="isSaving" @click="handleDeleteCustomer">
+            <button v-if="hasRole([UserRole.Administrator])" class="btn btn-destructive" type="button" :disabled="isSaving" @click="handleDeleteCustomer">
               <Trash2 :size="16" />
               {{ t('customers.deleteCustomer') }}
             </button>
@@ -212,11 +212,11 @@
           <div class="audit-filter-grid mt-16">
             <label>
               {{ t('customers.auditFilterFrom') }}
-              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" :placeholder="t('settings.dateFormat')" />
+              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" />
             </label>
             <label>
               {{ t('customers.auditFilterTo') }}
-              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" :placeholder="t('settings.dateFormat')" />
+              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" />
             </label>
             <label>
               {{ t('customers.auditFilterLoan') }}
@@ -393,7 +393,7 @@
                 <th>{{ t('payments.penalty') }}</th>
                 <th>{{ t('payments.outstandingPeriod') }}</th>
                 <th>{{ t('common.status') }}</th>
-                <th v-if="canVoidCharges"></th>
+                <th v-if="canVoidCharges">{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -413,7 +413,7 @@
                      which is the pattern, not an omission. -->
                 <td v-if="canVoidCharges" class="text-right">
                   <button
-                    class="btn btn-secondary btn-icon"
+                    class="btn btn-destructive btn-icon"
                     type="button"
                     :title="t('interest.voidCharge')"
                     :aria-label="t('interest.voidCharge')"
@@ -512,7 +512,7 @@
                     <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" @click.stop>
                       <Printer :size="16" />
                     </a>
-                    <button v-if="hasRole([UserRole.Administrator])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
+                    <button v-if="hasRole([UserRole.Administrator])" class="btn btn-destructive btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
                       <Trash2 :size="16" />
                     </button>
                   </div>
@@ -596,7 +596,7 @@
                     </button>
                     <button
                       v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
-                      class="btn btn-danger btn-icon"
+                      class="btn btn-destructive btn-icon"
                       type="button"
                       :title="t('payments.deletePayment')"
                       :aria-label="t('payments.deletePayment')"
@@ -723,7 +723,7 @@
               <DateInputField
                 v-model="loanEditForm.disbursementDate"
                 :label="t('loans.disbursementDate')"
-                :placeholder="t('settings.dateFormat')"
+               
                 :required="true"
               />
             </label>
@@ -814,7 +814,7 @@
               <DateInputField
                 v-model="paymentEditForm.paymentDate"
                 :label="t('common.date')"
-                :placeholder="t('settings.dateFormat')"
+               
                 :required="true"
               />
             </label>

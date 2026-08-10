@@ -139,7 +139,7 @@
                   <td>
                     <button
                       v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
-                      class="btn btn-danger btn-icon"
+                      class="btn btn-destructive btn-icon"
                       type="button"
                       :title="t('payments.deletePayment')"
                       :aria-label="t('payments.deletePayment')"
