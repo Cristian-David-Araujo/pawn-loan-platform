@@ -715,6 +715,17 @@ export const messages = {
         manual: 'Manual'
       }
     },
+    interest: {
+      voidCharge: 'Void charge',
+      voidChargeExplain:
+        'Period {period} of loan #{loanId} is still owed {amount}. Voiding it cancels that interest for good.',
+      voidChargeKeepsRecord:
+        'The charge is kept on record as voided, never deleted — that is also what stops this month being billed again.',
+      voidReason: 'Reason for voiding',
+      voidReasonPlaceholder: 'Why should this charge never have been billed?',
+      confirmVoidCharge: 'Void this charge',
+      chargeVoided: 'Charge #{id} was voided.'
+    },
     reporting: {
       title: 'Reporting',
       subtitle: 'Operational reports with collection analytics and portfolio behavior.',
@@ -1520,9 +1531,20 @@ export const messages = {
         manual: 'Manual'
       }
     },
+    interest: {
+      voidCharge: 'Anular cargo',
+      voidChargeExplain:
+        'El período {period} del préstamo #{loanId} aún debe {amount}. Anularlo cancela ese interés de forma definitiva.',
+      voidChargeKeepsRecord:
+        'El cargo queda registrado como anulado, nunca se borra — eso es también lo que impide que ese mes se vuelva a facturar.',
+      voidReason: 'Motivo de la anulación',
+      voidReasonPlaceholder: '¿Por qué nunca debió cobrarse este cargo?',
+      confirmVoidCharge: 'Anular este cargo',
+      chargeVoided: 'Se anuló el cargo #{id}.'
+    },
     reporting: {
       title: 'Reportes',
-      subtitle: 'Reportes operativos con analitica de recaudo y comportamiento de cartera.',
+      subtitle: 'Reportes operativos con analítica de recaudo y comportamiento de cartera.',
       activeLoans: 'Préstamos Activos',
       overdueLoans: 'Préstamos Vencidos',
       collateralInCustody: 'Garantías en Custodia',
