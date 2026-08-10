@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class InterestGenerationRequest(BaseModel):
@@ -20,7 +20,19 @@ class InterestChargeRead(BaseModel):
     penalty_amount: float | None = None
     penalty_rate_applied: float | None = None
     penalty_applied_at: date | None = None
+    voided_at: datetime | None = None
+    void_reason: str = ""
     created_at: datetime
+
+
+class VoidInterestChargeRequest(BaseModel):
+    """Voiding forgives interest that was already billed, so it has to be answerable.
+
+    Same floor as a payment reversal and a forced close: three characters is not a real
+    explanation, but it is enough to stop an empty string standing in for one.
+    """
+
+    reason: str = Field(..., min_length=3, max_length=500)
 
 
 class LoanBalanceRead(BaseModel):

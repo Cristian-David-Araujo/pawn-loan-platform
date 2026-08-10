@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -98,3 +99,32 @@ class CloseLoanRequest(BaseModel):
 
     force: bool = False
     reason: str | None = Field(default=None, min_length=3, max_length=500)
+
+
+class PauseLoanRequest(BaseModel):
+    """Stopping the interest clock. The grounds are mandatory, like every other forgiveness.
+
+    A pause is an agreement not to charge for a stretch of time, and the months it covers are
+    recorded as deliberately unbilled and can never be billed later. That is worth a sentence
+    from whoever agreed to it.
+    """
+
+    reason: str = Field(..., min_length=3, max_length=500)
+
+
+class SettleLoanRequest(BaseModel):
+    """A negotiated settlement: take what can be collected, write off the rest.
+
+    ``amount`` may be zero — that is the case this exists for, a debt with no realistic way
+    of being collected at all. It may not exceed what the loan owes: that is an ordinary
+    payment, and letting it through here would write off a negative.
+    """
+
+    amount: float = Field(..., ge=0)
+    reason: str = Field(..., min_length=3, max_length=500)
+    payment_date: date | None = None
+    payment_method: str = Field(default="cash", max_length=40)
+    # Whether the pledges go back to the customer or stay for sale. There is no default:
+    # handing over goods and keeping them are opposite decisions, and neither should happen
+    # because a field was left out of a request.
+    collateral_action: Literal["release", "for_sale"]
