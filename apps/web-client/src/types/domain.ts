@@ -36,6 +36,16 @@ export interface Loan {
   interestDue?: number
   collateralsCount?: number
   status: LoanStatus
+  /* Pausing the interest clock is a flag, not a status: a paused loan is still `active` or
+     `overdue`, so the status alone cannot show it and cannot be used to find it again. */
+  interestPaused: boolean
+  interestPauseReason: string
+  /* A settlement closes the loan as `closed`. These separate "paid off" from "we took what
+     we could and wrote off the rest". */
+  settledAt: string | null
+  settlementAmount: number | null
+  writtenOffPrincipal: number | null
+  writtenOffInterest: number | null
   created_by?: UserSummary | null
 }
 

@@ -8,10 +8,17 @@ from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import AuditLog, CollateralItem, GlobalSettings, InterestCharge, Loan, LoanApplication, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.finance.interest_balance import default_grace_days, pending_interest_total_for_loan
-from src.modules.finance.interest_generation import generate_missing_interest_charges_for_loan, recalculate_interest_charges_for_loan
+from src.modules.finance.interest_generation import (
+    ACCRUING_STATUSES,
+    generate_missing_interest_charges_for_loan,
+    recalculate_interest_charges_for_loan,
+)
 from src.modules.finance.penalties import freeze_due_penalties
+from src.modules.finance.settlement import SettlementError, settle_loan
 from src.modules.loans.schemas import (
     CloseLoanRequest,
+    PauseLoanRequest,
+    SettleLoanRequest,
     LoanApplicationCreate,
     LoanApplicationRead,
     LoanCreate,
@@ -455,6 +462,151 @@ def close_loan(
     )
 
     return loan
+
+@router.post("/loans/{loan_id}/pause", response_model=LoanRead)
+def pause_loan_interest(
+    loan_id: int,
+    payload: PauseLoanRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
+) -> Loan:
+    """Stop the interest clock without ending the debt.
+
+    Only `active` and `overdue` can be paused, because they are the only statuses that accrue
+    — pausing a `closed` or `defaulted` loan would suspend a clock that is not running and
+    leave a flag nobody can act on.
+
+    The loan keeps its status. Interest already billed stays owed and stays visible in
+    collection, and the loan can still turn `overdue` on it: a pause is an agreement about
+    what happens next, not a way to make existing arrears disappear from the reports.
+    """
+    loan = db.get(Loan, loan_id)
+    if loan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+
+    if loan.status not in ACCRUING_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only an active or overdue loan can be paused",
+        )
+
+    if loan.interest_paused:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This loan is already paused")
+
+    loan.interest_paused = True
+    loan.interest_paused_at = get_local_datetime(db)
+    loan.interest_paused_by = current_user.id
+    loan.interest_pause_reason = payload.reason.strip()
+
+    db.commit()
+    db.refresh(loan)
+
+    write_audit(
+        db,
+        action="pause_loan_interest",
+        entity_type="Loan",
+        entity_id=str(loan.id),
+        user=current_user,
+        new_data=f"interest_paused=true,reason={loan.interest_pause_reason}",
+    )
+
+    return loan
+
+
+@router.post("/loans/{loan_id}/resume", response_model=LoanRead)
+def resume_loan_interest(
+    loan_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
+) -> Loan:
+    """Start the clock again, from now.
+
+    The months the pause covered are not billed retroactively — the generation cycle wrote a
+    zero-amount marker for each one as it passed, and those markers are what stop the
+    self-healing generator from filling the gap with real charges on the next run. Resuming
+    only means the next period accrues normally.
+
+    The reason and the date it was paused stay on the row: they are the record of why those
+    months are empty, and clearing them would make the gap unexplainable.
+    """
+    loan = db.get(Loan, loan_id)
+    if loan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+
+    if not loan.interest_paused:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This loan is not paused")
+
+    loan.interest_paused = False
+
+    db.commit()
+    db.refresh(loan)
+
+    write_audit(
+        db,
+        action="resume_loan_interest",
+        entity_type="Loan",
+        entity_id=str(loan.id),
+        user=current_user,
+        new_data=f"interest_paused=false,paused_since={loan.interest_paused_at}",
+    )
+
+    return loan
+
+
+@router.post("/loans/{loan_id}/settle", response_model=LoanRead)
+def settle_loan_endpoint(
+    loan_id: int,
+    payload: SettleLoanRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.administrator)),
+) -> Loan:
+    """Take what can be collected and write off the rest.
+
+    Administrator only. It is the same class of decision as liquidating or selling a pledge —
+    giving up on money the book says is owed — and the roles that create credit are not the
+    roles that get to forgive it.
+    """
+    loan = db.get(Loan, loan_id)
+    if loan is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
+
+    try:
+        result = settle_loan(
+            db,
+            loan,
+            amount=payload.amount,
+            payment_date=payload.payment_date or get_local_date(db),
+            payment_method=payload.payment_method,
+            reason=payload.reason.strip(),
+            collateral_action=payload.collateral_action,
+            user=current_user,
+            now=get_local_datetime(db),
+        )
+    except SettlementError as exc:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    # Built before the commit, because reading the amounts back afterwards would re-query rows
+    # the commit has just expired.
+    summary = result.describe()
+
+    # `commit=False`: this is a money path, so the audit row shares the transaction with the
+    # payment and the write-off. A second transaction could fail while the settlement stood,
+    # leaving a debt forgiven with nobody recorded as having forgiven it.
+    write_audit(
+        db,
+        action="settle_loan",
+        entity_type="Loan",
+        entity_id=str(loan.id),
+        user=current_user,
+        new_data=f"{summary},collateral={payload.collateral_action},reason={payload.reason.strip()}",
+        commit=False,
+    )
+
+    db.commit()
+    db.refresh(loan)
+    return loan
+
 
 @router.post("/loans/{loan_id}/foreclose", response_model=LoanRead)
 def foreclose_loan(

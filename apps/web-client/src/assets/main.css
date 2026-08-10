@@ -85,8 +85,15 @@
   /* ── Accent (deep petrol) ──────────────────────
      Interaction and orientation only: active nav, focus, selection, links,
      sort. Never decoration. 7.9:1 against white. */
-  --accent: #0d5c53;
-  --accent-hover: #0a4a43;
+  /* Light petrol. It was #0d5c53 — dark enough and desaturated enough that as a *fill*
+     (a selected day, the current page button) it read as a near-black smudge against the
+     warm bone canvas, while the dark theme's #4ba599 read as an unmistakable teal. One
+     token was doing two jobs: a light colour on a dark ground, and a dark colour used as a
+     fill on a light one. Lifting it to a real teal makes the two themes agree about what
+     the accent *is*, and it still clears AA both as a fill behind --on-fill and as link
+     text on a panel — check:contrast measures all four. */
+  --accent: #0f7568;
+  --accent-hover: #0c5f55;
   --accent-soft: #e6f0ee;
   --accent-border: #b9d4cf;
   /* The accent lifted to read against the vault-black sidebar, where #0d5c53
@@ -1279,6 +1286,38 @@ label {
 .btn-danger:hover:not(:disabled) {
   background: var(--danger-hover);
   color: var(--on-fill);
+}
+
+/* A destructive action that lives on a table row.
+ *
+ * `.btn-danger` is for the one button that commits the deletion, inside its confirmation.
+ * Filling every row with red would spend the loudest colour in the system on a control the
+ * operator is not meant to reach for — the same argument DESIGN.md makes for keeping primary
+ * actions on `--ink` rather than `--accent`.
+ *
+ * But these were plain `.btn-secondary`, which paints `--text-secondary`: identical to an
+ * edit or a print button beside it, and nothing about it said the action destroys anything.
+ * Row deletions had drifted across three treatments — `btn-secondary`, `btn-secondary
+ * btn-icon`, and one `btn-danger` — so the same act looked different on each screen.
+ *
+ * Resting state carries the danger hue at text weight, which reads as intent without
+ * shouting; hover and focus commit to the soft fill. One class, every row, both themes.
+ */
+.btn-destructive {
+  background: var(--surface);
+  /* `--danger-text`, not `--danger`. The latter is a fill colour: on the dark surface it
+     measures 2.93:1, well under AA, which `check:contrast` caught the moment this pair was
+     added to it. `--danger-text` is the hue's text-weight variant and is already the token
+     the danger pill draws with. */
+  color: var(--danger-text);
+  border-color: var(--line-strong);
+}
+
+.btn-destructive:hover:not(:disabled),
+.btn-destructive:focus-visible:not(:disabled) {
+  background: var(--danger-soft);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
 }
 
 /* ═══════════════════════════════════════════════

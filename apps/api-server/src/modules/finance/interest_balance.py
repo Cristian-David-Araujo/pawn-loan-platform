@@ -113,13 +113,27 @@ def _active_events_for_loans(db: Session, loan_ids: list[int]) -> list[PaymentEv
 
 
 def _charges_for_loans(db: Session, loan_ids: list[int]) -> list[InterestCharge]:
+    """Charges that still count, which is every one that has not been voided.
+
+    The filter belongs here and nowhere else. This is the single query every balance in the
+    product is built from — the collection screens, `Loan.interest_due`, the penalty base,
+    the overdue transition job and the cached charge status all come through it — so a voided
+    period disappears from all of them at once. Filtering at each call site instead is how the
+    same charge would start reading as owed on one screen and settled on another.
+
+    Voiding is refused while a charge carries live payment events, so nothing that is excluded
+    here can have money pointing at it.
+    """
     if not loan_ids:
         return []
 
     return list(
         db.scalars(
             select(InterestCharge)
-            .where(InterestCharge.loan_id.in_(loan_ids))
+            .where(
+                InterestCharge.loan_id.in_(loan_ids),
+                InterestCharge.voided_at.is_(None),
+            )
             .order_by(InterestCharge.period_end.asc(), InterestCharge.id.asc())
         ).all()
     )

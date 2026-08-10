@@ -48,7 +48,14 @@ def freeze_due_penalties(db: Session, as_of_date: date) -> list[InterestCharge]:
     unfrozen = list(
         db.scalars(
             select(InterestCharge)
-            .where(InterestCharge.penalty_applied_at.is_(None))
+            .where(
+                InterestCharge.penalty_applied_at.is_(None),
+                # A voided period owes nothing, so a penalty derived from it would be zero
+                # anyway — but stamping `penalty_applied_at` on it would turn "this charge
+                # was cancelled" into "this charge was cancelled and then penalised at 0",
+                # and the stamp is permanent.
+                InterestCharge.voided_at.is_(None),
+            )
             .order_by(InterestCharge.period_end.asc(), InterestCharge.id.asc())
         ).all()
     )
@@ -72,6 +79,13 @@ def freeze_due_penalties(db: Session, as_of_date: date) -> list[InterestCharge]:
         # does keep accruing penalties: it can still owe (see `allow_with_unpaid_interest`),
         # and that debt is collected at the counter like any other.
         if loan.status == LoanStatus.defaulted:
+            continue
+
+        # A pause stops the clock, and a late penalty is part of that clock. Freezing one
+        # while paused would also make it permanent — `penalty_applied_at` is what stops a
+        # penalty being re-evaluated — so the charge would carry a penalty from a month the
+        # operator had agreed not to charge for, and resuming could never undo it.
+        if loan.interest_paused:
             continue
 
         due_date = charge_due_date(charge.period_end, grace_days_for_loan(loan, configured_grace_days))

@@ -23,6 +23,20 @@ Repayment = tuple[date, float]
 ACCRUING_STATUSES = (LoanStatus.active, LoanStatus.overdue)
 
 
+def accruing_loans(db: Session) -> list[Loan]:
+    """The loans a generation cycle looks at.
+
+    One definition, called by both the scheduler and `POST /interest/generate`. They each
+    spelled this query out, and the two drifting apart is precisely what produced the defect
+    described above — so the query lives here beside the statuses it uses.
+
+    **Paused loans are included.** They accrue nothing, but they still need a zero-amount
+    marker written for each month that passes, or the gap would be filled with real charges
+    the moment the pause ended. The pause is applied per loan, inside the generation loop.
+    """
+    return list(db.scalars(select(Loan).where(Loan.status.in_(ACCRUING_STATUSES))).all())
+
+
 def _month_anchor(year: int, month: int, anchor_day: int) -> date:
     last_day = monthrange(year, month)[1]
     day = min(max(1, anchor_day), last_day)
@@ -114,6 +128,32 @@ def _new_charge(loan: Loan, period_start: date, period_end: date, charge_date: d
     )
 
 
+def _paused_marker(loan: Loan, period_start: date, period_end: date, charge_date: date) -> InterestCharge:
+    """A month that ran while the loan was paused, recorded as deliberately not billed.
+
+    This is the same zero-amount `not_billed` row [migration 0010] used to close the holes an
+    earlier defect left behind, and it is here for exactly the reason it existed there: this
+    generator is self-healing. `_iter_due_periods` walks from the disbursement every cycle,
+    so a month with no charge is a gap it will fill — and the day a loan resumed, every month
+    of the pause would be billed at once, which is the opposite of what pausing was for.
+
+    Writing the marker as the period passes, rather than reconstructing the gap on resume,
+    means there is never an instant where the loan has a hole in its record. `_is_invoiced`
+    already treats a zero-amount charge as immutable, and both the balance calculation and
+    `sync_interest_charge_statuses` already skip it, so the marker reaches no screen and no
+    printed statement.
+    """
+    return InterestCharge(
+        loan_id=loan.id,
+        period_start=period_start,
+        period_end=period_end,
+        charge_date=charge_date,
+        amount=0.0,
+        principal_base=loan.outstanding_principal,
+        status="not_billed",
+    )
+
+
 def generate_missing_interest_charges(
     db: Session,
     loans: list[Loan],
@@ -141,13 +181,18 @@ def generate_missing_interest_charges(
             if (period_start, period_end) in known:
                 continue
 
-            charge = _new_charge(
-                loan,
-                period_start,
-                period_end,
-                charge_date,
-                principal_base_for_period(loan, period_end, loan_repayments),
-            )
+            if loan.interest_paused:
+                # Still written, still zero. Skipping the row entirely would leave a gap the
+                # next cycle fills in with a real charge.
+                charge = _paused_marker(loan, period_start, period_end, charge_date)
+            else:
+                charge = _new_charge(
+                    loan,
+                    period_start,
+                    period_end,
+                    charge_date,
+                    principal_base_for_period(loan, period_end, loan_repayments),
+                )
             db.add(charge)
             generated.append(charge)
 
@@ -243,11 +288,15 @@ def _is_invoiced(charge: InterestCharge, linked_events: list[PaymentEvent], char
     """Whether this period is already a fact rather than a forecast.
 
     Any of: money was allocated to it, its period has run out, its late penalty was frozen,
-    or it is a zero-amount marker for a month that was deliberately never billed.
+    it is a zero-amount marker for a month that was deliberately never billed, or it was
+    voided. A voided charge is the most immutable of all — deleting it would free its
+    `(period_start, period_end)` slot, and the next cycle would bill the very month an
+    administrator just decided should never have been charged.
     """
     return (
         bool(linked_events)
         or charge.period_end <= charge_date
         or charge.penalty_applied_at is not None
         or charge.amount <= 0
+        or charge.voided_at is not None
     )

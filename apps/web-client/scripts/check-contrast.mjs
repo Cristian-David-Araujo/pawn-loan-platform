@@ -37,6 +37,11 @@ const PAIRS = [
   ['--success-text', '--success-soft', 'a success pill', 4.5],
   ['--warning-text', '--warning-soft', 'a warning pill', 4.5],
   ['--danger-text', '--danger-soft', 'a danger pill', 4.5],
+  // The resting state of a destructive row action (.btn-destructive): the danger hue drawn
+  // as an icon on the panel it sits on. It reached AA in dark and failed it in light while
+  // these buttons were three different classes, which is how the drift was noticed.
+  ['--danger-text', '--surface', 'a destructive row action', 4.5],
+  ['--danger-text', '--danger-soft', 'a destructive row action, hovered', 4.5],
   ['--info-text', '--info-soft', 'an info pill', 4.5],
   ['--sidebar-text', '--sidebar-bg', 'the active sidebar link', 4.5],
   ['--sidebar-link', '--sidebar-bg', 'a resting sidebar link', 4.5],

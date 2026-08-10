@@ -88,6 +88,29 @@ class Loan(Base):
     force_closed_reason: Mapped[str] = mapped_column(Text, default="")
     force_closed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     force_closed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    # Pausing stops the clock without ending the debt, so it is a flag rather than a status:
+    # a paused loan is still `active` or `overdue`, and resuming must return it to whichever
+    # it was. Folding it into `LoanStatus` would have destroyed that distinction — and it is
+    # a native PG enum, so it would also need a migration that alters the type.
+    #
+    # It suspends only what is still to come: no new interest is generated and no new penalty
+    # is frozen. Interest already billed stays owed, stays visible in collection and can still
+    # turn the loan `overdue`, because hiding arrears that exist is not what a pause is for.
+    interest_paused: Mapped[bool] = mapped_column(default=False)
+    interest_paused_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    interest_paused_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    interest_pause_reason: Mapped[str] = mapped_column(Text, default="")
+    # A negotiated settlement: the customer pays what they can and the rest is written off.
+    # The loan closes as `closed` — the write-off is what these columns record, so a report
+    # can tell a settlement from a normal payoff without inventing a fifth loan status.
+    # Same reasoning as `force_closed_*`: money was forgiven, and somebody's name belongs on
+    # that decision where the application can actually read it.
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    settled_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    settlement_reason: Mapped[str] = mapped_column(Text, default="")
+    settlement_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+    written_off_principal: Mapped[float | None] = mapped_column(Float, nullable=True)
+    written_off_interest: Mapped[float | None] = mapped_column(Float, nullable=True)
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
     
@@ -203,6 +226,14 @@ class InterestCharge(Base):
     penalty_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
     penalty_rate_applied: Mapped[float | None] = mapped_column(Float, nullable=True)
     penalty_applied_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Voiding forgives interest that was already billed, so it is marked, never deleted —
+    # the same choice payment reversal makes, and for the same reason: the row is the
+    # evidence of what was charged and then given back, and the audit table has no read path
+    # in the application. The period stays on record, which is also what stops the generator
+    # from deciding to bill that month again on the next cycle.
+    voided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    voided_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    void_reason: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 
