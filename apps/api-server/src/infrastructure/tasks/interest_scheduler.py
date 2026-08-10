@@ -4,15 +4,14 @@ from contextlib import contextmanager
 from datetime import date, timedelta
 from threading import Event, Thread
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.infrastructure.persistence.database import SessionLocal
-from src.infrastructure.persistence.models import GlobalSettings, Loan
+from src.infrastructure.persistence.models import GlobalSettings
 from src.infrastructure.tasks.locks import advisory_lock
 from src.infrastructure.utils.datetime_utils import get_local_date
 from src.modules.finance.interest_generation import (
-    ACCRUING_STATUSES,
+    accruing_loans,
     generate_missing_interest_charges,
 )
 from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
@@ -66,7 +65,7 @@ def _run_cycle_body(db: Session, as_of_date: date | None) -> int:
         reference_date = as_of_date or get_local_date(db)
         effective_as_of_date = reference_date + timedelta(days=lead_days)
 
-        loans = list(db.scalars(select(Loan).where(Loan.status.in_(ACCRUING_STATUSES))).all())
+        loans = accruing_loans(db)
         generated = generate_missing_interest_charges(
             db=db,
             loans=loans,

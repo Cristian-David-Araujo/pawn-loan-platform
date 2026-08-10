@@ -35,6 +35,16 @@ interface BackendLoan {
   interest_due?: number
   collaterals_count?: number
   status: Loan['status']
+  // A pause leaves the status alone, so this is the only thing that distinguishes a paused
+  // loan on screen — and the only way to find one in order to resume it.
+  interest_paused?: boolean
+  interest_pause_reason?: string
+  // A settled loan closes as `closed`; these are what let the screen say it was settled for
+  // less rather than paid off.
+  settled_at?: string | null
+  settlement_amount?: number | null
+  written_off_principal?: number | null
+  written_off_interest?: number | null
   created_by?: any
 }
 
@@ -231,6 +241,12 @@ const mapLoan = (item: BackendLoan): Loan => ({
   interestDue: item.interest_due,
   collateralsCount: item.collaterals_count,
   status: item.status,
+  interestPaused: item.interest_paused ?? false,
+  interestPauseReason: item.interest_pause_reason ?? '',
+  settledAt: item.settled_at ?? null,
+  settlementAmount: item.settlement_amount ?? null,
+  writtenOffPrincipal: item.written_off_principal ?? null,
+  writtenOffInterest: item.written_off_interest ?? null,
   created_by: item.created_by
 })
 

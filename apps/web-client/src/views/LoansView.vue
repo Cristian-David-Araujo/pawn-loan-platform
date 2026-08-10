@@ -64,7 +64,7 @@
           <DateInputField
             v-model="form.disbursementDate"
             :label="t('loans.disbursementDate')"
-            :placeholder="datePlaceholder"
+           
             :required="true"
             :title="t('loans.disbursementDateHelp')"
           />
@@ -339,7 +339,7 @@ import { usePlatformStore } from '../stores/platformStore'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { useCustomerLabel } from '../composables/useCustomerLabel'
 import { formatCurrency } from '../utils/currency'
-import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
+import { formatDateDMY, toIsoDate } from '../utils/date'
 import { apiClient } from '../services/api'
 
 type SortDirection = 'asc' | 'desc'
@@ -469,7 +469,6 @@ const totalPendingPenalty = computed(() => {
 })
 
 const collateralQueue = ref<CollateralQueueItem[]>([])
-const datePlaceholder = computed(() => getGlobalDateFormat())
 const todayIso = new Date().toISOString().slice(0, 10)
 const sortedCustomers = computed(() => [...state.customers].sort((a, b) => a.fullName.localeCompare(b.fullName)))
 

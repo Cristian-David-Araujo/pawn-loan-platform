@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -66,6 +67,19 @@ class LoanRead(BaseModel):
     # Exposed so a written-off loan can say so on screen instead of just reading as closed.
     force_closed_reason: str = ""
     force_closed_at: datetime | None = None
+    # A pause does not change the status, so without these the screen has no way to tell a
+    # paused loan from one that simply has not been billed yet — and the operator would have
+    # no way to find the loan they paused in order to resume it.
+    interest_paused: bool = False
+    interest_paused_at: datetime | None = None
+    interest_pause_reason: str = ""
+    # Same reasoning as `force_closed_*`: a settled loan closes as `closed`, and these are
+    # what let the screen say it was settled for less rather than paid off.
+    settled_at: datetime | None = None
+    settlement_reason: str = ""
+    settlement_amount: float | None = None
+    written_off_principal: float | None = None
+    written_off_interest: float | None = None
     created_at: datetime
     created_by: UserSummary | None = None
 
@@ -98,3 +112,32 @@ class CloseLoanRequest(BaseModel):
 
     force: bool = False
     reason: str | None = Field(default=None, min_length=3, max_length=500)
+
+
+class PauseLoanRequest(BaseModel):
+    """Stopping the interest clock. The grounds are mandatory, like every other forgiveness.
+
+    A pause is an agreement not to charge for a stretch of time, and the months it covers are
+    recorded as deliberately unbilled and can never be billed later. That is worth a sentence
+    from whoever agreed to it.
+    """
+
+    reason: str = Field(..., min_length=3, max_length=500)
+
+
+class SettleLoanRequest(BaseModel):
+    """A negotiated settlement: take what can be collected, write off the rest.
+
+    ``amount`` may be zero — that is the case this exists for, a debt with no realistic way
+    of being collected at all. It may not exceed what the loan owes: that is an ordinary
+    payment, and letting it through here would write off a negative.
+    """
+
+    amount: float = Field(..., ge=0)
+    reason: str = Field(..., min_length=3, max_length=500)
+    payment_date: date | None = None
+    payment_method: str = Field(default="cash", max_length=40)
+    # Whether the pledges go back to the customer or stay for sale. There is no default:
+    # handing over goods and keeping them are opposite decisions, and neither should happen
+    # because a field was left out of a request.
+    collateral_action: Literal["release", "for_sale"]

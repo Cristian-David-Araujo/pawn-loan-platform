@@ -9,11 +9,11 @@
     <div class="card customer-gate mt-16">
       <label>
         {{ t('reporting.fromDate') }}
-        <DateInputField v-model="fromDate" :label="t('reporting.fromDate')" :placeholder="datePlaceholder" :title="t('reporting.fromDate')" />
+        <DateInputField v-model="fromDate" :label="t('reporting.fromDate')" :title="t('reporting.fromDate')" />
       </label>
       <label>
         {{ t('reporting.toDate') }}
-        <DateInputField v-model="toDate" :label="t('reporting.toDate')" :placeholder="datePlaceholder" :title="t('reporting.toDate')" />
+        <DateInputField v-model="toDate" :label="t('reporting.toDate')" :title="t('reporting.toDate')" />
       </label>
       <button class="btn btn-secondary" type="button" @click="resetDates">
         <RotateCcw :size="16" />
@@ -424,7 +424,7 @@ import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
 import { useCustomerLabel } from '../composables/useCustomerLabel'
 import { formatCompactNumber, formatCurrency, formatInteger } from '../utils/currency'
-import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
+import { formatDateDMY, toIsoDate } from '../utils/date'
 
 const { state, ensureInitialized } = usePlatformStore()
 const { customerLabel: getCustomerLabel } = useCustomerLabel()
@@ -465,7 +465,6 @@ const today = new Date().toISOString().slice(0, 10)
 const firstDayOfMonth = `${today.slice(0, 7)}-01`
 const fromDate = ref(formatDateDMY(firstDayOfMonth))
 const toDate = ref(formatDateDMY(today))
-const datePlaceholder = computed(() => getGlobalDateFormat())
 
 const fromDateIso = computed(() => toIsoDate(fromDate.value))
 const toDateIso = computed(() => toIsoDate(toDate.value) ?? today)

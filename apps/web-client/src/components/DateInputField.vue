@@ -4,7 +4,7 @@
       <input
         :value="modelValue"
         class="date-text-input"
-        :placeholder="placeholder"
+        :placeholder="resolvedPlaceholder"
         :required="required"
         :title="title"
         @input="onTextInput"
@@ -77,7 +77,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CalendarDays, ChevronLeft, ChevronRight } from 'lucide-vue-next'
-import { formatDateDMY, toIsoDate } from '../utils/date'
+import { formatDateDMY, getGlobalDateFormat, toIsoDate } from '../utils/date'
 
 interface DayCell {
   key: string
@@ -104,6 +104,16 @@ const props = withDefaults(
 const emit = defineEmits<{
   (event: 'update:modelValue', value: string): void
 }>()
+
+/* What the field shows when it is empty: the shape it expects, e.g. `DD/MM/YYYY`, taken from
+   `GlobalSettings.dateFormat`.
+
+   Defaulted here rather than passed in. Two of the four callers passed a computed wrapping
+   `getGlobalDateFormat()` and the other two passed `t('settings.dateFormat')` — which is the
+   *label* key, so the customer and payment filters prompted with the words "Formato de fecha"
+   while the loan and report filters prompted with `DD/MM/YYYY`. Every date field in the app
+   is this component, so the answer belongs to it and there is nothing left to keep in sync. */
+const resolvedPlaceholder = computed(() => props.placeholder || getGlobalDateFormat())
 
 const { t, locale } = useI18n()
 const rootRef = ref<HTMLElement | null>(null)

@@ -450,6 +450,23 @@ export const messages = {
       confirmRegisterLoanStepTwo: 'Please confirm again to complete loan registration.',
       totalLoans: 'Loans: {count}',
       forecloseLoan: 'Foreclose Loan',
+      pauseInterest: 'Pause interest',
+      resumeInterest: 'Resume interest',
+      pauseReasonPrompt:
+        'Why is this loan being paused? The months it covers are recorded as deliberately unbilled and can never be charged later.',
+      settleLoan: 'Settle loan',
+      settleExplain:
+        'Loan #{id} owes {total} in total. Settling collects what you enter and forgives the rest.',
+      settleWritesOff:
+        'The remainder is written off for good: the loan closes and its unpaid interest is voided.',
+      settleAmount: 'Amount collected',
+      settleReason: 'Reason for settling',
+      settleReasonPlaceholder: 'Why is the rest not collectable?',
+      settleCollateralQuestion: 'What happens to the collateral?',
+      settleReleaseCollateral: 'Return it to the customer',
+      settleKeepForSale: 'Keep it for sale',
+      settleWillWriteOff: 'Will be written off: {amount}',
+      confirmSettle: 'Settle this loan',
       forecloseFailed: "We couldn't foreclose this loan. Nothing was changed.",
       statusIsAutomatic: 'Set by the system: a loan becomes overdue on its own, and closes when its principal is paid off.',
       foreclosed: 'Defaulted',
@@ -499,6 +516,7 @@ export const messages = {
       typePartialInterest: 'Partial interest payment',
       typeFullSettlement: 'Full settlement',
       typeCollateralSale: 'Collateral sale',
+      typeNegotiatedSettlement: 'Negotiated settlement',
       typePenalty: 'Penalty payment',
       typeFullPayoff: 'Full payoff',
       typeAdvance: 'Advance payment',
@@ -713,6 +731,17 @@ export const messages = {
         scheduled: 'Scheduled',
         manual: 'Manual'
       }
+    },
+    interest: {
+      voidCharge: 'Void charge',
+      voidChargeExplain:
+        'Period {period} of loan #{loanId} is still owed {amount}. Voiding it cancels that interest for good.',
+      voidChargeKeepsRecord:
+        'The charge is kept on record as voided, never deleted — that is also what stops this month being billed again.',
+      voidReason: 'Reason for voiding',
+      voidReasonPlaceholder: 'Why should this charge never have been billed?',
+      confirmVoidCharge: 'Void this charge',
+      chargeVoided: 'Charge #{id} was voided.'
     },
     reporting: {
       title: 'Reporting',
@@ -1254,6 +1283,23 @@ export const messages = {
       confirmRegisterLoanStepTwo: 'Confirma nuevamente para completar el registro del préstamo.',
       totalLoans: 'Préstamos: {count}',
       forecloseLoan: 'Pasar a Remate',
+      pauseInterest: 'Pausar interés',
+      resumeInterest: 'Reanudar interés',
+      pauseReasonPrompt:
+        '¿Por qué se pausa este préstamo? Los meses que cubra quedan registrados como no facturados a propósito y no se podrán cobrar después.',
+      settleLoan: 'Liquidar préstamo',
+      settleExplain:
+        'El préstamo #{id} debe {total} en total. Liquidar cobra lo que indiques y condona el resto.',
+      settleWritesOff:
+        'El resto se castiga de forma definitiva: el préstamo se cierra y su interés pendiente queda anulado.',
+      settleAmount: 'Monto cobrado',
+      settleReason: 'Motivo de la liquidación',
+      settleReasonPlaceholder: '¿Por qué el resto no es cobrable?',
+      settleCollateralQuestion: '¿Qué pasa con la prenda?',
+      settleReleaseCollateral: 'Devolverla al cliente',
+      settleKeepForSale: 'Dejarla para venta',
+      settleWillWriteOff: 'Se castigará: {amount}',
+      confirmSettle: 'Liquidar este préstamo',
       forecloseFailed: 'No pudimos pasar este préstamo a remate. No se cambió nada.',
       statusIsAutomatic: 'Lo define el sistema: un préstamo pasa a vencido por su cuenta, y se cierra cuando se paga su capital.',
       foreclosed: 'Incobrable',
@@ -1303,6 +1349,7 @@ export const messages = {
       typePartialInterest: 'Pago parcial de interés',
       typeFullSettlement: 'Liquidación total',
       typeCollateralSale: 'Venta de prenda',
+      typeNegotiatedSettlement: 'Liquidación negociada',
       typePenalty: 'Pago de mora',
       typeFullPayoff: 'Liquidación total',
       typeAdvance: 'Pago anticipado',
@@ -1518,9 +1565,20 @@ export const messages = {
         manual: 'Manual'
       }
     },
+    interest: {
+      voidCharge: 'Anular cargo',
+      voidChargeExplain:
+        'El período {period} del préstamo #{loanId} aún debe {amount}. Anularlo cancela ese interés de forma definitiva.',
+      voidChargeKeepsRecord:
+        'El cargo queda registrado como anulado, nunca se borra — eso es también lo que impide que ese mes se vuelva a facturar.',
+      voidReason: 'Motivo de la anulación',
+      voidReasonPlaceholder: '¿Por qué nunca debió cobrarse este cargo?',
+      confirmVoidCharge: 'Anular este cargo',
+      chargeVoided: 'Se anuló el cargo #{id}.'
+    },
     reporting: {
       title: 'Reportes',
-      subtitle: 'Reportes operativos con analitica de recaudo y comportamiento de cartera.',
+      subtitle: 'Reportes operativos con analítica de recaudo y comportamiento de cartera.',
       activeLoans: 'Préstamos Activos',
       overdueLoans: 'Préstamos Vencidos',
       collateralInCustody: 'Garantías en Custodia',

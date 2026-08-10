@@ -4,7 +4,8 @@
  * These strings are produced by the API, not chosen here. The current writers are
  * `pay_interest` (`interest_payment`, `partial_interest_payment`,
  * `interest_advance_payment`), `pay_principal` (`partial_principal_payment`,
- * `full_settlement`), the collateral sale (`collateral_sale`) and `mixed_payment`.
+ * `full_settlement`), the collateral sale (`collateral_sale`), the negotiated
+ * settlement (`settlement_payment`) and `mixed_payment`.
  * Adding a type on the server means adding it here too — this map used to be
  * copy-pasted into three views that had each drifted, so raw values like
  * `partial_interest_payment` leaked into the UI untranslated.
@@ -20,6 +21,9 @@ const PAYMENT_TYPE_KEYS: Record<string, string> = {
   full_settlement: 'payments.typeFullSettlement',
   mixed_payment: 'payments.typeMixed',
   collateral_sale: 'payments.typeCollateralSale',
+  // Distinct from `full_settlement`, which is an ordinary payoff. This one means the rest
+  // of the debt was written off, and a receipt should not call the two the same thing.
+  settlement_payment: 'payments.typeNegotiatedSettlement',
 
   interest: 'payments.typeInterest',
   principal: 'payments.typePartialPrincipal',

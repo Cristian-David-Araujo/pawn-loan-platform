@@ -173,7 +173,7 @@
               <CheckCircle2 :size="16" />
               {{ t('customers.activateCustomer') }}
             </button>
-            <button v-if="hasRole([UserRole.Administrator])" class="btn btn-secondary" type="button" :disabled="isSaving" @click="handleDeleteCustomer">
+            <button v-if="hasRole([UserRole.Administrator])" class="btn btn-destructive" type="button" :disabled="isSaving" @click="handleDeleteCustomer">
               <Trash2 :size="16" />
               {{ t('customers.deleteCustomer') }}
             </button>
@@ -212,11 +212,11 @@
           <div class="audit-filter-grid mt-16">
             <label>
               {{ t('customers.auditFilterFrom') }}
-              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" :placeholder="t('settings.dateFormat')" />
+              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" />
             </label>
             <label>
               {{ t('customers.auditFilterTo') }}
-              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" :placeholder="t('settings.dateFormat')" />
+              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" />
             </label>
             <label>
               {{ t('customers.auditFilterLoan') }}
@@ -393,6 +393,7 @@
                 <th>{{ t('payments.penalty') }}</th>
                 <th>{{ t('payments.outstandingPeriod') }}</th>
                 <th>{{ t('common.status') }}</th>
+                <th v-if="canVoidCharges">{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -408,9 +409,22 @@
                     {{ t(getPendingStatusKey(item)) }}
                   </span>
                 </td>
+                <!-- No data-label: an action cell becomes a full-width block on a phone,
+                     which is the pattern, not an omission. -->
+                <td v-if="canVoidCharges" class="text-right">
+                  <button
+                    class="btn btn-destructive btn-icon"
+                    type="button"
+                    :title="t('interest.voidCharge')"
+                    :aria-label="t('interest.voidCharge')"
+                    @click="chargeToVoid = item"
+                  >
+                    <Ban :size="14" />
+                  </button>
+                </td>
               </tr>
               <tr v-if="!pendingInterestItems.length">
-                <td colspan="7">{{ t('customers.noPendingInterestDetail') }}</td>
+                <td :colspan="canVoidCharges ? 8 : 7">{{ t('customers.noPendingInterestDetail') }}</td>
               </tr>
             </tbody>
           </table>
@@ -498,7 +512,7 @@
                     <a :href="'/print/invoice/loan/' + loan.id" target="_blank" class="btn btn-secondary btn-icon" :title="t('common.printInvoice')" @click.stop>
                       <Printer :size="16" />
                     </a>
-                    <button v-if="hasRole([UserRole.Administrator])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
+                    <button v-if="hasRole([UserRole.Administrator])" class="btn btn-destructive btn-icon" type="button" :title="t('customers.deleteLoan')" :disabled="isSaving" @click.stop="handleDeleteLoan(loan.id)">
                       <Trash2 :size="16" />
                     </button>
                   </div>
@@ -582,7 +596,7 @@
                     </button>
                     <button
                       v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
-                      class="btn btn-danger btn-icon"
+                      class="btn btn-destructive btn-icon"
                       type="button"
                       :title="t('payments.deletePayment')"
                       :aria-label="t('payments.deletePayment')"
@@ -653,6 +667,12 @@
       @deleted="onPaymentDeleted"
     />
 
+    <VoidInterestChargeModal
+      :charge="chargeToVoid"
+      @close="chargeToVoid = null"
+      @voided="onChargeVoided"
+    />
+
     <LoanDetailModal
       :show="showCustomerLoanDetailModal"
       :loan="selectedCustomerLoanDetail"
@@ -703,7 +723,7 @@
               <DateInputField
                 v-model="loanEditForm.disbursementDate"
                 :label="t('loans.disbursementDate')"
-                :placeholder="t('settings.dateFormat')"
+               
                 :required="true"
               />
             </label>
@@ -794,7 +814,7 @@
               <DateInputField
                 v-model="paymentEditForm.paymentDate"
                 :label="t('common.date')"
-                :placeholder="t('settings.dateFormat')"
+               
                 :required="true"
               />
             </label>
@@ -838,8 +858,9 @@ import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import PaymentReversalModal from '../components/PaymentReversalModal.vue'
+import VoidInterestChargeModal, { type VoidableCharge } from '../components/VoidInterestChargeModal.vue'
 import { useRoute } from 'vue-router'
-import { Archive, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
+import { Archive, Ban, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -1576,6 +1597,20 @@ const onPaymentDeleted = async (paymentId: number) => {
   if (selectedCustomer.value) {
     await loadCustomerFinancialData(selectedCustomer.value.id)
   }
+}
+
+/* Voiding forgives billed interest, which is the same class of decision as disposing of a
+   pledge — so it matches the API, which refuses anyone but an administrator. Hiding the
+   control for everyone else means a loan officer never discovers the action by being
+   refused by it. */
+const canVoidCharges = computed(() => hasRole([UserRole.Administrator]))
+const chargeToVoid = ref<VoidableCharge | null>(null)
+
+const onChargeVoided = async (chargeId: number) => {
+  notify(t('interest.chargeVoided', { id: chargeId }))
+  // The pending-interest table comes from its own fetch, not from the store, so nothing
+  // else reloads it — the voided period would stay on screen until the tab was reopened.
+  await reloadSelectedCustomerFinancials()
 }
 
 const handleUpdatePayment = async () => {
