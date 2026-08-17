@@ -454,6 +454,9 @@ export const messages = {
       resumeInterest: 'Resume interest',
       pauseReasonPrompt:
         'Why is this loan being paused? The months it covers are recorded as deliberately unbilled and can never be charged later.',
+      pauseReasonLabel: 'Reason for pausing',
+      pauseReasonPlaceholder: 'Why is this loan being paused?',
+      pauseKeepsExistingDebt: 'Interest already billed stays owed and keeps showing in collection. Pausing only stops what comes next.',
       settleLoan: 'Settle loan',
       settleExplain:
         'Loan #{id} owes {total} in total. Settling collects what you enter and forgives the rest.',
@@ -1288,6 +1291,9 @@ export const messages = {
       resumeInterest: 'Reanudar interés',
       pauseReasonPrompt:
         '¿Por qué se pausa este préstamo? Los meses que cubra quedan registrados como no facturados a propósito y no se podrán cobrar después.',
+      pauseReasonLabel: 'Motivo de la pausa',
+      pauseReasonPlaceholder: '¿Por qué se pausa este préstamo?',
+      pauseKeepsExistingDebt: 'El interés ya facturado sigue debiéndose y sigue apareciendo en cobranza. Pausar solo detiene lo que viene.',
       settleLoan: 'Liquidar préstamo',
       settleExplain:
         'El préstamo #{id} debe {total} en total. Liquidar cobra lo que indiques y condona el resto.',

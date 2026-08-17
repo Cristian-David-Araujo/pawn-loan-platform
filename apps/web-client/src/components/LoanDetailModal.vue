@@ -211,6 +211,21 @@
     @deleted="onPaymentDeleted"
   />
 
+  <ReasonPromptModal
+    :open="pausePromptOpen"
+    :title="t('loans.pauseInterest')"
+    :explanation="t('loans.pauseReasonPrompt')"
+    :warning="t('loans.pauseKeepsExistingDebt')"
+    :label="t('loans.pauseReasonLabel')"
+    :placeholder="t('loans.pauseReasonPlaceholder')"
+    :confirmLabel="t('loans.pauseInterest')"
+    :error="pauseError"
+    @close="pausePromptOpen = false"
+    @confirm="sendPause"
+  >
+    <template #icon><Pause :size="16" /></template>
+  </ReasonPromptModal>
+
   <SettleLoanModal
     :loan="settleTarget"
     :pendingInterest="totalPendingInterest + totalPendingPenalty"
@@ -233,6 +248,7 @@ import { formatCurrency } from '../utils/currency'
 import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import PaymentReversalModal from './PaymentReversalModal.vue'
 import SettleLoanModal from './SettleLoanModal.vue'
+import ReasonPromptModal from './ReasonPromptModal.vue'
 import { apiClient, apiErrorMessage } from '../services/api'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { Loan, Payment, CollateralItem } from '../types/domain'
@@ -280,41 +296,45 @@ const canSettle = computed(
     hasRole([UserRole.Administrator])
 )
 
+/* Resuming needs no reason: the record of why the months are empty is the pause's own
+   reason, which stays on the row. Pausing does, so it opens the modal first. */
+const pausePromptOpen = ref(false)
+const pauseError = ref('')
+
 const togglePause = async () => {
   const loan = props.loan
   if (!loan || isPausing.value) return
 
-  // Resuming needs no reason: the record of why the months are empty is the pause's own
-  // reason, which stays on the row.
-  const reason = loan.interestPaused
-    ? null
-    : await promptPauseReason()
-  if (!loan.interestPaused && !reason) return
+  if (!loan.interestPaused) {
+    pauseError.value = ''
+    pausePromptOpen.value = true
+    return
+  }
+
+  await sendPause(null)
+}
+
+const sendPause = async (reason: string | null) => {
+  const loan = props.loan
+  if (!loan) return
 
   isPausing.value = true
-  forecloseError.value = ''
+  pauseError.value = ''
   try {
     await apiClient.request(`/loans/${loan.id}/${loan.interestPaused ? 'resume' : 'pause'}`, {
       method: 'POST',
-      body: loan.interestPaused ? undefined : JSON.stringify({ reason })
+      body: reason === null ? undefined : JSON.stringify({ reason })
     })
+    pausePromptOpen.value = false
     await store.refreshAll()
     emit('payments-changed')
   } catch (caught) {
-    forecloseError.value = apiErrorMessage(caught) || t('messages.operationFailed')
+    // Left on the modal rather than behind it, so the operator can read it and retry.
+    pauseError.value = apiErrorMessage(caught) || t('messages.operationFailed')
+    if (reason === null) forecloseError.value = pauseError.value
   } finally {
     isPausing.value = false
   }
-}
-
-/* A pause has to be answerable, like every other forgiveness in this product — the months it
-   covers are recorded as deliberately unbilled and can never be billed later. `window.prompt`
-   rather than a fourth modal: it is one short string with no other fields, and the app's own
-   confirm dialog takes no text input. */
-const promptPauseReason = async (): Promise<string | null> => {
-  const answer = window.prompt(t('loans.pauseReasonPrompt'))
-  const trimmed = (answer ?? '').trim()
-  return trimmed.length >= 3 ? trimmed : null
 }
 
 const onLoanSettled = async () => {
