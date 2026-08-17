@@ -236,6 +236,30 @@
           </span>
         </div>
 
+        <!-- The customer's position, above the tabs and above the fold.
+             It sat at the foot of the Resumen tab, starting at y=1177 on an 1100px viewport:
+             the four figures that answer "how is this customer doing" were the last thing on
+             the page and only on one tab. They describe the customer, not a section, so they
+             belong beside the identity and stay put while the tabs change. -->
+        <div class="grid grid-4 mt-16">
+          <div class="card stat-card stat-accent-blue">
+            <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-amber">
+            <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-green">
+            <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
+            <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-indigo">
+            <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
+          </div>
+        </div>
+
         <!-- Was a `.notice` with an inline style repainting it amber; `.notice-warning` is
              that same tone as a system class. -->
         <p v-if="hasCustomerCreditTraceability" class="notice notice-warning mt-16">{{ t('customers.traceabilityDeleteHint') }}</p>
@@ -344,24 +368,6 @@
           </span>
         </div>
 
-        <div class="grid grid-4 mt-16">
-          <div class="card stat-card stat-accent-blue">
-            <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-amber">
-            <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-green">
-            <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
-            <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-indigo">
-            <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
-          </div>
-        </div>
         </template>
 
         <!-- ── Tab: Edit ─────────────────────────── -->
