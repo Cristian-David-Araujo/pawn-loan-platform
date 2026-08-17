@@ -327,13 +327,14 @@ const formatSize = (bytes: number | null) => {
 const applySchedule = (loaded: BackupSchedule) => {
   schedule.value = loaded
   form.enabled = loaded.enabled
-  form.frequency = loaded.frequency
-  form.hour = loaded.hour
-  form.dayOfWeek = loaded.day_of_week
-  form.dayOfMonth = loaded.day_of_month
-  form.destination = loaded.destination
+  // Same as the settings form: an absent field must not blank the control it feeds.
+  form.frequency = loaded.frequency ?? form.frequency
+  form.hour = loaded.hour ?? form.hour
+  form.dayOfWeek = loaded.day_of_week ?? form.dayOfWeek
+  form.dayOfMonth = loaded.day_of_month ?? form.dayOfMonth
+  form.destination = loaded.destination ?? form.destination
   form.localDirectory = loaded.local_directory
-  form.retentionCopies = loaded.retention_copies
+  form.retentionCopies = loaded.retention_copies ?? form.retentionCopies
 }
 
 const report = (text: string, isError = false) => {
