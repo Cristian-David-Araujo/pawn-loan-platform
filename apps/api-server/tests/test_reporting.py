@@ -1,4 +1,3 @@
-from datetime import date
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -28,21 +27,20 @@ def test_reporting_endpoints(client: TestClient, auth_headers: dict[str, str], c
     )
     assert collateral_response.status_code == 201
 
+    # No fees bucket: nothing but a collateral sale's surplus produces one, and the endpoint
+    # that let a caller declare 10 of them out of nothing is gone. The report only needs a
+    # collection to exist and to total at least 100.
     payment_response = client.post(
-        "/api/v1/payments",
+        "/api/v1/payments/principal",
         headers=auth_headers,
         json={
             "loan_id": active_loan["id"],
-            "payment_date": str(date.today()),
             "total_amount": 100,
-            "allocated_to_penalty": 0,
-            "allocated_to_interest": 20,
-            "allocated_to_fees": 10,
-            "allocated_to_principal": 70,
             "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
         },
     )
-    assert payment_response.status_code == 201
+    assert payment_response.status_code == 200, payment_response.text
 
     active_response = client.get("/api/v1/reports/active-loans", headers=auth_headers)
     assert active_response.status_code == 200

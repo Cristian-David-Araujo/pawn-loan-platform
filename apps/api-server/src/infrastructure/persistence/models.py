@@ -50,27 +50,11 @@ class Customer(Base):
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
 
 
-class LoanApplication(Base):
-    __tablename__ = "loan_applications"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
-    loan_type: Mapped[LoanType] = mapped_column(Enum(LoanType))
-    requested_amount: Mapped[float] = mapped_column(Float)
-    monthly_interest_rate: Mapped[float] = mapped_column(Float)
-    term_months: Mapped[int] = mapped_column(Integer)
-    notes: Mapped[str] = mapped_column(Text, default="")
-    status: Mapped[str] = mapped_column(String(20), default="submitted")
-    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    approved_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
-
 
 class Loan(Base):
     __tablename__ = "loans"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    application_id: Mapped[int | None] = mapped_column(ForeignKey("loan_applications.id"), nullable=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
     loan_type: Mapped[LoanType] = mapped_column(Enum(LoanType))
     description: Mapped[str] = mapped_column(Text, default="")
@@ -251,6 +235,15 @@ class Payment(Base):
     payment_method: Mapped[str] = mapped_column(String(40), default="cash")
     notes: Mapped[str] = mapped_column(Text, default="")
     received_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    # One key, one payment. There is no other defence against a double-clicked submit: the
+    # row lock stops two cashiers racing on the same balance, but not the same cashier sending
+    # the same collection twice because the connection was slow and the button still looked
+    # live. The client mints a key per attempt; a retry carries the same one and gets the
+    # original payment back instead of taking the money again.
+    #
+    # Nullable, because every payment recorded before this has none and a unique index must
+    # not treat them as duplicates of each other.
+    idempotency_key: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True)
     is_reversed: Mapped[bool] = mapped_column(default=False)
     # Reversal is how a payment gets "deleted", so who/when/why lives on the row itself
     # rather than only in the audit log, which has no read path in the application.

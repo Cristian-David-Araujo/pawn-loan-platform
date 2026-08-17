@@ -4,16 +4,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.modules.authentication.schemas import UserSummary
 
 
-class PaymentCreate(BaseModel):
-    loan_id: int
-    payment_date: date
-    total_amount: float
-    allocated_to_penalty: float = 0
-    allocated_to_interest: float = 0
-    allocated_to_fees: float = 0
-    allocated_to_principal: float = 0
-    payment_method: str = "cash"
-    notes: str = ""
 
 
 class PaymentUpdate(BaseModel):
@@ -94,6 +84,10 @@ class InterestPaymentRequest(BaseModel):
     payment_date: date | None = None
     payment_method: str = "cash"
     notes: str = ""
+    # A retry carries the key of the attempt it repeats, and gets that payment back rather
+    # than taking the money a second time. Optional: a caller that does not send one keeps the
+    # old behaviour, which is what every existing integration and the test suite rely on.
+    idempotency_key: str | None = Field(default=None, max_length=64)
 
 
 class InterestPaymentAllocation(BaseModel):
@@ -151,6 +145,10 @@ class PrincipalPaymentRequest(BaseModel):
     payment_method: str = "cash"
     allow_with_unpaid_interest: bool = False
     notes: str = ""
+    # A retry carries the key of the attempt it repeats, and gets that payment back rather
+    # than taking the money a second time. Optional: a caller that does not send one keeps the
+    # old behaviour, which is what every existing integration and the test suite rely on.
+    idempotency_key: str | None = Field(default=None, max_length=64)
 
 
 class PrincipalAllocation(BaseModel):
@@ -226,3 +224,36 @@ class PaymentEventRead(BaseModel):
     notes: str
     is_reversed: bool
     operator: UserSummary | None = None
+
+
+class InterestChargeHistoryItem(BaseModel):
+    """One billing period of a customer, whatever state it is in.
+
+    Deliberately a different shape from `InterestPendingItem`. That one feeds the collection
+    screen and the allocation preview, where every row is money about to move; a settled period
+    appearing in it would be offered for payment. This one is a record, and says so by carrying
+    `settled` and `paid_amount` instead of a "will receive" figure.
+    """
+
+    interest_charge_id: int
+    loan_id: int
+    billing_period: str
+    period_start: date
+    period_end: date
+    due_date: date
+    charge_amount: float
+    penalty_amount: float
+    paid_amount: float
+    outstanding: float
+    settled: bool
+    overdue: bool
+    voided: bool
+    void_reason: str = ""
+
+
+class InterestChargeHistoryResponse(BaseModel):
+    customer_id: int
+    items: list[InterestChargeHistoryItem]
+    total_charged: float
+    total_paid: float
+    total_outstanding: float

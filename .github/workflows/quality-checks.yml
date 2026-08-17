@@ -98,3 +98,17 @@ jobs:
       # not catch it: --placeholder shipped at 3.4:1 behind a comment claiming 4.6:1.
       - name: Colour contrast
         run: npm run check:contrast
+
+      # Contrast measures token *pairs* — the palette's intent — so it cannot see a rule that
+      # references a token which does not exist. `var(--undefined)` with no fallback makes the
+      # declaration invalid and `color` then inherits, which on the dark theme looks correct
+      # and on the light theme paints dark ink on a saturated fill. That shipped twice.
+      - name: Design tokens exist
+        run: npm run check:tokens
+
+      # Mounts every view. vue-tsc cannot see these failures: an invalid template makes it
+      # stop counting template usage, so a broken view is reported as *unused variables* —
+      # its verdict inverts exactly when something is badly broken. Three views shipped a
+      # blank page in one sitting before this existed, each found by driving a browser.
+      - name: Views render
+        run: npm test

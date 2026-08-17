@@ -1,8 +1,26 @@
 <template>
-  <div v-if="show && loan" class="modal-backdrop" @click.self="closeModal">
-    <div class="modal-panel card modal-panel-lg">
+  <!-- A loan has its own address, so this normally renders as a page. The modal shape is kept
+       for any caller that still needs a peek, but nothing uses it: opening a loan from inside
+       a customer used to mean a modal on top of a modal. -->
+  <div
+    v-if="show && loan"
+    :class="asPage ? 'loan-detail-page' : 'modal-backdrop'"
+    @click.self="asPage ? undefined : closeModal()"
+  >
+    <div :class="asPage ? 'loan-detail-shell' : 'modal-panel card modal-panel-lg'">
       <div class="modal-header">
-        <h3>{{ t('loans.loanDetail') }}</h3>
+        <h3>
+          <button
+            v-if="asPage"
+            class="btn btn-ghost btn-icon"
+            type="button"
+            :aria-label="t('loans.backToList')"
+            @click="closeModal"
+          >
+            <ArrowLeft :size="16" />
+          </button>
+          {{ t('loans.loanDetail') }}<template v-if="loan"> #{{ loan.id }}</template>
+        </h3>
         <div class="form-inline">
           <!-- `.btn-danger` already carries this colour; the inline style repeated it in the
                old palette's red, and `.btn-sm` was never a class anywhere. -->
@@ -38,7 +56,8 @@
 
       <p v-if="forecloseError" class="notice notice-error mt-16">{{ forecloseError }}</p>
 
-      <p class="muted mt-16">{{ t('loans.selectedLoan', { id: loan.id }) }}</p>
+      <!-- The id is in the page title; repeating it here said the same thing twice. -->
+      <p class="muted mt-16" v-if="!asPage">{{ t('loans.selectedLoan', { id: loan.id }) }}</p>
 
       <div class="grid grid-4 mt-16">
         <div class="card stat-card stat-accent-indigo">
@@ -211,6 +230,21 @@
     @deleted="onPaymentDeleted"
   />
 
+  <ReasonPromptModal
+    :open="pausePromptOpen"
+    :title="t('loans.pauseInterest')"
+    :explanation="t('loans.pauseReasonPrompt')"
+    :warning="t('loans.pauseKeepsExistingDebt')"
+    :label="t('loans.pauseReasonLabel')"
+    :placeholder="t('loans.pauseReasonPlaceholder')"
+    :confirmLabel="t('loans.pauseInterest')"
+    :error="pauseError"
+    @close="pausePromptOpen = false"
+    @confirm="sendPause"
+  >
+    <template #icon><Pause :size="16" /></template>
+  </ReasonPromptModal>
+
   <SettleLoanModal
     :loan="settleTarget"
     :pendingInterest="totalPendingInterest + totalPendingPenalty"
@@ -223,7 +257,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
-import { Printer, X, Pencil, Save, AlertTriangle, Trash2, Pause, Play, HandCoins } from 'lucide-vue-next'
+import { ArrowLeft, Printer, X, Pencil, Save, AlertTriangle, Trash2, Pause, Play, HandCoins } from 'lucide-vue-next'
 import { usePlatformStore } from '../stores/platformStore'
 
 import Pagination from './Pagination.vue'
@@ -233,11 +267,14 @@ import { formatCurrency } from '../utils/currency'
 import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import PaymentReversalModal from './PaymentReversalModal.vue'
 import SettleLoanModal from './SettleLoanModal.vue'
+import ReasonPromptModal from './ReasonPromptModal.vue'
 import { apiClient, apiErrorMessage } from '../services/api'
 import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { Loan, Payment, CollateralItem } from '../types/domain'
 
 const props = defineProps<{
+  /** Rendered at its own route rather than floating over whatever opened it. */
+  asPage?: boolean
   show: boolean
   loan: Loan | null
   customerName: string
@@ -280,41 +317,45 @@ const canSettle = computed(
     hasRole([UserRole.Administrator])
 )
 
+/* Resuming needs no reason: the record of why the months are empty is the pause's own
+   reason, which stays on the row. Pausing does, so it opens the modal first. */
+const pausePromptOpen = ref(false)
+const pauseError = ref('')
+
 const togglePause = async () => {
   const loan = props.loan
   if (!loan || isPausing.value) return
 
-  // Resuming needs no reason: the record of why the months are empty is the pause's own
-  // reason, which stays on the row.
-  const reason = loan.interestPaused
-    ? null
-    : await promptPauseReason()
-  if (!loan.interestPaused && !reason) return
+  if (!loan.interestPaused) {
+    pauseError.value = ''
+    pausePromptOpen.value = true
+    return
+  }
+
+  await sendPause(null)
+}
+
+const sendPause = async (reason: string | null) => {
+  const loan = props.loan
+  if (!loan) return
 
   isPausing.value = true
-  forecloseError.value = ''
+  pauseError.value = ''
   try {
     await apiClient.request(`/loans/${loan.id}/${loan.interestPaused ? 'resume' : 'pause'}`, {
       method: 'POST',
-      body: loan.interestPaused ? undefined : JSON.stringify({ reason })
+      body: reason === null ? undefined : JSON.stringify({ reason })
     })
+    pausePromptOpen.value = false
     await store.refreshAll()
     emit('payments-changed')
   } catch (caught) {
-    forecloseError.value = apiErrorMessage(caught) || t('messages.operationFailed')
+    // Left on the modal rather than behind it, so the operator can read it and retry.
+    pauseError.value = apiErrorMessage(caught) || t('messages.operationFailed')
+    if (reason === null) forecloseError.value = pauseError.value
   } finally {
     isPausing.value = false
   }
-}
-
-/* A pause has to be answerable, like every other forgiveness in this product — the months it
-   covers are recorded as deliberately unbilled and can never be billed later. `window.prompt`
-   rather than a fourth modal: it is one short string with no other fields, and the app's own
-   confirm dialog takes no text input. */
-const promptPauseReason = async (): Promise<string | null> => {
-  const answer = window.prompt(t('loans.pauseReasonPrompt'))
-  const trimmed = (answer ?? '').trim()
-  return trimmed.length >= 3 ? trimmed : null
 }
 
 const onLoanSettled = async () => {

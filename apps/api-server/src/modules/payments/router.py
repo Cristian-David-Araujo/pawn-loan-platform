@@ -10,15 +10,19 @@ from src.infrastructure.persistence.models import InterestCharge, Loan, Payment,
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.finance.allocation import AllocationTarget, allocate_oldest_first
 from src.modules.finance.locks import lock_customer_loans, lock_loans
+from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.modules.finance.interest_balance import (
     charge_due_date,
     default_grace_days,
     grace_days_for_loan,
+    pending_interest_by_charge_for_loans,
     pending_interest_for_customer,
     pending_interest_items_for_customer,
     sync_interest_charge_statuses,
 )
 from src.modules.payments.schemas import (
+    InterestChargeHistoryItem,
+    InterestChargeHistoryResponse,
     InterestPaymentAllocation,
     InterestPaymentRequest,
     InterestPaymentResponse,
@@ -27,7 +31,6 @@ from src.modules.payments.schemas import (
     InterestPendingResponse,
     PaymentAllocationRead,
     PaymentAllocationsResponse,
-    PaymentCreate,
     PaymentEventRead,
     PaymentRead,
     PaymentReversalRequest,
@@ -89,6 +92,27 @@ def _pending_interest_items_for_customer(db: Session, customer_id: int, today: d
     ]
 
 
+def _reject_replay(db: Session, key: str | None) -> None:
+    """Refuse a collection that has already been recorded under this key.
+
+    A refusal rather than a replay of the original response. Replaying is the stricter
+    contract, but it means rebuilding an allocation response from stored rows — more code on
+    the money path than the defect warrants, and the operator's question ("did that go
+    through?") is answered just as well by naming the payment that already exists.
+
+    Nothing is written before this runs, so a rejected retry leaves no trace.
+    """
+    if not key:
+        return
+
+    existing = db.scalar(select(Payment.id).where(Payment.idempotency_key == key))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This payment was already recorded (#{existing})",
+        )
+
+
 @router.get("/customers/{customer_id}/interest-pending", response_model=InterestPendingResponse)
 def get_pending_interest(
     customer_id: int,
@@ -134,6 +158,108 @@ def get_pending_interest(
     )
 
 
+@router.get("/customers/{customer_id}/interest-history", response_model=InterestChargeHistoryResponse)
+def get_interest_history(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
+) -> InterestChargeHistoryResponse:
+    """Every billing period of a customer, settled or not.
+
+    Separate from `interest-pending` on purpose. That endpoint feeds the collection screen and
+    the allocation preview, where every row is money about to move — adding settled periods to
+    it would put paid invoices in front of an operator taking a payment. This one is a record:
+    it answers "which invoices does this customer have and which are paid", which until now the
+    application could not answer at all.
+
+    Two kinds of row are left out because they are not invoices. A zero-amount `not_billed`
+    marker is a month deliberately never charged — it exists only so the generator does not
+    fill the gap later. A voided charge *is* shown, marked as such with its reason, because an
+    invoice that was cancelled is part of the customer's history and hiding it would make a
+    period simply vanish between two statements.
+    """
+    today = get_local_date(db)
+    loans = list(db.scalars(select(Loan).where(Loan.customer_id == customer_id).order_by(Loan.id)).all())
+    if not loans:
+        return InterestChargeHistoryResponse(
+            customer_id=customer_id, items=[], total_charged=0, total_paid=0, total_outstanding=0
+        )
+
+    loan_ids = [loan.id for loan in loans]
+    loans_by_id = {loan.id: loan for loan in loans}
+    configured_grace = default_grace_days(db)
+
+    charges = list(
+        db.scalars(
+            select(InterestCharge)
+            .where(InterestCharge.loan_id.in_(loan_ids), InterestCharge.amount > 0)
+            .order_by(InterestCharge.period_end.desc(), InterestCharge.id.desc())
+        ).all()
+    )
+    if not charges:
+        return InterestChargeHistoryResponse(
+            customer_id=customer_id, items=[], total_charged=0, total_paid=0, total_outstanding=0
+        )
+
+    # The canonical balances, so a period reads the same here as on the collection screen.
+    pending_by_charge = pending_interest_by_charge_for_loans(db, loans)
+
+    events = list(
+        db.scalars(
+            select(PaymentEvent).where(
+                PaymentEvent.loan_id.in_(loan_ids),
+                PaymentEvent.is_reversed.is_(False),
+                PaymentEvent.interest_charge_id.isnot(None),
+            )
+        ).all()
+    )
+    paid_by_charge: dict[int, float] = {}
+    for event in events:
+        paid_by_charge[event.interest_charge_id] = round(
+            paid_by_charge.get(event.interest_charge_id, 0.0)
+            + event.allocated_to_interest
+            + event.allocated_to_penalty,
+            2,
+        )
+
+    items: list[InterestChargeHistoryItem] = []
+    for charge in charges:
+        loan = loans_by_id[charge.loan_id]
+        due_date = charge_due_date(charge.period_end, grace_days_for_loan(loan, configured_grace))
+        penalty = round(charge.penalty_amount or 0.0, 2)
+        voided = charge.voided_at is not None
+        # A voided period owes nothing by definition; it is excluded from the canonical
+        # balances, so its outstanding has to be zeroed here rather than looked up.
+        outstanding = 0.0 if voided else round(pending_by_charge.get(charge.id, 0.0) + penalty, 2)
+
+        items.append(
+            InterestChargeHistoryItem(
+                interest_charge_id=charge.id,
+                loan_id=charge.loan_id,
+                billing_period=charge.period_start.strftime("%Y-%m"),
+                period_start=charge.period_start,
+                period_end=charge.period_end,
+                due_date=due_date,
+                charge_amount=round(charge.amount, 2),
+                penalty_amount=penalty,
+                paid_amount=paid_by_charge.get(charge.id, 0.0),
+                outstanding=outstanding,
+                settled=outstanding <= 0 and not voided,
+                overdue=outstanding > 0 and due_date < today,
+                voided=voided,
+                void_reason=charge.void_reason or "",
+            )
+        )
+
+    return InterestChargeHistoryResponse(
+        customer_id=customer_id,
+        items=items,
+        total_charged=round(sum(item.charge_amount + item.penalty_amount for item in items if not item.voided), 2),
+        total_paid=round(sum(item.paid_amount for item in items), 2),
+        total_outstanding=round(sum(item.outstanding for item in items), 2),
+    )
+
+
 @router.post("/interest", response_model=InterestPaymentResponse)
 def pay_interest(
     payload: InterestPaymentRequest,
@@ -143,6 +269,7 @@ def pay_interest(
     if payload.total_amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Total amount must be greater than zero")
 
+    _reject_replay(db, payload.idempotency_key)
     payment_date = payload.payment_date or get_local_date(db)
 
     # Allocation and the advance pool both span the customer's whole book, so the book is
@@ -170,6 +297,7 @@ def pay_interest(
             allocated_to_principal=0,
             payment_method=payload.payment_method,
             received_by=current_user.id,
+            idempotency_key=payload.idempotency_key,
         )
         db.add(payment)
         db.flush()
@@ -243,6 +371,7 @@ def pay_interest(
         allocated_to_principal=0,
         payment_method=payload.payment_method,
         received_by=current_user.id,
+            idempotency_key=payload.idempotency_key,
     )
     db.add(payment)
     db.flush()
@@ -356,6 +485,20 @@ def pay_interest(
     for loan_id in {item.loan_id for item in allocations}:
         sync_interest_charge_statuses(db, loan_id)
 
+    # A loan that just cleared its past-due interest is no longer overdue, and it must say so
+    # now. This used to be reached only by the interest cycle, so the label lagged the money
+    # by up to AUTO_INTEREST_GENERATION_INTERVAL_MINUTES — a day, by default: the customer
+    # paid at the counter, the receipt printed, and the loan still read "vencido".
+    #
+    # Scoped to the customer's whole book, not to the loans that received an event. Interest
+    # is allocated oldest-first across every loan they hold and the advance pool is theirs
+    # rather than any one loan's, so paying on #7 can settle a period on #12. The book is
+    # already locked by `lock_customer_loans` above, so this costs no extra contention.
+    customer_loan_ids = list(
+        db.scalars(select(Loan.id).where(Loan.customer_id == payload.customer_id)).all()
+    )
+    transitions = refresh_overdue_loan_statuses(db, payment_date, loan_ids=customer_loan_ids)
+
     # Same transaction as the money: written after the commit, this row is a second
     # transaction that can fail while the payment stands, leaving a collection nobody
     # appears to have taken.
@@ -365,7 +508,10 @@ def pay_interest(
         entity_type="PaymentEvent",
         entity_id=f"customer={payload.customer_id}",
         user=current_user,
-        new_data=f"entered={payload.total_amount},allocated={total_allocated}",
+        new_data=(
+            f"entered={payload.total_amount},allocated={total_allocated},"
+            f"{describe_transitions(transitions)}"
+        ),
         commit=False,
     )
     db.commit()
@@ -510,6 +656,7 @@ def pay_principal(
     if payload.total_amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Total amount must be greater than zero")
 
+    _reject_replay(db, payload.idempotency_key)
     payment_date = payload.payment_date or get_local_date(db)
     targets = _resolve_principal_targets(db, payload)
     lock_loans(db, targets)
@@ -553,6 +700,7 @@ def pay_principal(
         allocated_to_principal=round(payload.total_amount, 2),
         payment_method=payload.payment_method,
         received_by=current_user.id,
+            idempotency_key=payload.idempotency_key,
     )
     db.add(payment)
     db.flush()
@@ -608,6 +756,18 @@ def pay_principal(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to allocate payment")
 
     total_allocated = round(sum(item.allocated_to_principal for item in allocations), 2)
+
+    # Principal cannot by itself change whether a loan is overdue — that is decided by
+    # past-due *interest*. This is here so the rule "every money path leaves the status
+    # correct before it commits" holds without exception, and because this path does move a
+    # loan to `closed` at zero principal: a loan that was `overdue` and is now closed must
+    # not be re-examined, which the managed-status filter already guarantees.
+    transitions = refresh_overdue_loan_statuses(
+        db,
+        payment_date,
+        loan_ids=[item.loan_id for item in allocations],
+    )
+
     write_audit(
         db,
         commit=False,
@@ -617,7 +777,7 @@ def pay_principal(
         user=current_user,
         new_data=(
             f"payment={payment.id},loans={[item.loan_id for item in allocations]},"
-            f"amount={total_allocated}"
+            f"amount={total_allocated},{describe_transitions(transitions)}"
         ),
     )
     db.commit()
@@ -667,46 +827,6 @@ def list_payments(
 ) -> list[Payment]:
     return list(db.query(Payment).order_by(Payment.id.desc()).all())
 
-
-@router.post("", response_model=PaymentRead, status_code=status.HTTP_201_CREATED)
-def create_payment(
-    payload: PaymentCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
-) -> Payment:
-    loan = db.get(Loan, payload.loan_id)
-    if loan is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
-
-    allocated_sum = (
-        payload.allocated_to_penalty
-        + payload.allocated_to_interest
-        + payload.allocated_to_fees
-        + payload.allocated_to_principal
-    )
-    if round(allocated_sum, 2) != round(payload.total_amount, 2):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Allocation sum must match total amount")
-
-    payment = Payment(**payload.model_dump(), received_by=current_user.id)
-    db.add(payment)
-
-    loan.outstanding_principal = max(0, loan.outstanding_principal - payload.allocated_to_principal)
-    if loan.outstanding_principal == 0:
-        loan.status = LoanStatus.closed
-
-    db.commit()
-    db.refresh(payment)
-
-    write_audit(
-        db,
-        action="create_payment",
-        entity_type="Payment",
-        entity_id=str(payment.id),
-        user=current_user,
-        new_data=f"amount={payment.total_amount}",
-    )
-
-    return payment
 
 
 @router.put("/{payment_id}", response_model=PaymentRead)
@@ -825,6 +945,16 @@ def reverse_payment(
     for loan_id in affected_loan_ids:
         sync_interest_charge_statuses(db, loan_id)
 
+    # The mirror of the collection: putting the interest back can make a loan overdue again,
+    # and the operator who just reversed a payment is the one who needs to see that. It runs
+    # after the `closed` -> `active` reopening above, so a loan restored to active is judged
+    # on the debt it now carries rather than staying active by default.
+    reversal_transitions = refresh_overdue_loan_statuses(
+        db,
+        get_local_date(db),
+        loan_ids=affected_loan_ids,
+    )
+
     write_audit(
         db,
         commit=False,
@@ -839,7 +969,8 @@ def reverse_payment(
         ),
         new_data=(
             f"is_reversed=true,reversed_events={len(linked_events)},"
-            f"principal_restored={restored_by_loan},reason={payment.reversal_reason}"
+            f"principal_restored={restored_by_loan},reason={payment.reversal_reason},"
+            f"{describe_transitions(reversal_transitions)}"
         ),
     )
 

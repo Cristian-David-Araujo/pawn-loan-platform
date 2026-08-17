@@ -4,6 +4,7 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.domain.enums.collateral import CollateralStatus, CustomerStatus
 from src.domain.enums.loan import LoanStatus, LoanType
 from src.domain.enums.user import UserRole
 from src.infrastructure.persistence.models import (
@@ -12,7 +13,6 @@ from src.infrastructure.persistence.models import (
     GlobalSettings,
     InterestCharge,
     Loan,
-    LoanApplication,
     Payment,
     PaymentEvent,
     User,
@@ -52,7 +52,6 @@ def seed_database(db: Session, force: bool = False) -> bool:
         db.query(Payment).delete()
         db.query(CollateralItem).delete()
         db.query(Loan).delete()
-        db.query(LoanApplication).delete()
         db.query(Customer).delete()
         db.query(GlobalSettings).delete()
 
@@ -86,7 +85,10 @@ def seed_database(db: Session, force: bool = False) -> bool:
             email=f"user{i}@example.com",
             address=f"Calle {random.randint(1, 100)}",
             city=random.choice(CITIES),
-            status="active" if random.random() > 0.1 else "inactive",
+            # `CustomerStatus`, not free text: this wrote "inactive", which is not a value
+            # the application knows. The web client renders anything that is not exactly
+            # `active` as "Archivado", so the demo data quietly looked archived instead.
+            status=CustomerStatus.active if random.random() > 0.1 else CustomerStatus.archived,
         )
         db.add(c)
         customers.append(c)
@@ -100,22 +102,6 @@ def seed_database(db: Session, force: bool = False) -> bool:
         
         principal = random.choice([500, 800, 1000, 1500, 2000, 3000, 5000])
         interest_rate = random.choice([5, 6, 7, 8, 10])
-        term = random.choice([3, 6, 9, 12])
-        
-        # Application
-        app = LoanApplication(
-            customer_id=customer.id,
-            loan_type=loan_type,
-            requested_amount=principal,
-            monthly_interest_rate=interest_rate,
-            term_months=term,
-            notes=f"Solicitud generada auto {i}",
-            status="approved",
-            reviewed_by=users["officer"].id,
-            approved_by=users["officer"].id,
-        )
-        db.add(app)
-        db.flush()
 
         # Decide status
         rand_status = random.random()
@@ -137,7 +123,6 @@ def seed_database(db: Session, force: bool = False) -> bool:
 
         # Build Loan
         loan = Loan(
-            application_id=app.id,
             customer_id=customer.id,
             loan_type=loan_type,
             description=f"Prestamo {loan_type} autogenerado #{i}",
@@ -162,8 +147,9 @@ def seed_database(db: Session, force: bool = False) -> bool:
             if status == LoanStatus.defaulted:
                 c_status = "for_sale"
             elif status == LoanStatus.closed:
-                # 50% sold, 50% returned
-                c_status = random.choice(["sold", "returned"])
+                # `returned` was removed from the vocabulary: no endpoint ever wrote it and
+                # it sat beside the real `released`, which is what a pledge handed back is.
+                c_status = random.choice([CollateralStatus.sold, CollateralStatus.released])
 
             collateral = CollateralItem(
                 loan_id=loan.id,

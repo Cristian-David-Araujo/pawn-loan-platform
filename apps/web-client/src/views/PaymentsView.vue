@@ -260,11 +260,11 @@
       <div class="filter-grid mt-16">
         <label>
           {{ t('payments.filterFromDate') }}
-          <DateInputField v-model="historyFromDate" :label="t('payments.filterFromDate')" />
+          <DateInputField v-model="historyFromDate" :range-start="historyFromDate" :range-end="historyToDate" :label="t('payments.filterFromDate')" />
         </label>
         <label>
           {{ t('payments.filterToDate') }}
-          <DateInputField v-model="historyToDate" :label="t('payments.filterToDate')" />
+          <DateInputField v-model="historyToDate" :range-start="historyFromDate" :range-end="historyToDate" :label="t('payments.filterToDate')" />
         </label>
         <label>
           {{ t('payments.filterLoan') }}
@@ -483,6 +483,7 @@ import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
+import { interestPeriodClass, interestPeriodKey } from '../utils/loanStatus'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -591,6 +592,16 @@ const historyFromDate = ref('')
 const historyToDate = ref('')
 const historyLoanFilter = ref('all')
 const historyTypeFilter = ref('all')
+/* One key per submit, so a click that is sent twice — a slow connection, a button that still
+   looked live — is recognised by the server as the same collection rather than taken again.
+   Minted here rather than server-side for the obvious reason: only the client knows that two
+   requests are the same attempt.
+   `randomUUID` needs a secure context, which the app has (HTTPS in production, localhost in
+   development); the fallback keeps a plain-HTTP deployment working rather than silently
+   dropping the protection. */
+const attemptKey = () =>
+  crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+
 const processing = ref(false)
 const { message, messageClass, notify, fail, report } = usePageMessage()
 const paymentPendingReversal = ref<Payment | null>(null)
@@ -839,27 +850,10 @@ const advanceAmount = computed(() => interestAllocationPreview.value.advance)
    unticked the two described different debts. */
 const remainingAfterInterestPayment = computed(() => Math.max(0, totalPendingOutstanding.value - interestAmountToPay.value))
 
-const getPendingStatusKey = (item: InterestPendingItem) => {
-  if (item.overdue) {
-    return 'common.overdue'
-  }
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const dueDate = new Date(item.due_date)
-  dueDate.setHours(0, 0, 0, 0)
-
-  return dueDate.getTime() === today.getTime() ? 'payments.current' : 'payments.upcoming'
-}
-
-const getPendingStatusClass = (item: InterestPendingItem) => {
-  if (item.overdue) {
-    return 'pill-overdue'
-  }
-
-  return getPendingStatusKey(item) === 'payments.current' ? 'pill-current' : 'pill-upcoming'
-}
+/* One implementation, in utils/loanStatus. This screen and the payments screen held
+   byte-identical copies, and the printed statement a third, cruder one. */
+const getPendingStatusKey = (item: { overdue: boolean; due_date: string }) => interestPeriodKey(item)
+const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => interestPeriodClass(item)
 
 const getPaymentTypeLabel = (paymentType: string) => t(paymentTypeKey(paymentType))
 
@@ -1027,6 +1021,7 @@ const submitInterestPayment = async () => {
     await apiClient.request('/payments/interest', {
       method: 'POST',
       body: JSON.stringify({
+        idempotency_key: attemptKey(),
         customer_id: selectedCustomerId.value,
         pay_all_pending: true,
         selected_charge_ids: [],
@@ -1172,6 +1167,7 @@ const submitPrincipalPayment = async () => {
     const result = await apiClient.request<PrincipalPaymentResult>('/payments/principal', {
       method: 'POST',
       body: JSON.stringify({
+        idempotency_key: attemptKey(),
         customer_id: selectedCustomerId.value,
         // Honoured server-side, unlike the interest flow: the operator picks the loans.
         selected_loan_ids: [...selectedPrincipalLoanIds.value],

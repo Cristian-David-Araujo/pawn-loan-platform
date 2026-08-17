@@ -40,6 +40,8 @@ const PAIRS = [
   // The resting state of a destructive row action (.btn-destructive): the danger hue drawn
   // as an icon on the panel it sits on. It reached AA in dark and failed it in light while
   // these buttons were three different classes, which is how the drift was noticed.
+  // A day inside a from/to range: normal text over the accent wash.
+  ['--text', '--accent-soft', 'a day inside a date range', 4.5],
   ['--danger-text', '--surface', 'a destructive row action', 4.5],
   ['--danger-text', '--danger-soft', 'a destructive row action, hovered', 4.5],
   ['--info-text', '--info-soft', 'an info pill', 4.5],

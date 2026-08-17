@@ -264,7 +264,6 @@ watch(activeTab, () => {
 const custodyStatusOptions = computed(() => [
   { value: '', label: t('loans.allStatuses') },
   { value: 'in_custody', label: t('collaterals.statusInCustody') },
-  { value: 'returned', label: t('collaterals.statusReturned') },
   { value: 'released', label: t('collaterals.statusReleased') }
 ])
 
@@ -283,7 +282,6 @@ const inventoryStatusOptions = computed(() => [
 const getStatusClass = (status: string) => {
   switch(status) {
     case 'in_custody': return 'pill-upcoming'
-    case 'returned': return 'pill-current'
     case 'for_sale': return 'pill-warning'
     case 'sold': return 'pill-current'
     case 'released': return 'pill-upcoming'
@@ -305,7 +303,6 @@ const getLoanStatusClass = (status: string) => {
 const getStatusLabel = (status: string) => {
   switch(status) {
     case 'in_custody': return t('collaterals.statusInCustody')
-    case 'returned': return t('collaterals.statusReturned')
     case 'for_sale': return t('collaterals.statusForSale')
     case 'sold': return t('collaterals.statusSold')
     case 'released': return t('collaterals.statusReleased')
@@ -337,7 +334,7 @@ const loadItems = async () => {
 
 const tabItems = computed(() => {
   if (activeTab.value === 'custody') {
-    return items.value.filter(i => ['in_custody', 'returned', 'released'].includes(i.status))
+    return items.value.filter(i => ['in_custody', 'released'].includes(i.status))
   } else {
     return items.value.filter(i => ['for_sale', 'sold', 'liquidated'].includes(i.status))
   }

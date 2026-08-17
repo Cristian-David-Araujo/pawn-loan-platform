@@ -168,7 +168,8 @@ const visiblePages = computed(() => {
 /* The current page is orientation, which is the accent's job. */
 .pagination-btn.active {
   background: var(--accent);
-  color: var(--on-fill);
+  /* `--on-accent`: `--on-fill` was never a token, so this inherited the page's text colour. */
+  color: var(--on-accent);
   border-color: var(--accent);
   font-weight: 700;
 }

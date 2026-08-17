@@ -1,5 +1,9 @@
 <template>
   <section>
+    <!-- The list and the detail are two addresses, so only one is on screen at a time. The
+         detail used to float over the list in a modal, which is why up to eight backdrops
+         could stack: every action inside it had nowhere to go but another layer. -->
+    <template v-if="!showDetail">
     <PageHeader :title="t('customers.title')" :subtitle="t('customers.subtitle')">
       <template #icon>
         <Users :size="18" />
@@ -106,6 +110,63 @@
       <Pagination v-model="customerCurrentPage" :totalItems="filteredCustomers.length" :itemsPerPage="10" />
       </div>
     </div>
+    </template>
+
+
+    <!-- Editing is a mode, not a section. It was the fifth tab, which made it the one edit
+         form in the app that did not behave like the others: everything else opens a modal
+         from the header and returns you where you were. A tab swapped the whole page for a
+         form and left no way back except another tab. -->
+    <div v-if="showEditModal && selectedCustomer" class="modal-backdrop" @click.self="showEditModal = false">
+      <div class="modal-panel card modal-panel-lg">
+        <div class="modal-header">
+          <h3>{{ t('customers.tabEdit') }}</h3>
+          <button class="btn btn-secondary btn-icon" type="button" :aria-label="t('common.close')" @click="showEditModal = false">
+            <X :size="16" />
+          </button>
+        </div>
+        <form class="form mt-16" @submit.prevent="handleUpdateCustomer">
+          <div class="grid grid-3">
+            <label>
+              {{ t('customers.fullName') }}
+              <input v-model="editForm.fullName" required />
+            </label>
+            <label>
+              {{ t('customers.documentType') }}
+              <CustomSelect v-model="editForm.documentType" :options="formattedDocumentTypeOptions" />
+            </label>
+            <label>
+              {{ t('customers.documentNumber') }}
+              <input v-model="editForm.documentNumber" required />
+            </label>
+            <label>
+              {{ t('common.status') }}
+              <CustomSelect v-model="editForm.status" :options="customerStatusOptions" />
+            </label>
+            <label>
+              {{ t('common.phone') }}
+              <input v-model="editForm.phone" required />
+            </label>
+            <label>
+              {{ t('customers.email') }}
+              <input v-model="editForm.email" type="email" />
+            </label>
+            <label>
+              {{ t('customers.address') }}
+              <input v-model="editForm.address" />
+            </label>
+            <label>
+              {{ t('common.city') }}
+              <input v-model="editForm.city" required />
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="isSaving">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
+      </div>
+    </div>
 
     <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
       <div class="modal-panel card">
@@ -148,11 +209,27 @@
       </div>
     </div>
 
-    <div v-if="showDetailModal && selectedCustomer" class="modal-backdrop" @click.self="closeDetailModal">
-      <div class="modal-panel card modal-panel-lg customer-detail-shell">
+    <div v-if="showDetail && selectedCustomer" class="customer-detail-page">
+      <div class="customer-detail-shell">
         <div class="modal-header">
-          <h3>{{ t('customers.customerDetail') }}</h3>
+          <h3>
+            <!-- Back to the list, not a close button: the list is where this came from and
+                 where the browser's own back button goes. -->
+            <button class="btn btn-ghost btn-icon" type="button" :aria-label="t('customers.backToList')" @click="closeDetail">
+              <ArrowLeft :size="16" />
+            </button>
+            {{ selectedCustomer.fullName }}
+          </h3>
           <div class="form-inline">
+            <button
+              v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
+              class="btn btn-secondary"
+              type="button"
+              @click="openEditModal"
+            >
+              <Pencil :size="16" />
+              {{ t('customers.tabEdit') }}
+            </button>
             <button
               v-if="selectedCustomer.status === 'active'"
               class="btn btn-secondary"
@@ -185,38 +262,111 @@
               <Printer :size="16" />
               {{ t('common.printHistory') }}
             </a>
-            <button class="btn btn-secondary" type="button" @click="closeDetailModal">
-              <X :size="16" />
-              {{ t('common.close') }}
-            </button>
           </div>
         </div>
 
+        <!-- No name here: it is the page's title. What this carries is everything else the
+             record knows, which had no home before — the phone, the address and the city were
+             stored, editable, and shown on no screen at all. The dates stay as pills on the
+             overview rather than being repeated here. -->
         <div class="customer-header mt-16">
-          <div>
-            <h3 class="customer-title">{{ selectedCustomer.fullName }}</h3>
-            <p class="muted">{{ selectedCustomer.documentType }} / {{ selectedCustomer.documentNumber }} · #{{ selectedCustomer.id }}</p>
-          </div>
+          <dl class="identity-grid">
+            <div>
+              <dt>{{ t('customers.documentNumber') }}</dt>
+              <dd>{{ selectedCustomer.documentType }} {{ selectedCustomer.documentNumber }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('common.phone') }}</dt>
+              <dd>{{ selectedCustomer.phone || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('customers.email') }}</dt>
+              <dd>{{ selectedCustomer.email || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('customers.address') }}</dt>
+              <dd>{{ selectedCustomer.address || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('common.city') }}</dt>
+              <dd>{{ selectedCustomer.city || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('common.id') }}</dt>
+              <dd class="code">#{{ selectedCustomer.id }}</dd>
+            </div>
+          </dl>
           <span class="pill" :class="selectedCustomer.status === 'active' ? 'pill-current' : 'pill-overdue'">
             {{ selectedCustomer.status === 'active' ? t('common.active') : t('common.archived') }}
           </span>
+        </div>
+
+        <!-- The customer's position, above the tabs and above the fold.
+             It sat at the foot of the Resumen tab, starting at y=1177 on an 1100px viewport:
+             the four figures that answer "how is this customer doing" were the last thing on
+             the page and only on one tab. They describe the customer, not a section, so they
+             belong beside the identity and stay put while the tabs change. -->
+        <div class="grid grid-4 mt-16">
+          <div class="card stat-card stat-accent-blue">
+            <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-amber">
+            <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-green">
+            <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
+            <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-indigo">
+            <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
+          </div>
         </div>
 
         <!-- Was a `.notice` with an inline style repainting it amber; `.notice-warning` is
              that same tone as a system class. -->
         <p v-if="hasCustomerCreditTraceability" class="notice notice-warning mt-16">{{ t('customers.traceabilityDeleteHint') }}</p>
 
+
+        <!-- ── Tabs ──────────────────────────────────── -->
+        <div class="detail-tabs mt-16">
+          <button class="tab-btn" :class="{ active: detailTab === 'overview' }" type="button" @click="goToTab('overview')">
+            <LayoutDashboard :size="14" />
+            {{ t('customers.tabOverview') }}
+          </button>
+          <button class="tab-btn" :class="{ active: detailTab === 'loans' }" type="button" @click="goToTab('loans')">
+            <HandCoins :size="14" />
+            {{ t('customers.tabLoans') }}
+            <span v-if="allSelectedCustomerLoans.length" class="tab-count">{{ allSelectedCustomerLoans.length }}</span>
+          </button>
+          <button class="tab-btn" :class="{ active: detailTab === 'payments' }" type="button" @click="goToTab('payments')">
+            <Wallet :size="14" />
+            {{ t('customers.tabPayments') }}
+            <span v-if="selectedCustomerPayments.length" class="tab-count">{{ selectedCustomerPayments.length }}</span>
+          </button>
+          <button class="tab-btn" :class="{ active: detailTab === 'collateral' }" type="button" @click="goToTab('collateral')">
+            <Package :size="14" />
+            {{ t('customers.tabCollateral') }}
+            <span v-if="selectedCustomerCollateral.length" class="tab-count">{{ selectedCustomerCollateral.length }}</span>
+          </button>
+        </div>
+
+        <!-- Below the tabs, not above them: a filter refines the section you chose, so it
+             cannot come before the choice. Sitting above, it pushed the first row of every
+             tab ~300px down and applied to content that was not on screen yet. -->
         <article class="card mt-16">
           <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
           <p class="muted">{{ t('customers.globalAuditFiltersHint') }}</p>
           <div class="audit-filter-grid mt-16">
             <label>
               {{ t('customers.auditFilterFrom') }}
-              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" />
+              <DateInputField v-model="auditFromDate" :range-start="auditFromDate" :range-end="auditToDate" :label="t('customers.auditFilterFrom')" />
             </label>
             <label>
               {{ t('customers.auditFilterTo') }}
-              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" />
+              <DateInputField v-model="auditToDate" :range-start="auditFromDate" :range-end="auditToDate" :label="t('customers.auditFilterTo')" />
             </label>
             <label>
               {{ t('customers.auditFilterLoan') }}
@@ -228,33 +378,6 @@
             </button>
           </div>
         </article>
-
-        <!-- ── Tabs ──────────────────────────────────── -->
-        <div class="detail-tabs mt-16">
-          <button class="tab-btn" :class="{ active: detailTab === 'overview' }" type="button" @click="detailTab = 'overview'">
-            <LayoutDashboard :size="14" />
-            {{ t('customers.tabOverview') }}
-          </button>
-          <button class="tab-btn" :class="{ active: detailTab === 'loans' }" type="button" @click="detailTab = 'loans'">
-            <HandCoins :size="14" />
-            {{ t('customers.tabLoans') }}
-            <span v-if="allSelectedCustomerLoans.length" class="tab-count">{{ allSelectedCustomerLoans.length }}</span>
-          </button>
-          <button class="tab-btn" :class="{ active: detailTab === 'payments' }" type="button" @click="detailTab = 'payments'">
-            <Wallet :size="14" />
-            {{ t('customers.tabPayments') }}
-            <span v-if="selectedCustomerPayments.length" class="tab-count">{{ selectedCustomerPayments.length }}</span>
-          </button>
-          <button class="tab-btn" :class="{ active: detailTab === 'collateral' }" type="button" @click="detailTab = 'collateral'">
-            <Package :size="14" />
-            {{ t('customers.tabCollateral') }}
-            <span v-if="selectedCustomerCollateral.length" class="tab-count">{{ selectedCustomerCollateral.length }}</span>
-          </button>
-          <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="tab-btn" :class="{ active: detailTab === 'edit' }" type="button" @click="detailTab = 'edit'">
-            <Pencil :size="14" />
-            {{ t('customers.tabEdit') }}
-          </button>
-        </div>
 
         <!-- ── Tab: Overview ────────────────────────── -->
         <template v-if="detailTab === 'overview'">
@@ -310,75 +433,26 @@
           </span>
         </div>
 
-        <div class="grid grid-4 mt-16">
-          <div class="card stat-card stat-accent-blue">
-            <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-amber">
-            <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-green">
-            <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
-            <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-indigo">
-            <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
-          </div>
-        </div>
         </template>
 
         <!-- ── Tab: Edit ─────────────────────────── -->
-        <template v-if="detailTab === 'edit'">
-        <form class="form mt-16" @submit.prevent="handleUpdateCustomer">
-          <div class="grid grid-3">
-            <label>
-              {{ t('customers.fullName') }}
-              <input v-model="editForm.fullName" required />
-            </label>
-            <label>
-              {{ t('customers.documentType') }}
-              <CustomSelect v-model="editForm.documentType" :options="formattedDocumentTypeOptions" />
-            </label>
-            <label>
-              {{ t('customers.documentNumber') }}
-              <input v-model="editForm.documentNumber" required />
-            </label>
-            <label>
-              {{ t('common.status') }}
-              <CustomSelect v-model="editForm.status" :options="customerStatusOptions" />
-            </label>
-            <label>
-              {{ t('common.phone') }}
-              <input v-model="editForm.phone" required />
-            </label>
-            <label>
-              {{ t('customers.email') }}
-              <input v-model="editForm.email" type="email" />
-            </label>
-            <label>
-              {{ t('customers.address') }}
-              <input v-model="editForm.address" />
-            </label>
-            <label>
-              {{ t('common.city') }}
-              <input v-model="editForm.city" required />
-            </label>
-          </div>
-          <button class="btn" type="submit" :disabled="isSaving">
-            <Save :size="16" />
-            {{ t('customers.saveChanges') }}
-          </button>
-        </form>
-        </template>
 
         <!-- ── Tab: Payments ──────────────────────── -->
         <template v-if="detailTab === 'payments'">
         <div class="mt-16">
-          <h3>{{ t('customers.paymentBehavior') }}</h3>
-          <p class="muted">{{ t('customers.paymentBehaviorHint') }}</p>
+          <div class="section-head-split">
+            <div>
+              <h3>{{ t('customers.invoicesTitle') }}</h3>
+              <p class="muted">{{ t('customers.invoicesHint') }}</p>
+            </div>
+            <CustomSelect
+              v-model="invoiceFilter"
+              inputClass="table-select"
+              :options="invoiceFilterOptions"
+              :ariaLabel="t('customers.invoiceFilter')"
+            />
+          </div>
+
           <p v-if="financialDataLoading" class="muted mt-16">{{ t('customers.loadingFinancialData') }}</p>
           <p v-else-if="financialDataError" class="muted mt-16">{{ t('customers.financialDataUnavailable') }}</p>
 
@@ -389,84 +463,52 @@
                 <th>{{ t('common.loan') }}</th>
                 <th>{{ t('payments.period') }}</th>
                 <th>{{ t('payments.dueDate') }}</th>
-                <th>{{ t('payments.pendingInterest') }}</th>
-                <th>{{ t('payments.penalty') }}</th>
-                <th>{{ t('payments.outstandingPeriod') }}</th>
+                <th class="text-right">{{ t('common.periodInterest') }}</th>
+                <th class="text-right">{{ t('payments.penalty') }}</th>
+                <th class="text-right">{{ t('common.paid') }}</th>
+                <th class="text-right">{{ t('payments.outstandingPeriod') }}</th>
                 <th>{{ t('common.status') }}</th>
                 <th v-if="canVoidCharges">{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in paginatedPendingInterestItems" :key="item.interest_charge_id">
+              <tr v-for="item in paginatedInvoices" :key="item.interest_charge_id">
                 <td :data-label="t('common.loan')">#{{ item.loan_id }}</td>
                 <td :data-label="t('payments.period')">{{ item.billing_period }}</td>
                 <td :data-label="t('payments.dueDate')">{{ formatDateDMY(item.due_date) }}</td>
-                <td :data-label="t('payments.pendingInterest')">{{ formatCurrency(item.remaining_pending_amount) }}</td>
-                <td :data-label="t('payments.penalty')">{{ formatCurrency(item.penalty_amount) }}</td>
-                <td :data-label="t('payments.outstandingPeriod')">{{ formatCurrency(item.current_outstanding_balance) }}</td>
-                <td :data-label="t('common.status')">
-                  <span class="pill" :class="getPendingStatusClass(item)">
-                    {{ t(getPendingStatusKey(item)) }}
-                  </span>
+                <td class="text-right" :data-label="t('common.periodInterest')">{{ formatCurrency(item.charge_amount) }}</td>
+                <td class="text-right" :data-label="t('payments.penalty')">{{ formatCurrency(item.penalty_amount) }}</td>
+                <td class="text-right" :data-label="t('common.paid')">{{ formatCurrency(item.paid_amount) }}</td>
+                <td class="text-right num-strong" :data-label="t('payments.outstandingPeriod')">
+                  {{ formatCurrency(item.outstanding) }}
                 </td>
-                <!-- No data-label: an action cell becomes a full-width block on a phone,
-                     which is the pattern, not an omission. -->
+                <td :data-label="t('common.status')">
+                  <span class="pill" :class="invoiceStatusClass(item)">{{ t(invoiceStatusKey(item)) }}</span>
+                  <div class="muted mt-1" v-if="item.voided && item.void_reason">{{ item.void_reason }}</div>
+                </td>
+                <!-- No data-label: an action cell becomes a full-width block on a phone. -->
                 <td v-if="canVoidCharges" class="text-right">
                   <button
+                    v-if="!item.voided && !item.settled"
                     class="btn btn-destructive btn-icon"
                     type="button"
                     :title="t('interest.voidCharge')"
                     :aria-label="t('interest.voidCharge')"
-                    @click="chargeToVoid = item"
+                    @click="chargeToVoid = toVoidable(item)"
                   >
                     <Ban :size="14" />
                   </button>
                 </td>
               </tr>
-              <tr v-if="!pendingInterestItems.length">
-                <td :colspan="canVoidCharges ? 8 : 7">{{ t('customers.noPendingInterestDetail') }}</td>
+              <tr v-if="!filteredInvoices.length">
+                <td :colspan="canVoidCharges ? 9 : 8">{{ t('customers.noInvoicesForFilter') }}</td>
               </tr>
             </tbody>
           </table>
-              <Pagination v-model="pendingInterestCurrentPage" :totalItems="pendingInterestItems.length" :itemsPerPage="10" />
+              <Pagination v-model="invoicesCurrentPage" :totalItems="filteredInvoices.length" :itemsPerPage="10" />
           </div>
         </div>
 
-        <div class="mt-16">
-          <h3>{{ t('customers.customerPaymentTraceability') }}</h3>
-          <p class="muted" v-if="!auditFilteredEvents.length">{{ t('customers.noPaymentEvents') }}</p>
-          <div v-else class="table-wrap mt-16">
-          <table>
-            <thead>
-              <tr>
-                <th>{{ t('common.date') }}</th>
-                <th>{{ t('payments.paymentType') }}</th>
-                <th>{{ t('common.loan') }}</th>
-                <th>{{ t('payments.period') }}</th>
-                <th>{{ t('common.total') }}</th>
-                <th>{{ t('common.interest') }}</th>
-                <th>{{ t('payments.penalty') }}</th>
-                <th>{{ t('common.principal') }}</th>
-                <th>{{ t('common.method') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="event in paginatedAuditFilteredEvents" :key="event.id">
-                <td :data-label="t('common.date')">{{ formatDateDMY(event.payment_date) }}</td>
-                <td :data-label="t('payments.paymentType')">{{ paymentTypeLabel(event.payment_type) }}</td>
-                <td :data-label="t('common.loan')">#{{ event.loan_id }}</td>
-                <td :data-label="t('payments.period')">{{ event.billing_period || '-' }}</td>
-                <td :data-label="t('common.total')">{{ formatCurrency(event.total_entered_amount) }}</td>
-                <td :data-label="t('common.interest')">{{ formatCurrency(event.allocated_to_interest) }}</td>
-                <td :data-label="t('payments.penalty')">{{ formatCurrency(event.allocated_to_penalty) }}</td>
-                <td :data-label="t('common.principal')">{{ formatCurrency(event.allocated_to_principal) }}</td>
-                <td :data-label="t('common.method')">{{ paymentMethodLabel(event.payment_method) }}</td>
-              </tr>
-            </tbody>
-          </table>
-              <Pagination v-model="auditCurrentPage" :totalItems="auditFilteredEvents.length" :itemsPerPage="10" />
-          </div>
-        </div>
         </template>
 
         <!-- ── Tab: Loans ─────────────────────────── -->
@@ -558,8 +600,21 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="payment in paginatedCustomerPayments" :key="payment.id">
-                <td :data-label="t('common.id')">#{{ payment.id }}</td>
+              <template v-for="payment in paginatedCustomerPayments" :key="payment.id">
+              <tr :class="{ 'row-expanded': expandedPaymentId === payment.id }">
+                <td :data-label="t('common.id')">
+                  <button
+                    class="btn btn-ghost btn-icon"
+                    type="button"
+                    :aria-expanded="expandedPaymentId === payment.id"
+                    :aria-label="t('payments.showAllocation')"
+                    :title="t('payments.showAllocation')"
+                    @click="togglePaymentAllocation(payment.id)"
+                  >
+                    <component :is="expandedPaymentId === payment.id ? ChevronDown : ChevronRight" :size="14" />
+                  </button>
+                  #{{ payment.id }}
+                </td>
                 <td :data-label="t('common.loan')">#{{ payment.loanId }}</td>
                 <td :data-label="t('common.date')">{{ formatDateDMY(payment.paymentDate) }}</td>
                 <td :data-label="t('common.total')">{{ formatCurrency(payment.totalAmount) }}</td>
@@ -608,6 +663,12 @@
                   </div>
                 </td>
               </tr>
+              <tr v-if="expandedPaymentId === payment.id" class="row-detail">
+                <td :colspan="hasRole([UserRole.Administrator, UserRole.LoanOfficer]) ? 12 : 12">
+                  <PaymentAllocationDetail :paymentId="payment.id" />
+                </td>
+              </tr>
+              </template>
             </tbody>
           </table>
               <Pagination v-model="paymentsCurrentPage" :totalItems="selectedCustomerPayments.length" :itemsPerPage="10" />
@@ -859,8 +920,10 @@ import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import VoidInterestChargeModal, { type VoidableCharge } from '../components/VoidInterestChargeModal.vue'
-import { useRoute } from 'vue-router'
-import { Archive, Ban, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
+import PaymentAllocationDetail from '../components/PaymentAllocationDetail.vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useBackNavigation } from '../composables/useBackNavigation'
+import { Archive, ArrowLeft, Ban, CheckCircle2, ChevronDown, ChevronRight, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -871,6 +934,7 @@ import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, formatDateTime, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
+import { interestPeriodClass, interestPeriodKey } from '../utils/loanStatus'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -941,6 +1005,7 @@ const {
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
 const route = useRoute()
+const router = useRouter()
 const { hasRole } = useAuthState()
 const { message, messageClass, notify, fail, report } = usePageMessage()
 const search = ref('')
@@ -948,12 +1013,28 @@ const customerStatusFilter = ref<'all' | 'active' | 'archived'>('all')
 const customerSortPriority = ref<SortCriterion<CustomerSortKey>[]>([{ key: 'name', direction: 'asc' }])
 const selectedCustomerId = ref<number | null>(null)
 const showCreateModal = ref(false)
-const showDetailModal = ref(false)
+const showEditModal = ref(false)
+
+const openEditModal = () => {
+  syncEditForm()
+  showEditModal.value = true
+}
+/* Derived from the route, not from a flag. The detail is a place now, so the address is
+   what decides whether it is open and which tab is showing — that is what makes it linkable
+   and what makes the browser's back button return to the previous tab. */
+const DETAIL_TABS = ['overview', 'loans', 'payments', 'collateral'] as const
+type DetailTab = (typeof DETAIL_TABS)[number]
+
+const showDetail = computed(() => route.name === 'customer-detail')
+const detailTab = computed<DetailTab>(() => {
+  const tab = route.params.tab as string | undefined
+  // An unknown tab in a hand-typed URL opens the overview rather than a blank panel.
+  return DETAIL_TABS.includes(tab as DetailTab) ? (tab as DetailTab) : 'overview'
+})
 const showCustomerLoanDetailModal = ref(false)
 const showLoanEditModal = ref(false)
 const showCollateralEditModal = ref(false)
 const showPaymentEditModal = ref(false)
-const detailTab = ref<'overview' | 'loans' | 'payments' | 'collateral' | 'edit'>('overview')
 const isSaving = ref(false)
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
@@ -971,6 +1052,10 @@ const documentTypeOptions = ['CC', 'TI', 'NIT', 'CE', 'PAS']
 
 onMounted(async () => {
   await ensureInitialized()
+
+  // A pasted link or a reload arrives with the id already in the address.
+  const routeId = Number(route.params.id)
+  if (Number.isFinite(routeId) && routeId > 0) selectCustomer(routeId)
 })
 
 watch(
@@ -1250,6 +1335,22 @@ const selectCustomer = (customerId: number) => {
   void loadCustomerFinancialData(customerId)
 }
 
+
+/* Later navigations only — the first one is handled in `onMounted`.
+ *
+ * An `immediate: true` watcher here reads the route before the rest of the setup has run, and
+ * `const` in <script setup> is not hoisted: it reached `selectCustomer`, which reaches
+ * `loadCustomerFinancialData`, and threw in the temporal dead zone — taking the whole view
+ * down, so the route rendered nothing at all. `onMounted` runs after every declaration, which
+ * makes the order irrelevant instead of merely correct today. */
+watch(
+  () => route.params.id,
+  (value) => {
+    const id = Number(value)
+    if (Number.isFinite(id) && id > 0 && selectedCustomerId.value !== id) selectCustomer(id)
+  }
+)
+
 const openCreateModal = () => {
   showCreateModal.value = true
 }
@@ -1259,18 +1360,31 @@ const closeCreateModal = () => {
 }
 
 const openCustomerDetail = (customerId: number) => {
-  selectCustomer(customerId)
-  detailTab.value = 'overview'
-  showDetailModal.value = true
+  void router.push({ name: 'customer-detail', params: { id: String(customerId), tab: 'overview' } })
 }
 
-const closeDetailModal = () => {
-  showDetailModal.value = false
+/* Same reasoning as the loan page: a customer is also reached from more than one place. */
+const goBackFromCustomer = useBackNavigation({ name: 'customers' })
+
+const closeDetail = () => {
+  goBackFromCustomer()
 }
 
+/* `push`, so the browser's back button returns to the tab you came from rather than leaving
+   the customer entirely. The tab is in the address precisely so it is a place worth going
+   back to; `replace` would have put it in the URL and then refused to honour it. */
+const goToTab = (tab: DetailTab) => {
+  if (!selectedCustomerId.value) return
+  void router.push({
+    name: 'customer-detail',
+    params: { id: String(selectedCustomerId.value), tab }
+  })
+}
+
+/* A loan has its own page now. Opening it from here used to stack a modal on the customer
+   modal, which is the nesting this whole change exists to end. */
 const openCustomerLoanDetail = (loanId: number) => {
-  selectedLoanDetailId.value = loanId
-  showCustomerLoanDetailModal.value = true
+  void router.push({ name: 'loan-detail', params: { id: String(loanId) } })
 }
 
 const closeCustomerLoanDetail = () => {
@@ -1332,18 +1446,21 @@ const loadCustomerFinancialData = async (customerId: number) => {
   financialDataError.value = false
 
   try {
-    const [pending, principal, history] = await Promise.all([
+    const [pending, principal, history, invoices] = await Promise.all([
       apiClient.request<InterestPendingResponse>(`/payments/customers/${customerId}/interest-pending`),
       apiClient.request<PrincipalContextResponse>(`/payments/customers/${customerId}/principal-context`),
-      apiClient.request<PaymentEvent[]>(`/payments/customers/${customerId}/history`)
+      apiClient.request<PaymentEvent[]>(`/payments/customers/${customerId}/history`),
+      apiClient.request<{ items: InterestHistoryItem[] }>(`/payments/customers/${customerId}/interest-history`)
     ])
 
     pendingInterestData.value = pending
     principalContextData.value = principal
     paymentEvents.value = history
+    interestHistory.value = invoices.items
   } catch {
     financialDataError.value = true
     pendingInterestData.value = null
+    interestHistory.value = []
     principalContextData.value = null
     paymentEvents.value = []
   } finally {
@@ -1474,7 +1591,7 @@ const handleDeleteCustomer = async () => {
     if (result.ok) {
       selectedCustomerId.value = null
       closeCustomerLoanDetail()
-      closeDetailModal()
+      closeDetail()
     }
   } catch {
     fail(t('messages.operationFailed'))
@@ -1606,6 +1723,83 @@ const onPaymentDeleted = async (paymentId: number) => {
 const canVoidCharges = computed(() => hasRole([UserRole.Administrator]))
 const chargeToVoid = ref<VoidableCharge | null>(null)
 
+/* One open at a time. Several expanded rows would push the row being read off screen,
+   and the panel answers a question about one payment, not a comparison between them. */
+/* ── Invoices ────────────────────────────────────────────────────────────────────────────
+ *
+ * One table for every billing period, filtered — not a second table beside the pending one.
+ * The pending-only view was all this screen had, so a customer's paid invoices existed
+ * nowhere in the application; adding a separate "paid" table would have recreated the same
+ * money in two grids, which is exactly what the payments section was just cured of.
+ *
+ * It defaults to pending because that is what someone opening a customer is usually chasing.
+ */
+type InvoiceFilter = 'pending' | 'settled' | 'voided' | 'all'
+
+interface InterestHistoryItem {
+  interest_charge_id: number
+  loan_id: number
+  billing_period: string
+  due_date: string
+  charge_amount: number
+  penalty_amount: number
+  paid_amount: number
+  outstanding: number
+  settled: boolean
+  overdue: boolean
+  voided: boolean
+  void_reason: string
+}
+
+const interestHistory = ref<InterestHistoryItem[]>([])
+const invoiceFilter = ref<InvoiceFilter>('pending')
+
+const invoiceFilterOptions = computed(() => [
+  { value: 'pending', label: t('customers.invoiceFilterPending') },
+  { value: 'settled', label: t('customers.invoiceFilterSettled') },
+  { value: 'voided', label: t('customers.invoiceFilterVoided') },
+  { value: 'all', label: t('customers.invoiceFilterAll') }
+])
+
+const filteredInvoices = computed(() =>
+  interestHistory.value.filter((item) => {
+    if (invoiceFilter.value === 'all') return true
+    if (invoiceFilter.value === 'voided') return item.voided
+    if (invoiceFilter.value === 'settled') return item.settled
+    // Pending: still owes and was not cancelled.
+    return !item.voided && !item.settled
+  })
+)
+
+/* Settled and voided are facts about the invoice; anything else is a period, and it gets the
+   shared three-state answer rather than a flat "pending" — otherwise this screen would be the
+   one place that stops saying "vence hoy". */
+const invoiceStatusKey = (item: InterestHistoryItem) => {
+  if (item.voided) return 'customers.invoiceVoided'
+  if (item.settled) return 'customers.invoiceSettled'
+  return interestPeriodKey(item)
+}
+
+const invoiceStatusClass = (item: InterestHistoryItem) => {
+  if (item.voided) return 'pill-upcoming'
+  if (item.settled) return 'pill-current'
+  return interestPeriodClass(item)
+}
+
+/* The void modal speaks the collection screen's shape, so the record's row is translated
+   rather than the modal taught a second one. */
+const toVoidable = (item: InterestHistoryItem): VoidableCharge => ({
+  interest_charge_id: item.interest_charge_id,
+  loan_id: item.loan_id,
+  billing_period: item.billing_period,
+  current_outstanding_balance: item.outstanding
+})
+
+const expandedPaymentId = ref<number | null>(null)
+const togglePaymentAllocation = (paymentId: number) => {
+  expandedPaymentId.value = expandedPaymentId.value === paymentId ? null : paymentId
+}
+
 const onChargeVoided = async (chargeId: number) => {
   notify(t('interest.chargeVoided', { id: chargeId }))
   // The pending-interest table comes from its own fetch, not from the store, so nothing
@@ -1684,27 +1878,6 @@ const paymentMethodLabel = (method: string) => {
   return t('common.other')
 }
 
-const getPendingStatusKey = (item: { overdue: boolean; due_date: string }) => {
-  if (item.overdue) {
-    return 'common.overdue'
-  }
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const dueDate = new Date(item.due_date)
-  dueDate.setHours(0, 0, 0, 0)
-
-  return dueDate.getTime() === today.getTime() ? 'payments.current' : 'payments.upcoming'
-}
-
-const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => {
-  if (item.overdue) {
-    return 'pill-overdue'
-  }
-
-  return getPendingStatusKey(item) === 'payments.current' ? 'pill-current' : 'pill-upcoming'
-}
 
 const paymentTypeLabel = (paymentType: string) => t(paymentTypeKey(paymentType))
 
@@ -1794,8 +1967,7 @@ const filteredCustomers = computed(() => {
 })
 
 const { currentPage: customerCurrentPage, paginatedArray: paginatedCustomers } = usePagination(filteredCustomers)
-const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingInterestItems } = usePagination(pendingInterestItems)
-const { currentPage: auditCurrentPage, paginatedArray: paginatedAuditFilteredEvents } = usePagination(auditFilteredEvents)
+const { currentPage: invoicesCurrentPage, paginatedArray: paginatedInvoices } = usePagination(filteredInvoices)
 const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(allSelectedCustomerLoans)
 const { currentPage: paymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
 const { currentPage: collateralsCurrentPage, paginatedArray: paginatedCustomerCollateral } = usePagination(selectedCustomerCollateral)
