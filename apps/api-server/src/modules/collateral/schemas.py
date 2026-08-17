@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from src.domain.enums.collateral import CollateralStatus
 from pydantic import BaseModel, ConfigDict
 
 
@@ -21,7 +22,7 @@ class CollateralUpdate(BaseModel):
     # Accepted so a client can round-trip the item it loaded, but it may only carry the
     # status the pledge already has: custody moves through the dedicated endpoints, which
     # are the ones that check the debt first.
-    status: str | None = None
+    status: CollateralStatus | None = None
 
 
 class CollateralRead(BaseModel):
@@ -36,7 +37,7 @@ class CollateralRead(BaseModel):
     physical_condition: str
     custody_code: str
     storage_location: str
-    status: str
+    status: CollateralStatus = CollateralStatus.in_custody
     loan_status: str | None = None
     loan_principal: float | None = None
     loan_outstanding: float | None = None

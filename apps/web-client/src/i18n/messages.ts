@@ -10,7 +10,6 @@ export const messages = {
       statusForSale: 'For Sale',
       statusSold: 'Sold',
       statusInCustody: 'In Custody',
-      statusReturned: 'Returned',
       statusReleased: 'Released',
       statusLiquidated: 'Liquidated',
       sellItem: 'Sell Item',
@@ -750,7 +749,11 @@ export const messages = {
       docUpToDate: 'Up to date',
       docOverdue: 'Overdue',
       docSettled: 'Settled',
-      docForeclosed: 'Foreclosed'
+      docForeclosed: 'Foreclosed',
+      closurePaid: 'Paid off',
+      closureRenewed: 'Renewed',
+      closureSettled: 'Settled for less',
+      closureWrittenOff: 'Written off',
     },
     reporting: {
       title: 'Reporting',
@@ -866,7 +869,6 @@ export const messages = {
       statusForSale: 'En Remate',
       statusSold: 'Vendido',
       statusInCustody: 'En Custodia',
-      statusReturned: 'Devuelta al Cliente',
       statusReleased: 'Liberada',
       statusLiquidated: 'Liquidada',
       sellItem: 'Registrar Venta',
@@ -1593,7 +1595,11 @@ export const messages = {
       docUpToDate: 'Al día',
       docOverdue: 'En mora',
       docSettled: 'Saldado',
-      docForeclosed: 'Ejecutado'
+      docForeclosed: 'Ejecutado',
+      closurePaid: 'Pagado',
+      closureRenewed: 'Renovado',
+      closureSettled: 'Liquidado por menos',
+      closureWrittenOff: 'Castigado',
     },
     reporting: {
       title: 'Reportes',

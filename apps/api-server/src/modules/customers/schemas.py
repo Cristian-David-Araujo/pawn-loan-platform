@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from src.domain.enums.collateral import CustomerStatus
 from pydantic import BaseModel, ConfigDict
 from src.modules.authentication.schemas import UserSummary
 
@@ -13,7 +14,7 @@ class CustomerBase(BaseModel):
     email: str = ""
     address: str = ""
     city: str = ""
-    status: str = "active"
+    status: CustomerStatus = CustomerStatus.active
 
 
 class CustomerCreate(CustomerBase):
@@ -29,7 +30,7 @@ class CustomerUpdate(BaseModel):
     email: str | None = None
     address: str | None = None
     city: str | None = None
-    status: str | None = None
+    status: CustomerStatus | None = None
 
 
 class CustomerRead(CustomerBase):

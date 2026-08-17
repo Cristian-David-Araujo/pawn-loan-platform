@@ -12,7 +12,6 @@ from src.infrastructure.persistence.models import (
     GlobalSettings,
     InterestCharge,
     Loan,
-    LoanApplication,
     Payment,
     PaymentEvent,
     User,
@@ -52,7 +51,6 @@ def seed_database(db: Session, force: bool = False) -> bool:
         db.query(Payment).delete()
         db.query(CollateralItem).delete()
         db.query(Loan).delete()
-        db.query(LoanApplication).delete()
         db.query(Customer).delete()
         db.query(GlobalSettings).delete()
 
@@ -100,22 +98,6 @@ def seed_database(db: Session, force: bool = False) -> bool:
         
         principal = random.choice([500, 800, 1000, 1500, 2000, 3000, 5000])
         interest_rate = random.choice([5, 6, 7, 8, 10])
-        term = random.choice([3, 6, 9, 12])
-        
-        # Application
-        app = LoanApplication(
-            customer_id=customer.id,
-            loan_type=loan_type,
-            requested_amount=principal,
-            monthly_interest_rate=interest_rate,
-            term_months=term,
-            notes=f"Solicitud generada auto {i}",
-            status="approved",
-            reviewed_by=users["officer"].id,
-            approved_by=users["officer"].id,
-        )
-        db.add(app)
-        db.flush()
 
         # Decide status
         rand_status = random.random()
@@ -137,7 +119,6 @@ def seed_database(db: Session, force: bool = False) -> bool:
 
         # Build Loan
         loan = Loan(
-            application_id=app.id,
             customer_id=customer.id,
             loan_type=loan_type,
             description=f"Prestamo {loan_type} autogenerado #{i}",

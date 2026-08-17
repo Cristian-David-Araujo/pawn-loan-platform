@@ -57,7 +57,7 @@ interface BackendCollateral {
   appraised_value: number
   custody_code: string
   storage_location: string
-  status: 'in_custody' | 'released' | 'liquidated' | 'for_sale' | 'sold' | 'returned'
+  status: 'in_custody' | 'released' | 'liquidated' | 'for_sale' | 'sold'
   sale_price?: number | null
   sold_at?: string | null
   loan_status?: string

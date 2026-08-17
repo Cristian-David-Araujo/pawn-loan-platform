@@ -50,27 +50,11 @@ class Customer(Base):
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
 
 
-class LoanApplication(Base):
-    __tablename__ = "loan_applications"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
-    loan_type: Mapped[LoanType] = mapped_column(Enum(LoanType))
-    requested_amount: Mapped[float] = mapped_column(Float)
-    monthly_interest_rate: Mapped[float] = mapped_column(Float)
-    term_months: Mapped[int] = mapped_column(Integer)
-    notes: Mapped[str] = mapped_column(Text, default="")
-    status: Mapped[str] = mapped_column(String(20), default="submitted")
-    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    approved_by: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
-
 
 class Loan(Base):
     __tablename__ = "loans"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    application_id: Mapped[int | None] = mapped_column(ForeignKey("loan_applications.id"), nullable=True)
     customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id"), index=True)
     loan_type: Mapped[LoanType] = mapped_column(Enum(LoanType))
     description: Mapped[str] = mapped_column(Text, default="")

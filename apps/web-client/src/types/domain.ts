@@ -58,7 +58,9 @@ export interface CollateralItem {
   appraisedValue: number
   custodyCode: string
   storageLocation: string
-  status: 'in-custody' | 'released' | 'liquidated' | 'for_sale' | 'sold' | 'returned'
+  /* No `returned`: no endpoint ever wrote it — only the demo seed did — and it sat beside
+     the real `released` inviting exactly that confusion. See CollateralStatus on the API. */
+  status: 'in-custody' | 'released' | 'liquidated' | 'for_sale' | 'sold'
   salePrice?: number | null
   soldAt?: string | null
   loanStatus?: string
