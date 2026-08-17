@@ -4,6 +4,7 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.domain.enums.collateral import CollateralStatus, CustomerStatus
 from src.domain.enums.loan import LoanStatus, LoanType
 from src.domain.enums.user import UserRole
 from src.infrastructure.persistence.models import (
@@ -84,7 +85,10 @@ def seed_database(db: Session, force: bool = False) -> bool:
             email=f"user{i}@example.com",
             address=f"Calle {random.randint(1, 100)}",
             city=random.choice(CITIES),
-            status="active" if random.random() > 0.1 else "inactive",
+            # `CustomerStatus`, not free text: this wrote "inactive", which is not a value
+            # the application knows. The web client renders anything that is not exactly
+            # `active` as "Archivado", so the demo data quietly looked archived instead.
+            status=CustomerStatus.active if random.random() > 0.1 else CustomerStatus.archived,
         )
         db.add(c)
         customers.append(c)
@@ -143,8 +147,9 @@ def seed_database(db: Session, force: bool = False) -> bool:
             if status == LoanStatus.defaulted:
                 c_status = "for_sale"
             elif status == LoanStatus.closed:
-                # 50% sold, 50% returned
-                c_status = random.choice(["sold", "returned"])
+                # `returned` was removed from the vocabulary: no endpoint ever wrote it and
+                # it sat beside the real `released`, which is what a pledge handed back is.
+                c_status = random.choice([CollateralStatus.sold, CollateralStatus.released])
 
             collateral = CollateralItem(
                 loan_id=loan.id,
