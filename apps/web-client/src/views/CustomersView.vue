@@ -377,8 +377,19 @@
         <!-- ── Tab: Payments ──────────────────────── -->
         <template v-if="detailTab === 'payments'">
         <div class="mt-16">
-          <h3>{{ t('customers.paymentBehavior') }}</h3>
-          <p class="muted">{{ t('customers.paymentBehaviorHint') }}</p>
+          <div class="section-head-split">
+            <div>
+              <h3>{{ t('customers.invoicesTitle') }}</h3>
+              <p class="muted">{{ t('customers.invoicesHint') }}</p>
+            </div>
+            <CustomSelect
+              v-model="invoiceFilter"
+              inputClass="table-select"
+              :options="invoiceFilterOptions"
+              :ariaLabel="t('customers.invoiceFilter')"
+            />
+          </div>
+
           <p v-if="financialDataLoading" class="muted mt-16">{{ t('customers.loadingFinancialData') }}</p>
           <p v-else-if="financialDataError" class="muted mt-16">{{ t('customers.financialDataUnavailable') }}</p>
 
@@ -389,46 +400,49 @@
                 <th>{{ t('common.loan') }}</th>
                 <th>{{ t('payments.period') }}</th>
                 <th>{{ t('payments.dueDate') }}</th>
-                <th>{{ t('payments.pendingInterest') }}</th>
-                <th>{{ t('payments.penalty') }}</th>
-                <th>{{ t('payments.outstandingPeriod') }}</th>
+                <th class="text-right">{{ t('common.periodInterest') }}</th>
+                <th class="text-right">{{ t('payments.penalty') }}</th>
+                <th class="text-right">{{ t('common.paid') }}</th>
+                <th class="text-right">{{ t('payments.outstandingPeriod') }}</th>
                 <th>{{ t('common.status') }}</th>
                 <th v-if="canVoidCharges">{{ t('common.actions') }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="item in paginatedPendingInterestItems" :key="item.interest_charge_id">
+              <tr v-for="item in paginatedInvoices" :key="item.interest_charge_id">
                 <td :data-label="t('common.loan')">#{{ item.loan_id }}</td>
                 <td :data-label="t('payments.period')">{{ item.billing_period }}</td>
                 <td :data-label="t('payments.dueDate')">{{ formatDateDMY(item.due_date) }}</td>
-                <td :data-label="t('payments.pendingInterest')">{{ formatCurrency(item.remaining_pending_amount) }}</td>
-                <td :data-label="t('payments.penalty')">{{ formatCurrency(item.penalty_amount) }}</td>
-                <td :data-label="t('payments.outstandingPeriod')">{{ formatCurrency(item.current_outstanding_balance) }}</td>
-                <td :data-label="t('common.status')">
-                  <span class="pill" :class="getPendingStatusClass(item)">
-                    {{ t(getPendingStatusKey(item)) }}
-                  </span>
+                <td class="text-right" :data-label="t('common.periodInterest')">{{ formatCurrency(item.charge_amount) }}</td>
+                <td class="text-right" :data-label="t('payments.penalty')">{{ formatCurrency(item.penalty_amount) }}</td>
+                <td class="text-right" :data-label="t('common.paid')">{{ formatCurrency(item.paid_amount) }}</td>
+                <td class="text-right num-strong" :data-label="t('payments.outstandingPeriod')">
+                  {{ formatCurrency(item.outstanding) }}
                 </td>
-                <!-- No data-label: an action cell becomes a full-width block on a phone,
-                     which is the pattern, not an omission. -->
+                <td :data-label="t('common.status')">
+                  <span class="pill" :class="invoiceStatusClass(item)">{{ t(invoiceStatusKey(item)) }}</span>
+                  <div class="muted mt-1" v-if="item.voided && item.void_reason">{{ item.void_reason }}</div>
+                </td>
+                <!-- No data-label: an action cell becomes a full-width block on a phone. -->
                 <td v-if="canVoidCharges" class="text-right">
                   <button
+                    v-if="!item.voided && !item.settled"
                     class="btn btn-destructive btn-icon"
                     type="button"
                     :title="t('interest.voidCharge')"
                     :aria-label="t('interest.voidCharge')"
-                    @click="chargeToVoid = item"
+                    @click="chargeToVoid = toVoidable(item)"
                   >
                     <Ban :size="14" />
                   </button>
                 </td>
               </tr>
-              <tr v-if="!pendingInterestItems.length">
-                <td :colspan="canVoidCharges ? 8 : 7">{{ t('customers.noPendingInterestDetail') }}</td>
+              <tr v-if="!filteredInvoices.length">
+                <td :colspan="canVoidCharges ? 9 : 8">{{ t('customers.noInvoicesForFilter') }}</td>
               </tr>
             </tbody>
           </table>
-              <Pagination v-model="pendingInterestCurrentPage" :totalItems="pendingInterestItems.length" :itemsPerPage="10" />
+              <Pagination v-model="invoicesCurrentPage" :totalItems="filteredInvoices.length" :itemsPerPage="10" />
           </div>
         </div>
 
@@ -1318,18 +1332,21 @@ const loadCustomerFinancialData = async (customerId: number) => {
   financialDataError.value = false
 
   try {
-    const [pending, principal, history] = await Promise.all([
+    const [pending, principal, history, invoices] = await Promise.all([
       apiClient.request<InterestPendingResponse>(`/payments/customers/${customerId}/interest-pending`),
       apiClient.request<PrincipalContextResponse>(`/payments/customers/${customerId}/principal-context`),
-      apiClient.request<PaymentEvent[]>(`/payments/customers/${customerId}/history`)
+      apiClient.request<PaymentEvent[]>(`/payments/customers/${customerId}/history`),
+      apiClient.request<{ items: InterestHistoryItem[] }>(`/payments/customers/${customerId}/interest-history`)
     ])
 
     pendingInterestData.value = pending
     principalContextData.value = principal
     paymentEvents.value = history
+    interestHistory.value = invoices.items
   } catch {
     financialDataError.value = true
     pendingInterestData.value = null
+    interestHistory.value = []
     principalContextData.value = null
     paymentEvents.value = []
   } finally {
@@ -1594,6 +1611,76 @@ const chargeToVoid = ref<VoidableCharge | null>(null)
 
 /* One open at a time. Several expanded rows would push the row being read off screen,
    and the panel answers a question about one payment, not a comparison between them. */
+/* ── Invoices ────────────────────────────────────────────────────────────────────────────
+ *
+ * One table for every billing period, filtered — not a second table beside the pending one.
+ * The pending-only view was all this screen had, so a customer's paid invoices existed
+ * nowhere in the application; adding a separate "paid" table would have recreated the same
+ * money in two grids, which is exactly what the payments section was just cured of.
+ *
+ * It defaults to pending because that is what someone opening a customer is usually chasing.
+ */
+type InvoiceFilter = 'pending' | 'settled' | 'voided' | 'all'
+
+interface InterestHistoryItem {
+  interest_charge_id: number
+  loan_id: number
+  billing_period: string
+  due_date: string
+  charge_amount: number
+  penalty_amount: number
+  paid_amount: number
+  outstanding: number
+  settled: boolean
+  overdue: boolean
+  voided: boolean
+  void_reason: string
+}
+
+const interestHistory = ref<InterestHistoryItem[]>([])
+const invoiceFilter = ref<InvoiceFilter>('pending')
+
+const invoiceFilterOptions = computed(() => [
+  { value: 'pending', label: t('customers.invoiceFilterPending') },
+  { value: 'settled', label: t('customers.invoiceFilterSettled') },
+  { value: 'voided', label: t('customers.invoiceFilterVoided') },
+  { value: 'all', label: t('customers.invoiceFilterAll') }
+])
+
+const filteredInvoices = computed(() =>
+  interestHistory.value.filter((item) => {
+    if (invoiceFilter.value === 'all') return true
+    if (invoiceFilter.value === 'voided') return item.voided
+    if (invoiceFilter.value === 'settled') return item.settled
+    // Pending: still owes and was not cancelled.
+    return !item.voided && !item.settled
+  })
+)
+
+/* Settled and voided are facts about the invoice; anything else is a period, and it gets the
+   shared three-state answer rather than a flat "pending" — otherwise this screen would be the
+   one place that stops saying "vence hoy". */
+const invoiceStatusKey = (item: InterestHistoryItem) => {
+  if (item.voided) return 'customers.invoiceVoided'
+  if (item.settled) return 'customers.invoiceSettled'
+  return interestPeriodKey(item)
+}
+
+const invoiceStatusClass = (item: InterestHistoryItem) => {
+  if (item.voided) return 'pill-upcoming'
+  if (item.settled) return 'pill-current'
+  return interestPeriodClass(item)
+}
+
+/* The void modal speaks the collection screen's shape, so the record's row is translated
+   rather than the modal taught a second one. */
+const toVoidable = (item: InterestHistoryItem): VoidableCharge => ({
+  interest_charge_id: item.interest_charge_id,
+  loan_id: item.loan_id,
+  billing_period: item.billing_period,
+  current_outstanding_balance: item.outstanding
+})
+
 const expandedPaymentId = ref<number | null>(null)
 const togglePaymentAllocation = (paymentId: number) => {
   expandedPaymentId.value = expandedPaymentId.value === paymentId ? null : paymentId
@@ -1677,10 +1764,6 @@ const paymentMethodLabel = (method: string) => {
   return t('common.other')
 }
 
-/* One implementation, in utils/loanStatus. This screen and the payments screen held
-   byte-identical copies, and the printed statement a third, cruder one. */
-const getPendingStatusKey = (item: { overdue: boolean; due_date: string }) => interestPeriodKey(item)
-const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => interestPeriodClass(item)
 
 const paymentTypeLabel = (paymentType: string) => t(paymentTypeKey(paymentType))
 
@@ -1770,7 +1853,7 @@ const filteredCustomers = computed(() => {
 })
 
 const { currentPage: customerCurrentPage, paginatedArray: paginatedCustomers } = usePagination(filteredCustomers)
-const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingInterestItems } = usePagination(pendingInterestItems)
+const { currentPage: invoicesCurrentPage, paginatedArray: paginatedInvoices } = usePagination(filteredInvoices)
 const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(allSelectedCustomerLoans)
 const { currentPage: paymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
 const { currentPage: collateralsCurrentPage, paginatedArray: paginatedCustomerCollateral } = usePagination(selectedCustomerCollateral)
