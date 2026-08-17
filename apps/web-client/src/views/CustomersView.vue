@@ -893,6 +893,7 @@ import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import VoidInterestChargeModal, { type VoidableCharge } from '../components/VoidInterestChargeModal.vue'
 import PaymentAllocationDetail from '../components/PaymentAllocationDetail.vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useBackNavigation } from '../composables/useBackNavigation'
 import { Archive, ArrowLeft, Ban, CheckCircle2, ChevronDown, ChevronRight, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
@@ -1327,8 +1328,11 @@ const openCustomerDetail = (customerId: number) => {
   void router.push({ name: 'customer-detail', params: { id: String(customerId), tab: 'overview' } })
 }
 
+/* Same reasoning as the loan page: a customer is also reached from more than one place. */
+const goBackFromCustomer = useBackNavigation({ name: 'customers' })
+
 const closeDetail = () => {
-  void router.push({ name: 'customers' })
+  goBackFromCustomer()
 }
 
 /* `push`, so the browser's back button returns to the tab you came from rather than leaving

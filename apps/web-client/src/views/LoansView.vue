@@ -330,6 +330,7 @@ import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useBackNavigation } from '../composables/useBackNavigation'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { usePageMessage } from '../composables/usePageMessage'
@@ -680,8 +681,12 @@ watch(
   { immediate: true }
 )
 
+/* Back, not "go to the loan list": this page is reached from the loans list, from a
+   customer's loans tab and from a pasted link, and only one of those wants the list. */
+const goBackFromLoan = useBackNavigation({ name: 'loans' })
+
 const closeLoanDetail = () => {
-  void router.push({ name: 'loans' })
+  goBackFromLoan()
 }
 
 /**
