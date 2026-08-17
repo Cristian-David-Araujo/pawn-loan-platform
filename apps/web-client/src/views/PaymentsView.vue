@@ -260,11 +260,11 @@
       <div class="filter-grid mt-16">
         <label>
           {{ t('payments.filterFromDate') }}
-          <DateInputField v-model="historyFromDate" :label="t('payments.filterFromDate')" />
+          <DateInputField v-model="historyFromDate" :range-start="historyFromDate" :range-end="historyToDate" :label="t('payments.filterFromDate')" />
         </label>
         <label>
           {{ t('payments.filterToDate') }}
-          <DateInputField v-model="historyToDate" :label="t('payments.filterToDate')" />
+          <DateInputField v-model="historyToDate" :range-start="historyFromDate" :range-end="historyToDate" :label="t('payments.filterToDate')" />
         </label>
         <label>
           {{ t('payments.filterLoan') }}

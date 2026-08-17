@@ -10,6 +10,7 @@
     "typecheck": "vue-tsc -b",
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
+    "check:tokens": "node scripts/check-tokens.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

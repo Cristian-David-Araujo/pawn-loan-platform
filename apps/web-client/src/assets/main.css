@@ -1277,15 +1277,22 @@ label {
   color: var(--text);
 }
 
+/* `--on-danger`, not `--on-fill`. There is no `--on-fill` token and there never was, so the
+   declaration was invalid and `color` fell back to inheritance: the label took whatever the
+   surrounding text colour happened to be. On the dark theme that is near-white and the button
+   looked correct, which is why this survived — on the light theme it is near-black, so
+   "Pasar a Remate" rendered dark ink on a saturated red fill. `check:contrast` measured
+   `--on-danger` against `--danger` and passed, because it was measuring the intent while the
+   stylesheet implemented something else. See `check:tokens`, added to stop the next one. */
 .btn-danger {
   background: var(--danger);
-  color: var(--on-fill);
+  color: var(--on-danger);
   border-color: transparent;
 }
 
 .btn-danger:hover:not(:disabled) {
   background: var(--danger-hover);
-  color: var(--on-fill);
+  color: var(--on-danger);
 }
 
 /* A destructive action that lives on a table row.
@@ -1700,11 +1707,43 @@ p.badge {
   color: var(--text-disabled);
 }
 
-.date-day-btn.is-selected {
+/* The days between the two ends of a from/to filter.
+   A soft wash rather than a fill: the band is context, and the two dates the operator
+   actually chose are what should read as chosen. The 0.15rem grid gap would break a
+   continuous bar, so the negative inline margin closes it and the row reads as one span. */
+.date-day-btn.is-in-range {
+  background: var(--accent-soft);
+  border-radius: 0;
+  margin-inline: -0.15rem;
+  padding-inline: 0.15rem;
+}
+
+.date-day-btn.is-in-range:hover {
+  background: var(--accent-border);
+}
+
+/* Both ends of the range, and the single date of a lone field: the same treatment, because
+   they mean the same thing — this is the date that was picked. */
+.date-day-btn.is-selected,
+.date-day-btn.is-range-edge {
   background: var(--accent);
   border-color: transparent;
-  color: var(--on-fill);
+  /* Same undefined-token bug as `.btn-danger`: the selected day inherited the calendar's
+     text colour instead of the one picked to sit on the accent. */
+  color: var(--on-accent);
   font-weight: 700;
+}
+
+.date-day-btn.is-range-edge:hover {
+  background: var(--accent-hover);
+  border-color: transparent;
+  color: var(--on-accent);
+}
+
+/* A muted day inside the range keeps the wash but stays quiet — it belongs to the
+   neighbouring month and is not part of what the filter is about. */
+.date-day-btn.is-muted.is-in-range {
+  color: var(--text-disabled);
 }
 
 .date-day-btn.is-today {

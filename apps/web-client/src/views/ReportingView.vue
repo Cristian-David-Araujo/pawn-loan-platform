@@ -9,11 +9,11 @@
     <div class="card customer-gate mt-16">
       <label>
         {{ t('reporting.fromDate') }}
-        <DateInputField v-model="fromDate" :label="t('reporting.fromDate')" :title="t('reporting.fromDate')" />
+        <DateInputField v-model="fromDate" :range-start="fromDate" :range-end="toDate" :label="t('reporting.fromDate')" :title="t('reporting.fromDate')" />
       </label>
       <label>
         {{ t('reporting.toDate') }}
-        <DateInputField v-model="toDate" :label="t('reporting.toDate')" :title="t('reporting.toDate')" />
+        <DateInputField v-model="toDate" :range-start="fromDate" :range-end="toDate" :label="t('reporting.toDate')" :title="t('reporting.toDate')" />
       </label>
       <button class="btn btn-secondary" type="button" @click="resetDates">
         <RotateCcw :size="16" />
