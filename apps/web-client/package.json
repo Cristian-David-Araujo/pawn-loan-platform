@@ -11,6 +11,8 @@
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:tokens": "node scripts/check-tokens.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,8 +23,11 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/test-utils": "^2.4.11",
+    "happy-dom": "^20.11.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.3",
+    "vitest": "^3.2.7",
     "vue-tsc": "^2.1.10"
   }
 }
