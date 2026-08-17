@@ -1,5 +1,9 @@
 <template>
   <section>
+    <!-- The list and the detail are two addresses, so only one is on screen at a time. The
+         detail used to float over the list in a modal, which is why up to eight backdrops
+         could stack: every action inside it had nowhere to go but another layer. -->
+    <template v-if="!showDetail">
     <PageHeader :title="t('customers.title')" :subtitle="t('customers.subtitle')">
       <template #icon>
         <Users :size="18" />
@@ -106,6 +110,7 @@
       <Pagination v-model="customerCurrentPage" :totalItems="filteredCustomers.length" :itemsPerPage="10" />
       </div>
     </div>
+    </template>
 
     <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
       <div class="modal-panel card">
@@ -148,10 +153,17 @@
       </div>
     </div>
 
-    <div v-if="showDetailModal && selectedCustomer" class="modal-backdrop" @click.self="closeDetailModal">
-      <div class="modal-panel card modal-panel-lg customer-detail-shell">
+    <div v-if="showDetail && selectedCustomer" class="customer-detail-page">
+      <div class="customer-detail-shell">
         <div class="modal-header">
-          <h3>{{ t('customers.customerDetail') }}</h3>
+          <h3>
+            <!-- Back to the list, not a close button: the list is where this came from and
+                 where the browser's own back button goes. -->
+            <button class="btn btn-ghost btn-icon" type="button" :aria-label="t('customers.backToList')" @click="closeDetail">
+              <ArrowLeft :size="16" />
+            </button>
+            {{ selectedCustomer.fullName }}
+          </h3>
           <div class="form-inline">
             <button
               v-if="selectedCustomer.status === 'active'"
@@ -185,7 +197,7 @@
               <Printer :size="16" />
               {{ t('common.printHistory') }}
             </a>
-            <button class="btn btn-secondary" type="button" @click="closeDetailModal">
+            <button class="btn btn-secondary" type="button" @click="closeDetail">
               <X :size="16" />
               {{ t('common.close') }}
             </button>
@@ -231,26 +243,26 @@
 
         <!-- ── Tabs ──────────────────────────────────── -->
         <div class="detail-tabs mt-16">
-          <button class="tab-btn" :class="{ active: detailTab === 'overview' }" type="button" @click="detailTab = 'overview'">
+          <button class="tab-btn" :class="{ active: detailTab === 'overview' }" type="button" @click="goToTab('overview')">
             <LayoutDashboard :size="14" />
             {{ t('customers.tabOverview') }}
           </button>
-          <button class="tab-btn" :class="{ active: detailTab === 'loans' }" type="button" @click="detailTab = 'loans'">
+          <button class="tab-btn" :class="{ active: detailTab === 'loans' }" type="button" @click="goToTab('loans')">
             <HandCoins :size="14" />
             {{ t('customers.tabLoans') }}
             <span v-if="allSelectedCustomerLoans.length" class="tab-count">{{ allSelectedCustomerLoans.length }}</span>
           </button>
-          <button class="tab-btn" :class="{ active: detailTab === 'payments' }" type="button" @click="detailTab = 'payments'">
+          <button class="tab-btn" :class="{ active: detailTab === 'payments' }" type="button" @click="goToTab('payments')">
             <Wallet :size="14" />
             {{ t('customers.tabPayments') }}
             <span v-if="selectedCustomerPayments.length" class="tab-count">{{ selectedCustomerPayments.length }}</span>
           </button>
-          <button class="tab-btn" :class="{ active: detailTab === 'collateral' }" type="button" @click="detailTab = 'collateral'">
+          <button class="tab-btn" :class="{ active: detailTab === 'collateral' }" type="button" @click="goToTab('collateral')">
             <Package :size="14" />
             {{ t('customers.tabCollateral') }}
             <span v-if="selectedCustomerCollateral.length" class="tab-count">{{ selectedCustomerCollateral.length }}</span>
           </button>
-          <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="tab-btn" :class="{ active: detailTab === 'edit' }" type="button" @click="detailTab = 'edit'">
+          <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="tab-btn" :class="{ active: detailTab === 'edit' }" type="button" @click="goToTab('edit')">
             <Pencil :size="14" />
             {{ t('customers.tabEdit') }}
           </button>
@@ -858,8 +870,8 @@ import LoanDetailModal from '../components/LoanDetailModal.vue'
 import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import VoidInterestChargeModal, { type VoidableCharge } from '../components/VoidInterestChargeModal.vue'
 import PaymentAllocationDetail from '../components/PaymentAllocationDetail.vue'
-import { useRoute } from 'vue-router'
-import { Archive, Ban, CheckCircle2, ChevronDown, ChevronRight, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
+import { useRoute, useRouter } from 'vue-router'
+import { Archive, ArrowLeft, Ban, CheckCircle2, ChevronDown, ChevronRight, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -941,6 +953,7 @@ const {
 const { t } = useI18n()
 const { confirm } = useConfirmDialog()
 const route = useRoute()
+const router = useRouter()
 const { hasRole } = useAuthState()
 const { message, messageClass, notify, fail, report } = usePageMessage()
 const search = ref('')
@@ -948,12 +961,22 @@ const customerStatusFilter = ref<'all' | 'active' | 'archived'>('all')
 const customerSortPriority = ref<SortCriterion<CustomerSortKey>[]>([{ key: 'name', direction: 'asc' }])
 const selectedCustomerId = ref<number | null>(null)
 const showCreateModal = ref(false)
-const showDetailModal = ref(false)
+/* Derived from the route, not from a flag. The detail is a place now, so the address is
+   what decides whether it is open and which tab is showing — that is what makes it linkable
+   and what makes the browser's back button return to the previous tab. */
+const DETAIL_TABS = ['overview', 'loans', 'payments', 'collateral', 'edit'] as const
+type DetailTab = (typeof DETAIL_TABS)[number]
+
+const showDetail = computed(() => route.name === 'customer-detail')
+const detailTab = computed<DetailTab>(() => {
+  const tab = route.params.tab as string | undefined
+  // An unknown tab in a hand-typed URL opens the overview rather than a blank panel.
+  return DETAIL_TABS.includes(tab as DetailTab) ? (tab as DetailTab) : 'overview'
+})
 const showCustomerLoanDetailModal = ref(false)
 const showLoanEditModal = ref(false)
 const showCollateralEditModal = ref(false)
 const showPaymentEditModal = ref(false)
-const detailTab = ref<'overview' | 'loans' | 'payments' | 'collateral' | 'edit'>('overview')
 const isSaving = ref(false)
 const financialDataLoading = ref(false)
 const financialDataError = ref(false)
@@ -971,6 +994,10 @@ const documentTypeOptions = ['CC', 'TI', 'NIT', 'CE', 'PAS']
 
 onMounted(async () => {
   await ensureInitialized()
+
+  // A pasted link or a reload arrives with the id already in the address.
+  const routeId = Number(route.params.id)
+  if (Number.isFinite(routeId) && routeId > 0) selectCustomer(routeId)
 })
 
 watch(
@@ -1250,6 +1277,22 @@ const selectCustomer = (customerId: number) => {
   void loadCustomerFinancialData(customerId)
 }
 
+
+/* Later navigations only — the first one is handled in `onMounted`.
+ *
+ * An `immediate: true` watcher here reads the route before the rest of the setup has run, and
+ * `const` in <script setup> is not hoisted: it reached `selectCustomer`, which reaches
+ * `loadCustomerFinancialData`, and threw in the temporal dead zone — taking the whole view
+ * down, so the route rendered nothing at all. `onMounted` runs after every declaration, which
+ * makes the order irrelevant instead of merely correct today. */
+watch(
+  () => route.params.id,
+  (value) => {
+    const id = Number(value)
+    if (Number.isFinite(id) && id > 0 && selectedCustomerId.value !== id) selectCustomer(id)
+  }
+)
+
 const openCreateModal = () => {
   showCreateModal.value = true
 }
@@ -1259,18 +1302,28 @@ const closeCreateModal = () => {
 }
 
 const openCustomerDetail = (customerId: number) => {
-  selectCustomer(customerId)
-  detailTab.value = 'overview'
-  showDetailModal.value = true
+  void router.push({ name: 'customer-detail', params: { id: String(customerId), tab: 'overview' } })
 }
 
-const closeDetailModal = () => {
-  showDetailModal.value = false
+const closeDetail = () => {
+  void router.push({ name: 'customers' })
 }
 
+/* `push`, so the browser's back button returns to the tab you came from rather than leaving
+   the customer entirely. The tab is in the address precisely so it is a place worth going
+   back to; `replace` would have put it in the URL and then refused to honour it. */
+const goToTab = (tab: DetailTab) => {
+  if (!selectedCustomerId.value) return
+  void router.push({
+    name: 'customer-detail',
+    params: { id: String(selectedCustomerId.value), tab }
+  })
+}
+
+/* A loan has its own page now. Opening it from here used to stack a modal on the customer
+   modal, which is the nesting this whole change exists to end. */
 const openCustomerLoanDetail = (loanId: number) => {
-  selectedLoanDetailId.value = loanId
-  showCustomerLoanDetailModal.value = true
+  void router.push({ name: 'loan-detail', params: { id: String(loanId) } })
 }
 
 const closeCustomerLoanDetail = () => {
@@ -1477,7 +1530,7 @@ const handleDeleteCustomer = async () => {
     if (result.ok) {
       selectedCustomerId.value = null
       closeCustomerLoanDetail()
-      closeDetailModal()
+      closeDetail()
     }
   } catch {
     fail(t('messages.operationFailed'))

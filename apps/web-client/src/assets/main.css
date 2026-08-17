@@ -2995,3 +2995,52 @@ ul {
 .allocation-table tbody tr:hover td {
   background: transparent;
 }
+
+
+/* ── The customer detail, as a page ─────────────
+   It was a modal panel floating over the list. As a page it keeps the panel's inner spacing
+   but drops the backdrop, the fixed height and the scroll trap — the page scrolls, which is
+   what a document this long should do. */
+.customer-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.customer-detail-page .customer-detail-shell {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 1.25rem;
+}
+
+/* The heading carries the customer's own name and a way back, so it reads as a place rather
+   than as a dialog that has to be dismissed. */
+.customer-detail-page .modal-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+
+/* The loan detail, as a page. Same shape as the customer's. */
+.loan-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.loan-detail-shell {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 1.25rem;
+}
+
+.loan-detail-page .modal-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}

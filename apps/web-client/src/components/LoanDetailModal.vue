@@ -1,8 +1,26 @@
 <template>
-  <div v-if="show && loan" class="modal-backdrop" @click.self="closeModal">
-    <div class="modal-panel card modal-panel-lg">
+  <!-- A loan has its own address, so this normally renders as a page. The modal shape is kept
+       for any caller that still needs a peek, but nothing uses it: opening a loan from inside
+       a customer used to mean a modal on top of a modal. -->
+  <div
+    v-if="show && loan"
+    :class="asPage ? 'loan-detail-page' : 'modal-backdrop'"
+    @click.self="asPage ? undefined : closeModal()"
+  >
+    <div :class="asPage ? 'loan-detail-shell' : 'modal-panel card modal-panel-lg'">
       <div class="modal-header">
-        <h3>{{ t('loans.loanDetail') }}</h3>
+        <h3>
+          <button
+            v-if="asPage"
+            class="btn btn-ghost btn-icon"
+            type="button"
+            :aria-label="t('loans.backToList')"
+            @click="closeModal"
+          >
+            <ArrowLeft :size="16" />
+          </button>
+          {{ t('loans.loanDetail') }}<template v-if="loan"> #{{ loan.id }}</template>
+        </h3>
         <div class="form-inline">
           <!-- `.btn-danger` already carries this colour; the inline style repeated it in the
                old palette's red, and `.btn-sm` was never a class anywhere. -->
@@ -238,7 +256,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
-import { Printer, X, Pencil, Save, AlertTriangle, Trash2, Pause, Play, HandCoins } from 'lucide-vue-next'
+import { ArrowLeft, Printer, X, Pencil, Save, AlertTriangle, Trash2, Pause, Play, HandCoins } from 'lucide-vue-next'
 import { usePlatformStore } from '../stores/platformStore'
 
 import Pagination from './Pagination.vue'
@@ -254,6 +272,8 @@ import { useAuthState, UserRole } from '../modules/authentication/authState'
 import type { Loan, Payment, CollateralItem } from '../types/domain'
 
 const props = defineProps<{
+  /** Rendered at its own route rather than floating over whatever opened it. */
+  asPage?: boolean
   show: boolean
   loan: Loan | null
   customerName: string

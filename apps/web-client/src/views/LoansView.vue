@@ -1,5 +1,7 @@
 <template>
   <section>
+    <!-- List or detail, never both: a loan is an address now. -->
+    <template v-if="!showLoanDetailModal">
     <PageHeader :title="t('loans.title')" :subtitle="t('loans.subtitle')">
       <template #icon>
         <HandCoins :size="18" />
@@ -304,8 +306,11 @@
     </div>
 
     <!-- ── Loan Detail Modal ──────────────────────────── -->
+    </template>
+
     <LoanDetailModal
       :show="showLoanDetailModal"
+      :asPage="true"
       :loan="selectedLoan"
       :customerName="selectedLoan ? getCustomerLabel(selectedLoan.customerId) : ''"
       :payments="selectedLoanPayments"
@@ -323,7 +328,7 @@
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import { usePagination } from '../composables/usePagination'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
@@ -434,7 +439,7 @@ const statusFromQuery = (): StatusFilter => {
 const statusFilter = ref<StatusFilter>(statusFromQuery())
 const loanSortPriority = ref<SortCriterion<LoanSortKey>[]>([{ key: 'date', direction: 'desc' }])
 const selectedLoanId = ref<number | null>(null)
-const showLoanDetailModal = ref(false)
+const showLoanDetailModal = computed(() => route.name === 'loan-detail')
 const showCreateLoanModal = ref(false)
 const openCreateLoanModal = () => { formError.value = ''; showCreateLoanModal.value = true }
 const closeCreateLoanModal = () => { showCreateLoanModal.value = false }
@@ -641,7 +646,9 @@ const resetLoanFilters = () => {
 
 const openLoanDetail = async (loanId: number) => {
   selectedLoanId.value = loanId
-  showLoanDetailModal.value = true
+  if (route.name !== 'loan-detail' || Number(route.params.id) !== loanId) {
+    void router.push({ name: 'loan-detail', params: { id: String(loanId) } })
+  }
 
   
   const loan = state.loans.find((l) => l.id === loanId)
@@ -661,8 +668,20 @@ const openLoanDetail = async (loanId: number) => {
   }
 }
 
+/* A pasted link or a reload lands here with the id already in the address and nothing loaded,
+   so the detail has to be able to start from the route rather than only from a click. */
+watch(
+  () => route.params.id,
+  (value) => {
+    const id = Number(value)
+    if (!Number.isFinite(id) || id <= 0) return
+    if (selectedLoanId.value !== id || !pendingInterestData.value) void openLoanDetail(id)
+  },
+  { immediate: true }
+)
+
 const closeLoanDetail = () => {
-  showLoanDetailModal.value = false
+  void router.push({ name: 'loans' })
 }
 
 /**
