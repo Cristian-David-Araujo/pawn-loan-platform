@@ -336,12 +336,18 @@ onMounted(async () => {
     form.companyAddress = state.globalSettings.companyAddress || ''
     form.companyPhone = state.globalSettings.companyPhone || ''
     form.companyEmail = state.globalSettings.companyEmail || ''
-    form.currencyCode = state.globalSettings.currencyCode
-    form.timezone = state.globalSettings.timezone
-    form.dateFormat = state.globalSettings.dateFormat
-    form.defaultLatePenaltyRate = state.globalSettings.defaultLatePenaltyRate
-    form.interestGenerationLeadDays = state.globalSettings.interestGenerationLeadDays
-    form.defaultGraceDays = state.globalSettings.defaultGraceDays
+    /* Keep the initialised default when the server did not send a value. The fields beside
+       these already did (`|| ''`); these six wrote `undefined` straight through, which blanks
+       the dropdown — CustomSelect finds no matching option and falls back to its placeholder
+       — and then sends `undefined` back on the next save. Vue was warning about it on every
+       mount and nobody was reading the console. */
+    form.currencyCode = state.globalSettings.currencyCode ?? form.currencyCode
+    form.timezone = state.globalSettings.timezone ?? form.timezone
+    form.dateFormat = state.globalSettings.dateFormat ?? form.dateFormat
+    form.defaultLatePenaltyRate = state.globalSettings.defaultLatePenaltyRate ?? form.defaultLatePenaltyRate
+    form.interestGenerationLeadDays =
+      state.globalSettings.interestGenerationLeadDays ?? form.interestGenerationLeadDays
+    form.defaultGraceDays = state.globalSettings.defaultGraceDays ?? form.defaultGraceDays
   }
 })
 
