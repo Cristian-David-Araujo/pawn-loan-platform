@@ -197,18 +197,40 @@
               <Printer :size="16" />
               {{ t('common.printHistory') }}
             </a>
-            <button class="btn btn-secondary" type="button" @click="closeDetail">
-              <X :size="16" />
-              {{ t('common.close') }}
-            </button>
           </div>
         </div>
 
+        <!-- No name here: it is the page's title. What this carries is everything else the
+             record knows, which had no home before — the phone, the address and the city were
+             stored, editable, and shown on no screen at all. The dates stay as pills on the
+             overview rather than being repeated here. -->
         <div class="customer-header mt-16">
-          <div>
-            <h3 class="customer-title">{{ selectedCustomer.fullName }}</h3>
-            <p class="muted">{{ selectedCustomer.documentType }} / {{ selectedCustomer.documentNumber }} · #{{ selectedCustomer.id }}</p>
-          </div>
+          <dl class="identity-grid">
+            <div>
+              <dt>{{ t('customers.documentNumber') }}</dt>
+              <dd>{{ selectedCustomer.documentType }} {{ selectedCustomer.documentNumber }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('common.phone') }}</dt>
+              <dd>{{ selectedCustomer.phone || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('customers.email') }}</dt>
+              <dd>{{ selectedCustomer.email || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('customers.address') }}</dt>
+              <dd>{{ selectedCustomer.address || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('common.city') }}</dt>
+              <dd>{{ selectedCustomer.city || '—' }}</dd>
+            </div>
+            <div>
+              <dt>{{ t('common.id') }}</dt>
+              <dd class="code">#{{ selectedCustomer.id }}</dd>
+            </div>
+          </dl>
           <span class="pill" :class="selectedCustomer.status === 'active' ? 'pill-current' : 'pill-overdue'">
             {{ selectedCustomer.status === 'active' ? t('common.active') : t('common.archived') }}
           </span>

@@ -56,7 +56,8 @@
 
       <p v-if="forecloseError" class="notice notice-error mt-16">{{ forecloseError }}</p>
 
-      <p class="muted mt-16">{{ t('loans.selectedLoan', { id: loan.id }) }}</p>
+      <!-- The id is in the page title; repeating it here said the same thing twice. -->
+      <p class="muted mt-16" v-if="!asPage">{{ t('loans.selectedLoan', { id: loan.id }) }}</p>
 
       <div class="grid grid-4 mt-16">
         <div class="card stat-card stat-accent-indigo">
