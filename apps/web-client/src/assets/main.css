@@ -2959,3 +2959,39 @@ ul {
     box-shadow: none;
   }
 }
+
+
+/* ── An expanded payment row ────────────────────
+   The detail belongs to the row above it, so it shares its hover surface and drops the rule
+   between them: two separately-bordered blocks read as two records rather than one opened. */
+.row-expanded > td {
+  border-bottom: none;
+  background: var(--surface-hover);
+}
+
+.row-detail > td {
+  background: var(--surface-soft);
+  padding: 0.85rem 1rem 1rem;
+}
+
+.allocation-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Nested inside a table row, so it opts out of the outer table's hover and its heavier type:
+   this is a breakdown of one row, not a second grid competing with it. */
+.allocation-table {
+  width: 100%;
+  font-size: var(--fs-sm);
+}
+
+.allocation-table th {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.allocation-table tbody tr:hover td {
+  background: transparent;
+}

@@ -15,11 +15,14 @@ from src.modules.finance.interest_balance import (
     charge_due_date,
     default_grace_days,
     grace_days_for_loan,
+    pending_interest_by_charge_for_loans,
     pending_interest_for_customer,
     pending_interest_items_for_customer,
     sync_interest_charge_statuses,
 )
 from src.modules.payments.schemas import (
+    InterestChargeHistoryItem,
+    InterestChargeHistoryResponse,
     InterestPaymentAllocation,
     InterestPaymentRequest,
     InterestPaymentResponse,
@@ -132,6 +135,108 @@ def get_pending_interest(
         total_pending_penalty=total_pending_penalty,
         total_outstanding=total_outstanding,
         available_advance_balance=available_advance_balance,
+    )
+
+
+@router.get("/customers/{customer_id}/interest-history", response_model=InterestChargeHistoryResponse)
+def get_interest_history(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
+) -> InterestChargeHistoryResponse:
+    """Every billing period of a customer, settled or not.
+
+    Separate from `interest-pending` on purpose. That endpoint feeds the collection screen and
+    the allocation preview, where every row is money about to move — adding settled periods to
+    it would put paid invoices in front of an operator taking a payment. This one is a record:
+    it answers "which invoices does this customer have and which are paid", which until now the
+    application could not answer at all.
+
+    Two kinds of row are left out because they are not invoices. A zero-amount `not_billed`
+    marker is a month deliberately never charged — it exists only so the generator does not
+    fill the gap later. A voided charge *is* shown, marked as such with its reason, because an
+    invoice that was cancelled is part of the customer's history and hiding it would make a
+    period simply vanish between two statements.
+    """
+    today = get_local_date(db)
+    loans = list(db.scalars(select(Loan).where(Loan.customer_id == customer_id).order_by(Loan.id)).all())
+    if not loans:
+        return InterestChargeHistoryResponse(
+            customer_id=customer_id, items=[], total_charged=0, total_paid=0, total_outstanding=0
+        )
+
+    loan_ids = [loan.id for loan in loans]
+    loans_by_id = {loan.id: loan for loan in loans}
+    configured_grace = default_grace_days(db)
+
+    charges = list(
+        db.scalars(
+            select(InterestCharge)
+            .where(InterestCharge.loan_id.in_(loan_ids), InterestCharge.amount > 0)
+            .order_by(InterestCharge.period_end.desc(), InterestCharge.id.desc())
+        ).all()
+    )
+    if not charges:
+        return InterestChargeHistoryResponse(
+            customer_id=customer_id, items=[], total_charged=0, total_paid=0, total_outstanding=0
+        )
+
+    # The canonical balances, so a period reads the same here as on the collection screen.
+    pending_by_charge = pending_interest_by_charge_for_loans(db, loans)
+
+    events = list(
+        db.scalars(
+            select(PaymentEvent).where(
+                PaymentEvent.loan_id.in_(loan_ids),
+                PaymentEvent.is_reversed.is_(False),
+                PaymentEvent.interest_charge_id.isnot(None),
+            )
+        ).all()
+    )
+    paid_by_charge: dict[int, float] = {}
+    for event in events:
+        paid_by_charge[event.interest_charge_id] = round(
+            paid_by_charge.get(event.interest_charge_id, 0.0)
+            + event.allocated_to_interest
+            + event.allocated_to_penalty,
+            2,
+        )
+
+    items: list[InterestChargeHistoryItem] = []
+    for charge in charges:
+        loan = loans_by_id[charge.loan_id]
+        due_date = charge_due_date(charge.period_end, grace_days_for_loan(loan, configured_grace))
+        penalty = round(charge.penalty_amount or 0.0, 2)
+        voided = charge.voided_at is not None
+        # A voided period owes nothing by definition; it is excluded from the canonical
+        # balances, so its outstanding has to be zeroed here rather than looked up.
+        outstanding = 0.0 if voided else round(pending_by_charge.get(charge.id, 0.0) + penalty, 2)
+
+        items.append(
+            InterestChargeHistoryItem(
+                interest_charge_id=charge.id,
+                loan_id=charge.loan_id,
+                billing_period=charge.period_start.strftime("%Y-%m"),
+                period_start=charge.period_start,
+                period_end=charge.period_end,
+                due_date=due_date,
+                charge_amount=round(charge.amount, 2),
+                penalty_amount=penalty,
+                paid_amount=paid_by_charge.get(charge.id, 0.0),
+                outstanding=outstanding,
+                settled=outstanding <= 0 and not voided,
+                overdue=outstanding > 0 and due_date < today,
+                voided=voided,
+                void_reason=charge.void_reason or "",
+            )
+        )
+
+    return InterestChargeHistoryResponse(
+        customer_id=customer_id,
+        items=items,
+        total_charged=round(sum(item.charge_amount + item.penalty_amount for item in items if not item.voided), 2),
+        total_paid=round(sum(item.paid_amount for item in items), 2),
+        total_outstanding=round(sum(item.outstanding for item in items), 2),
     )
 
 

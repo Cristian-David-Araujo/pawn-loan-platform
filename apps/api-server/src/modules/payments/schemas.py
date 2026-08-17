@@ -226,3 +226,36 @@ class PaymentEventRead(BaseModel):
     notes: str
     is_reversed: bool
     operator: UserSummary | None = None
+
+
+class InterestChargeHistoryItem(BaseModel):
+    """One billing period of a customer, whatever state it is in.
+
+    Deliberately a different shape from `InterestPendingItem`. That one feeds the collection
+    screen and the allocation preview, where every row is money about to move; a settled period
+    appearing in it would be offered for payment. This one is a record, and says so by carrying
+    `settled` and `paid_amount` instead of a "will receive" figure.
+    """
+
+    interest_charge_id: int
+    loan_id: int
+    billing_period: str
+    period_start: date
+    period_end: date
+    due_date: date
+    charge_amount: float
+    penalty_amount: float
+    paid_amount: float
+    outstanding: float
+    settled: bool
+    overdue: bool
+    voided: bool
+    void_reason: str = ""
+
+
+class InterestChargeHistoryResponse(BaseModel):
+    customer_id: int
+    items: list[InterestChargeHistoryItem]
+    total_charged: float
+    total_paid: float
+    total_outstanding: float

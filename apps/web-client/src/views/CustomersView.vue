@@ -432,41 +432,6 @@
           </div>
         </div>
 
-        <div class="mt-16">
-          <h3>{{ t('customers.customerPaymentTraceability') }}</h3>
-          <p class="muted" v-if="!auditFilteredEvents.length">{{ t('customers.noPaymentEvents') }}</p>
-          <div v-else class="table-wrap mt-16">
-          <table>
-            <thead>
-              <tr>
-                <th>{{ t('common.date') }}</th>
-                <th>{{ t('payments.paymentType') }}</th>
-                <th>{{ t('common.loan') }}</th>
-                <th>{{ t('payments.period') }}</th>
-                <th>{{ t('common.total') }}</th>
-                <th>{{ t('common.interest') }}</th>
-                <th>{{ t('payments.penalty') }}</th>
-                <th>{{ t('common.principal') }}</th>
-                <th>{{ t('common.method') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="event in paginatedAuditFilteredEvents" :key="event.id">
-                <td :data-label="t('common.date')">{{ formatDateDMY(event.payment_date) }}</td>
-                <td :data-label="t('payments.paymentType')">{{ paymentTypeLabel(event.payment_type) }}</td>
-                <td :data-label="t('common.loan')">#{{ event.loan_id }}</td>
-                <td :data-label="t('payments.period')">{{ event.billing_period || '-' }}</td>
-                <td :data-label="t('common.total')">{{ formatCurrency(event.total_entered_amount) }}</td>
-                <td :data-label="t('common.interest')">{{ formatCurrency(event.allocated_to_interest) }}</td>
-                <td :data-label="t('payments.penalty')">{{ formatCurrency(event.allocated_to_penalty) }}</td>
-                <td :data-label="t('common.principal')">{{ formatCurrency(event.allocated_to_principal) }}</td>
-                <td :data-label="t('common.method')">{{ paymentMethodLabel(event.payment_method) }}</td>
-              </tr>
-            </tbody>
-          </table>
-              <Pagination v-model="auditCurrentPage" :totalItems="auditFilteredEvents.length" :itemsPerPage="10" />
-          </div>
-        </div>
         </template>
 
         <!-- ── Tab: Loans ─────────────────────────── -->
@@ -558,8 +523,21 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="payment in paginatedCustomerPayments" :key="payment.id">
-                <td :data-label="t('common.id')">#{{ payment.id }}</td>
+              <template v-for="payment in paginatedCustomerPayments" :key="payment.id">
+              <tr :class="{ 'row-expanded': expandedPaymentId === payment.id }">
+                <td :data-label="t('common.id')">
+                  <button
+                    class="btn btn-ghost btn-icon"
+                    type="button"
+                    :aria-expanded="expandedPaymentId === payment.id"
+                    :aria-label="t('payments.showAllocation')"
+                    :title="t('payments.showAllocation')"
+                    @click="togglePaymentAllocation(payment.id)"
+                  >
+                    <component :is="expandedPaymentId === payment.id ? ChevronDown : ChevronRight" :size="14" />
+                  </button>
+                  #{{ payment.id }}
+                </td>
                 <td :data-label="t('common.loan')">#{{ payment.loanId }}</td>
                 <td :data-label="t('common.date')">{{ formatDateDMY(payment.paymentDate) }}</td>
                 <td :data-label="t('common.total')">{{ formatCurrency(payment.totalAmount) }}</td>
@@ -608,6 +586,12 @@
                   </div>
                 </td>
               </tr>
+              <tr v-if="expandedPaymentId === payment.id" class="row-detail">
+                <td :colspan="hasRole([UserRole.Administrator, UserRole.LoanOfficer]) ? 12 : 12">
+                  <PaymentAllocationDetail :paymentId="payment.id" />
+                </td>
+              </tr>
+              </template>
             </tbody>
           </table>
               <Pagination v-model="paymentsCurrentPage" :totalItems="selectedCustomerPayments.length" :itemsPerPage="10" />
@@ -859,8 +843,9 @@ import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
 import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import VoidInterestChargeModal, { type VoidableCharge } from '../components/VoidInterestChargeModal.vue'
+import PaymentAllocationDetail from '../components/PaymentAllocationDetail.vue'
 import { useRoute } from 'vue-router'
-import { Archive, Ban, CheckCircle2, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
+import { Archive, Ban, CheckCircle2, ChevronDown, ChevronRight, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
 import PageHeader from '../components/PageHeader.vue'
@@ -1607,6 +1592,13 @@ const onPaymentDeleted = async (paymentId: number) => {
 const canVoidCharges = computed(() => hasRole([UserRole.Administrator]))
 const chargeToVoid = ref<VoidableCharge | null>(null)
 
+/* One open at a time. Several expanded rows would push the row being read off screen,
+   and the panel answers a question about one payment, not a comparison between them. */
+const expandedPaymentId = ref<number | null>(null)
+const togglePaymentAllocation = (paymentId: number) => {
+  expandedPaymentId.value = expandedPaymentId.value === paymentId ? null : paymentId
+}
+
 const onChargeVoided = async (chargeId: number) => {
   notify(t('interest.chargeVoided', { id: chargeId }))
   // The pending-interest table comes from its own fetch, not from the store, so nothing
@@ -1779,7 +1771,6 @@ const filteredCustomers = computed(() => {
 
 const { currentPage: customerCurrentPage, paginatedArray: paginatedCustomers } = usePagination(filteredCustomers)
 const { currentPage: pendingInterestCurrentPage, paginatedArray: paginatedPendingInterestItems } = usePagination(pendingInterestItems)
-const { currentPage: auditCurrentPage, paginatedArray: paginatedAuditFilteredEvents } = usePagination(auditFilteredEvents)
 const { currentPage: loansCurrentPage, paginatedArray: paginatedCustomerLoans } = usePagination(allSelectedCustomerLoans)
 const { currentPage: paymentsCurrentPage, paginatedArray: paginatedCustomerPayments } = usePagination(selectedCustomerPayments)
 const { currentPage: collateralsCurrentPage, paginatedArray: paginatedCustomerCollateral } = usePagination(selectedCustomerCollateral)
