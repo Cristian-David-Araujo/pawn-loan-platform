@@ -1886,59 +1886,128 @@ p.badge {
 
 .report-chart {
   width: 100%;
-  min-height: 230px;
 }
 
-.chart-svg {
+/* ── Bar chart ──────────────────────────────────
+   Drawn in HTML, not SVG. The axis labels used to live inside `viewBox="0 0 100 64"`, which
+   made their font size a viewBox unit — a sub-pixel figure off every type scale that only
+   looked right because the SVG scaled it up. Here they are ordinary text at --fs-xs.
+
+   Bars are divs with percentage heights, so the chart is responsive with no coordinate
+   system, and the reserved gutters the viewBox needed for its labels are gone. */
+.bar-chart {
+  margin: 0;
   width: 100%;
-  height: 230px;
-  display: block;
 }
 
-.chart-axis {
-  stroke: var(--line-strong);
-  stroke-width: 0.4;
+.bar-chart-frame {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  height: 200px;
 }
 
-.chart-grid {
-  stroke: var(--line);
-  stroke-width: 0.25;
-  stroke-dasharray: 1.5 1.5;
+.bar-chart-y-axis {
+  position: relative;
+  width: 3.25rem;
+  flex-shrink: 0;
 }
 
-.chart-bar {
-  fill: var(--accent);
-  opacity: 0.85;
-  rx: 0.6;
+.bar-chart-y-label {
+  position: absolute;
+  inset-inline-end: 0;
+  transform: translateY(50%);
+  font-size: var(--fs-xs);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.bar-chart-plot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  border-inline-start: 1px solid var(--line-strong);
+  border-block-end: 1px solid var(--line-strong);
+}
+
+/* Recessive: the grid orients, it does not compete with the bars. */
+.bar-chart-grid {
+  position: absolute;
+  inset-inline: 0;
+  height: 0;
+  border-block-start: 1px dashed var(--line);
+}
+
+.bar-chart-bars,
+.bar-chart-x-axis {
+  display: flex;
+  align-items: flex-end;
+  /* The 2px surface gap that keeps adjacent fills from reading as one block. */
+  gap: 2px;
+}
+
+.bar-chart-bars {
+  position: absolute;
+  inset: 0;
+}
+
+.bar-chart-slot {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Rounded at the data end, square at the baseline: the bar is anchored to the axis, and a
+   rounded foot would lift it off and make short bars read as floating. */
+.bar-chart-bar {
+  width: 100%;
+  max-width: 2.75rem;
+  min-height: 2px;
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  opacity: 0.88;
   transition: opacity var(--transition-fast);
 }
 
-.chart-bar:hover {
+.bar-chart-bar:hover {
   opacity: 1;
 }
 
-/* Not a CSS pixel and not off the type scale: these labels live inside an SVG
-   with `viewBox="0 0 100 64"`, so the unit is a viewBox unit that scales with
-   the chart. At the rendered width it lands near the micro step.
+.bar-chart-x-axis {
+  margin-block-start: 0.4rem;
+  /* Clears the y-axis column so each label sits under its own bar. */
+  margin-inline-start: calc(3.25rem + 0.5rem);
+}
 
-   The detector reports this and the waiver was deliberately NOT taken, so the
-   day those charts change scale someone is made to look at it again. Leave the
-   finding standing. */
-.chart-x-label,
-.chart-y-label {
-  fill: var(--muted);
-  font-size: 2.7px;
+.bar-chart-x-label {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  font-size: var(--fs-xs);
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
 }
 
-.chart-x-label {
-  dominant-baseline: middle;
-  text-anchor: middle;
-}
-
-.chart-y-label {
-  dominant-baseline: middle;
-  text-anchor: end;
+/* The data as a table, for a screen reader and for anyone who cannot read the bars.
+   Not `display: none`, which would take it out of the accessibility tree too. */
+.bar-chart-table {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* The HTML bar-list (.chart-bars / .chart-row / .chart-track / .chart-fill) that

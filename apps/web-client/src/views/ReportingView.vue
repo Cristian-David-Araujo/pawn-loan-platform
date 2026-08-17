@@ -41,37 +41,16 @@
       <article class="card">
         <h3>{{ t('reporting.collectionTrend') }}</h3>
         <p class="muted">{{ t('reporting.collectionTrendHint') }}</p>
-        <div v-if="incomeChart.bars.length" class="report-chart mt-16">
-          <svg class="chart-svg" viewBox="0 0 100 64" role="img" :aria-label="t('reporting.collectionTrend')">
-            <line class="chart-axis" x1="12" y1="50" x2="96" y2="50" />
-            <line class="chart-axis" x1="12" y1="4" x2="12" y2="50" />
-            <line
-              v-for="tick in incomeChart.yTicks"
-              :key="`income-y-${tick.value}`"
-              class="chart-grid"
-              x1="12"
-              :y1="tick.y"
-              x2="96"
-              :y2="tick.y"
-            />
-            <text v-for="tick in incomeChart.yTicks" :key="`income-y-label-${tick.value}`" class="chart-y-label" x="10" :y="tick.y">
-              {{ formatCompactNumber(tick.value) }}
-            </text>
-            <rect
-              v-for="bar in incomeChart.bars"
-              :key="`income-bar-${bar.label}`"
-              class="chart-bar"
-              :x="bar.x"
-              :y="bar.y"
-              :width="bar.width"
-              :height="bar.height"
-            >
-              <title>{{ t('reporting.chartTooltip', { period: bar.label, value: formatCurrency(bar.value) }) }}</title>
-            </rect>
-            <text v-for="tick in incomeChart.xTicks" :key="`income-x-${tick.index}`" class="chart-x-label" :x="tick.x" y="58">
-              {{ tick.label }}
-            </text>
-          </svg>
+        <div v-if="incomeChart.length" class="report-chart mt-16">
+          <BarChart
+            :series="incomeChart"
+            :formatTick="formatCompactNumber"
+            :formatValue="formatCurrency"
+            :tooltip="chartTooltip"
+            :ariaLabel="t('reporting.collectionTrend')"
+            :periodLabel="t('payments.period')"
+            :valueLabel="t('common.total')"
+          />
         </div>
         <p v-else class="muted mt-16">{{ t('reporting.noDataRange') }}</p>
       </article>
@@ -79,43 +58,16 @@
       <article class="card">
         <h3>{{ t('reporting.collectionComposition') }}</h3>
         <p class="muted">{{ t('reporting.collectionCompositionHint') }}</p>
-        <div v-if="collectionCompositionChart.bars.length" class="report-chart mt-16">
-          <svg class="chart-svg" viewBox="0 0 100 64" role="img" :aria-label="t('reporting.collectionComposition')">
-            <line class="chart-axis" x1="12" y1="50" x2="96" y2="50" />
-            <line class="chart-axis" x1="12" y1="4" x2="12" y2="50" />
-            <line
-              v-for="tick in collectionCompositionChart.yTicks"
-              :key="`composition-y-${tick.value}`"
-              class="chart-grid"
-              x1="12"
-              :y1="tick.y"
-              x2="96"
-              :y2="tick.y"
-            />
-            <text
-              v-for="tick in collectionCompositionChart.yTicks"
-              :key="`composition-y-label-${tick.value}`"
-              class="chart-y-label"
-              x="10"
-              :y="tick.y"
-            >
-              {{ formatCompactNumber(tick.value) }}
-            </text>
-            <rect
-              v-for="bar in collectionCompositionChart.bars"
-              :key="`composition-bar-${bar.label}`"
-              class="chart-bar"
-              :x="bar.x"
-              :y="bar.y"
-              :width="bar.width"
-              :height="bar.height"
-            >
-              <title>{{ t('reporting.chartTooltip', { period: bar.label, value: formatCurrency(bar.value) }) }}</title>
-            </rect>
-            <text v-for="tick in collectionCompositionChart.xTicks" :key="`composition-x-${tick.index}`" class="chart-x-label" :x="tick.x" y="58">
-              {{ tick.label }}
-            </text>
-          </svg>
+        <div v-if="collectionCompositionChart.length" class="report-chart mt-16">
+          <BarChart
+            :series="collectionCompositionChart"
+            :formatTick="formatCompactNumber"
+            :formatValue="formatCurrency"
+            :tooltip="chartTooltip"
+            :ariaLabel="t('reporting.collectionComposition')"
+            :periodLabel="t('payments.period')"
+            :valueLabel="t('common.total')"
+          />
         </div>
         <p v-else class="muted mt-16">{{ t('reporting.noDataRange') }}</p>
       </article>
@@ -125,43 +77,16 @@
       <article class="card">
         <h3>{{ t('reporting.disbursementTrend') }}</h3>
         <p class="muted">{{ t('reporting.disbursementTrendHint') }}</p>
-        <div v-if="disbursementChart.bars.length" class="report-chart mt-16">
-          <svg class="chart-svg" viewBox="0 0 100 64" role="img" :aria-label="t('reporting.disbursementTrend')">
-            <line class="chart-axis" x1="12" y1="50" x2="96" y2="50" />
-            <line class="chart-axis" x1="12" y1="4" x2="12" y2="50" />
-            <line
-              v-for="tick in disbursementChart.yTicks"
-              :key="`disbursement-y-${tick.value}`"
-              class="chart-grid"
-              x1="12"
-              :y1="tick.y"
-              x2="96"
-              :y2="tick.y"
-            />
-            <text
-              v-for="tick in disbursementChart.yTicks"
-              :key="`disbursement-y-label-${tick.value}`"
-              class="chart-y-label"
-              x="10"
-              :y="tick.y"
-            >
-              {{ formatCompactNumber(tick.value) }}
-            </text>
-            <rect
-              v-for="bar in disbursementChart.bars"
-              :key="`disbursement-bar-${bar.label}`"
-              class="chart-bar"
-              :x="bar.x"
-              :y="bar.y"
-              :width="bar.width"
-              :height="bar.height"
-            >
-              <title>{{ t('reporting.chartTooltip', { period: bar.label, value: formatCurrency(bar.value) }) }}</title>
-            </rect>
-            <text v-for="tick in disbursementChart.xTicks" :key="`disbursement-x-${tick.index}`" class="chart-x-label" :x="tick.x" y="58">
-              {{ tick.label }}
-            </text>
-          </svg>
+        <div v-if="disbursementChart.length" class="report-chart mt-16">
+          <BarChart
+            :series="disbursementChart"
+            :formatTick="formatCompactNumber"
+            :formatValue="formatCurrency"
+            :tooltip="chartTooltip"
+            :ariaLabel="t('reporting.disbursementTrend')"
+            :periodLabel="t('payments.period')"
+            :valueLabel="t('common.total')"
+          />
         </div>
         <p v-else class="muted mt-16">{{ t('reporting.noDataRange') }}</p>
       </article>
@@ -169,43 +94,16 @@
       <article class="card">
         <h3>{{ t('reporting.loanCreationTrend') }}</h3>
         <p class="muted">{{ t('reporting.loanCreationTrendHint') }}</p>
-        <div v-if="loanCreationChart.bars.length" class="report-chart mt-16">
-          <svg class="chart-svg" viewBox="0 0 100 64" role="img" :aria-label="t('reporting.loanCreationTrend')">
-            <line class="chart-axis" x1="12" y1="50" x2="96" y2="50" />
-            <line class="chart-axis" x1="12" y1="4" x2="12" y2="50" />
-            <line
-              v-for="tick in loanCreationChart.yTicks"
-              :key="`loan-creation-y-${tick.value}`"
-              class="chart-grid"
-              x1="12"
-              :y1="tick.y"
-              x2="96"
-              :y2="tick.y"
-            />
-            <text
-              v-for="tick in loanCreationChart.yTicks"
-              :key="`loan-creation-y-label-${tick.value}`"
-              class="chart-y-label"
-              x="10"
-              :y="tick.y"
-            >
-              {{ formatCompactNumber(tick.value) }}
-            </text>
-            <rect
-              v-for="bar in loanCreationChart.bars"
-              :key="`loan-creation-bar-${bar.label}`"
-              class="chart-bar"
-              :x="bar.x"
-              :y="bar.y"
-              :width="bar.width"
-              :height="bar.height"
-            >
-              <title>{{ t('reporting.chartTooltipCount', { period: bar.label, value: formatInteger(bar.value) }) }}</title>
-            </rect>
-            <text v-for="tick in loanCreationChart.xTicks" :key="`loan-creation-x-${tick.index}`" class="chart-x-label" :x="tick.x" y="58">
-              {{ tick.label }}
-            </text>
-          </svg>
+        <div v-if="loanCreationChart.length" class="report-chart mt-16">
+          <BarChart
+            :series="loanCreationChart"
+            :formatTick="formatCompactNumber"
+            :formatValue="formatInteger"
+            :tooltip="countTooltip"
+            :ariaLabel="t('reporting.loanCreationTrend')"
+            :periodLabel="t('payments.period')"
+            :valueLabel="t('reporting.loansCreatedLabel')"
+          />
         </div>
         <p v-else class="muted mt-16">{{ t('reporting.noDataRange') }}</p>
       </article>
@@ -213,49 +111,16 @@
       <article class="card">
         <h3>{{ t('reporting.principalRecoveryTrend') }}</h3>
         <p class="muted">{{ t('reporting.principalRecoveryTrendHint') }}</p>
-        <div v-if="principalRecoveryChart.bars.length" class="report-chart mt-16">
-          <svg class="chart-svg" viewBox="0 0 100 64" role="img" :aria-label="t('reporting.principalRecoveryTrend')">
-            <line class="chart-axis" x1="12" y1="50" x2="96" y2="50" />
-            <line class="chart-axis" x1="12" y1="4" x2="12" y2="50" />
-            <line
-              v-for="tick in principalRecoveryChart.yTicks"
-              :key="`principal-recovery-y-${tick.value}`"
-              class="chart-grid"
-              x1="12"
-              :y1="tick.y"
-              x2="96"
-              :y2="tick.y"
-            />
-            <text
-              v-for="tick in principalRecoveryChart.yTicks"
-              :key="`principal-recovery-y-label-${tick.value}`"
-              class="chart-y-label"
-              x="10"
-              :y="tick.y"
-            >
-              {{ formatCompactNumber(tick.value) }}
-            </text>
-            <rect
-              v-for="bar in principalRecoveryChart.bars"
-              :key="`principal-recovery-bar-${bar.label}`"
-              class="chart-bar"
-              :x="bar.x"
-              :y="bar.y"
-              :width="bar.width"
-              :height="bar.height"
-            >
-              <title>{{ t('reporting.chartTooltip', { period: bar.label, value: formatCurrency(bar.value) }) }}</title>
-            </rect>
-            <text
-              v-for="tick in principalRecoveryChart.xTicks"
-              :key="`principal-recovery-x-${tick.index}`"
-              class="chart-x-label"
-              :x="tick.x"
-              y="58"
-            >
-              {{ tick.label }}
-            </text>
-          </svg>
+        <div v-if="principalRecoveryChart.length" class="report-chart mt-16">
+          <BarChart
+            :series="principalRecoveryChart"
+            :formatTick="formatCompactNumber"
+            :formatValue="formatCurrency"
+            :tooltip="chartTooltip"
+            :ariaLabel="t('reporting.principalRecoveryTrend')"
+            :periodLabel="t('payments.period')"
+            :valueLabel="t('common.total')"
+          />
         </div>
         <p v-else class="muted mt-16">{{ t('reporting.noDataRange') }}</p>
       </article>
@@ -419,6 +284,7 @@ import {
   Wallet
 } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
+import BarChart, { type BarChartEntry } from '../components/BarChart.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
@@ -435,31 +301,9 @@ interface ChartEntry {
   amount: number
 }
 
-interface ChartTick {
-  value: number
-  y: number
-}
 
-interface ChartXTick {
-  index: number
-  label: string
-  x: number
-}
 
-interface ChartBar {
-  label: string
-  value: number
-  x: number
-  y: number
-  width: number
-  height: number
-}
 
-interface ChartModel {
-  yTicks: ChartTick[]
-  xTicks: ChartXTick[]
-  bars: ChartBar[]
-}
 
 const today = new Date().toISOString().slice(0, 10)
 const firstDayOfMonth = `${today.slice(0, 7)}-01`
@@ -692,11 +536,24 @@ const collectionBreakdown = computed(() => {
   ]
 })
 
-const incomeChart = computed(() => createBarChartModel(incomeSeries.value))
-const collectionCompositionChart = computed(() => createBarChartModel(collectionBreakdown.value))
-const disbursementChart = computed(() => createBarChartModel(disbursementSeries.value))
-const loanCreationChart = computed(() => createBarChartModel(loanCreationSeries.value))
-const principalRecoveryChart = computed(() => createBarChartModel(principalRecoverySeries.value))
+/* `BarChart` owns the geometry now, so these only rename `amount` to `value` — the series
+   builders above still speak the domain's language and the component speaks a chart's. */
+const toChartSeries = (series: ChartEntry[]): BarChartEntry[] =>
+  series.map((item) => ({ label: item.label, value: item.amount }))
+
+const incomeChart = computed(() => toChartSeries(incomeSeries.value))
+const collectionCompositionChart = computed(() => toChartSeries(collectionBreakdown.value))
+const disbursementChart = computed(() => toChartSeries(disbursementSeries.value))
+const loanCreationChart = computed(() => toChartSeries(loanCreationSeries.value))
+const principalRecoveryChart = computed(() => toChartSeries(principalRecoverySeries.value))
+
+const chartTooltip = (period: string, value: number) =>
+  t('reporting.chartTooltip', { period, value: formatCurrency(value) })
+
+/* Loans created is a count, not pesos. Every one of the five charts used the currency
+   formatter, so this one reported "12 créditos" as "$ 12". */
+const countTooltip = (period: string, value: number) =>
+  t('reporting.chartTooltip', { period, value: formatInteger(value) })
 
 const topCustomersByCollection = computed(() => {
   const byCustomer = new Map<number, number>()
@@ -791,97 +648,7 @@ const mapMonthlySeries = (seriesByMonth: Map<string, number>) => {
   }))
 }
 
-const toNiceMax = (value: number) => {
-  if (value <= 0) {
-    return 1
-  }
 
-  const exponent = Math.floor(Math.log10(value))
-  const base = 10 ** exponent
-  const normalized = value / base
-
-  if (normalized <= 1) {
-    return base
-  }
-
-  if (normalized <= 2) {
-    return 2 * base
-  }
-
-  if (normalized <= 5) {
-    return 5 * base
-  }
-
-  return 10 * base
-}
-
-const createBarChartModel = (series: ChartEntry[]): ChartModel => {
-  if (!series.length) {
-    return { yTicks: [], xTicks: [], bars: [] }
-  }
-
-  const left = 12
-  const right = 96
-  const top = 4
-  const bottom = 50
-  const chartHeight = bottom - top
-  const chartWidth = right - left
-
-  const maxValue = series.reduce((max, item) => Math.max(max, item.amount), 0)
-  const yMax = toNiceMax(maxValue)
-  const ySteps = 4
-
-  const yTicks = Array.from({ length: ySteps + 1 }, (_, index) => {
-    const value = (yMax / ySteps) * index
-    const y = bottom - (value / yMax) * chartHeight
-    return { value, y }
-  })
-
-  const slotWidth = chartWidth / series.length
-  const barWidth = Math.max(Math.min(slotWidth * 0.62, 7.5), 1.5)
-
-  const bars = series.map((item, index) => {
-    const normalized = yMax > 0 ? item.amount / yMax : 0
-    const height = Math.max(normalized * chartHeight, 0)
-    const x = left + index * slotWidth + (slotWidth - barWidth) / 2
-    const y = bottom - height
-    return {
-      label: item.label,
-      value: item.amount,
-      x,
-      y,
-      width: barWidth,
-      height
-    }
-  })
-
-  const targetXLabels = 6
-  const tickStep = Math.max(Math.ceil(series.length / targetXLabels), 1)
-  const xTicks: ChartXTick[] = []
-
-  for (let index = 0; index < series.length; index += tickStep) {
-    const x = left + index * slotWidth + slotWidth / 2
-    xTicks.push({
-      index,
-      label: series[index].label,
-      x
-    })
-  }
-
-  if (series.length > 1) {
-    const lastIndex = series.length - 1
-    if (!xTicks.some((tick) => tick.index === lastIndex)) {
-      const x = left + lastIndex * slotWidth + slotWidth / 2
-      xTicks.push({ index: lastIndex, label: series[lastIndex].label, x })
-    }
-  }
-
-  return {
-    yTicks,
-    xTicks,
-    bars
-  }
-}
 
 const formatPercent = (value: number) => `${value.toFixed(1)}%`
 
