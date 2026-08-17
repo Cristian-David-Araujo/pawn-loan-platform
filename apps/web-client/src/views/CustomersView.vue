@@ -112,6 +112,62 @@
     </div>
     </template>
 
+
+    <!-- Editing is a mode, not a section. It was the fifth tab, which made it the one edit
+         form in the app that did not behave like the others: everything else opens a modal
+         from the header and returns you where you were. A tab swapped the whole page for a
+         form and left no way back except another tab. -->
+    <div v-if="showEditModal && selectedCustomer" class="modal-backdrop" @click.self="showEditModal = false">
+      <div class="modal-panel card modal-panel-lg">
+        <div class="modal-header">
+          <h3>{{ t('customers.tabEdit') }}</h3>
+          <button class="btn btn-secondary btn-icon" type="button" :aria-label="t('common.close')" @click="showEditModal = false">
+            <X :size="16" />
+          </button>
+        </div>
+        <form class="form mt-16" @submit.prevent="handleUpdateCustomer">
+          <div class="grid grid-3">
+            <label>
+              {{ t('customers.fullName') }}
+              <input v-model="editForm.fullName" required />
+            </label>
+            <label>
+              {{ t('customers.documentType') }}
+              <CustomSelect v-model="editForm.documentType" :options="formattedDocumentTypeOptions" />
+            </label>
+            <label>
+              {{ t('customers.documentNumber') }}
+              <input v-model="editForm.documentNumber" required />
+            </label>
+            <label>
+              {{ t('common.status') }}
+              <CustomSelect v-model="editForm.status" :options="customerStatusOptions" />
+            </label>
+            <label>
+              {{ t('common.phone') }}
+              <input v-model="editForm.phone" required />
+            </label>
+            <label>
+              {{ t('customers.email') }}
+              <input v-model="editForm.email" type="email" />
+            </label>
+            <label>
+              {{ t('customers.address') }}
+              <input v-model="editForm.address" />
+            </label>
+            <label>
+              {{ t('common.city') }}
+              <input v-model="editForm.city" required />
+            </label>
+          </div>
+          <button class="btn" type="submit" :disabled="isSaving">
+            <Save :size="16" />
+            {{ t('customers.saveChanges') }}
+          </button>
+        </form>
+      </div>
+    </div>
+
     <div v-if="showCreateModal" class="modal-backdrop" @click.self="closeCreateModal">
       <div class="modal-panel card">
         <div class="modal-header">
@@ -165,6 +221,15 @@
             {{ selectedCustomer.fullName }}
           </h3>
           <div class="form-inline">
+            <button
+              v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
+              class="btn btn-secondary"
+              type="button"
+              @click="openEditModal"
+            >
+              <Pencil :size="16" />
+              {{ t('customers.tabEdit') }}
+            </button>
             <button
               v-if="selectedCustomer.status === 'active'"
               class="btn btn-secondary"
@@ -286,10 +351,6 @@
             {{ t('customers.tabCollateral') }}
             <span v-if="selectedCustomerCollateral.length" class="tab-count">{{ selectedCustomerCollateral.length }}</span>
           </button>
-          <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="tab-btn" :class="{ active: detailTab === 'edit' }" type="button" @click="goToTab('edit')">
-            <Pencil :size="14" />
-            {{ t('customers.tabEdit') }}
-          </button>
         </div>
 
         <!-- Below the tabs, not above them: a filter refines the section you chose, so it
@@ -375,48 +436,6 @@
         </template>
 
         <!-- ── Tab: Edit ─────────────────────────── -->
-        <template v-if="detailTab === 'edit'">
-        <form class="form mt-16" @submit.prevent="handleUpdateCustomer">
-          <div class="grid grid-3">
-            <label>
-              {{ t('customers.fullName') }}
-              <input v-model="editForm.fullName" required />
-            </label>
-            <label>
-              {{ t('customers.documentType') }}
-              <CustomSelect v-model="editForm.documentType" :options="formattedDocumentTypeOptions" />
-            </label>
-            <label>
-              {{ t('customers.documentNumber') }}
-              <input v-model="editForm.documentNumber" required />
-            </label>
-            <label>
-              {{ t('common.status') }}
-              <CustomSelect v-model="editForm.status" :options="customerStatusOptions" />
-            </label>
-            <label>
-              {{ t('common.phone') }}
-              <input v-model="editForm.phone" required />
-            </label>
-            <label>
-              {{ t('customers.email') }}
-              <input v-model="editForm.email" type="email" />
-            </label>
-            <label>
-              {{ t('customers.address') }}
-              <input v-model="editForm.address" />
-            </label>
-            <label>
-              {{ t('common.city') }}
-              <input v-model="editForm.city" required />
-            </label>
-          </div>
-          <button class="btn" type="submit" :disabled="isSaving">
-            <Save :size="16" />
-            {{ t('customers.saveChanges') }}
-          </button>
-        </form>
-        </template>
 
         <!-- ── Tab: Payments ──────────────────────── -->
         <template v-if="detailTab === 'payments'">
@@ -994,10 +1013,16 @@ const customerStatusFilter = ref<'all' | 'active' | 'archived'>('all')
 const customerSortPriority = ref<SortCriterion<CustomerSortKey>[]>([{ key: 'name', direction: 'asc' }])
 const selectedCustomerId = ref<number | null>(null)
 const showCreateModal = ref(false)
+const showEditModal = ref(false)
+
+const openEditModal = () => {
+  syncEditForm()
+  showEditModal.value = true
+}
 /* Derived from the route, not from a flag. The detail is a place now, so the address is
    what decides whether it is open and which tab is showing — that is what makes it linkable
    and what makes the browser's back button return to the previous tab. */
-const DETAIL_TABS = ['overview', 'loans', 'payments', 'collateral', 'edit'] as const
+const DETAIL_TABS = ['overview', 'loans', 'payments', 'collateral'] as const
 type DetailTab = (typeof DETAIL_TABS)[number]
 
 const showDetail = computed(() => route.name === 'customer-detail')
