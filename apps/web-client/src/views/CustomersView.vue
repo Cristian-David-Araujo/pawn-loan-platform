@@ -264,28 +264,6 @@
              that same tone as a system class. -->
         <p v-if="hasCustomerCreditTraceability" class="notice notice-warning mt-16">{{ t('customers.traceabilityDeleteHint') }}</p>
 
-        <article class="card mt-16">
-          <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
-          <p class="muted">{{ t('customers.globalAuditFiltersHint') }}</p>
-          <div class="audit-filter-grid mt-16">
-            <label>
-              {{ t('customers.auditFilterFrom') }}
-              <DateInputField v-model="auditFromDate" :range-start="auditFromDate" :range-end="auditToDate" :label="t('customers.auditFilterFrom')" />
-            </label>
-            <label>
-              {{ t('customers.auditFilterTo') }}
-              <DateInputField v-model="auditToDate" :range-start="auditFromDate" :range-end="auditToDate" :label="t('customers.auditFilterTo')" />
-            </label>
-            <label>
-              {{ t('customers.auditFilterLoan') }}
-              <CustomSelect v-model="auditLoanFilter" :options="auditLoanFilterOptions" />
-            </label>
-            <button class="btn btn-secondary" type="button" @click="resetAuditFilters">
-              <FilterX :size="16" />
-              {{ t('customers.auditResetFilters') }}
-            </button>
-          </div>
-        </article>
 
         <!-- ── Tabs ──────────────────────────────────── -->
         <div class="detail-tabs mt-16">
@@ -313,6 +291,32 @@
             {{ t('customers.tabEdit') }}
           </button>
         </div>
+
+        <!-- Below the tabs, not above them: a filter refines the section you chose, so it
+             cannot come before the choice. Sitting above, it pushed the first row of every
+             tab ~300px down and applied to content that was not on screen yet. -->
+        <article class="card mt-16">
+          <h3>{{ t('customers.globalAuditFiltersTitle') }}</h3>
+          <p class="muted">{{ t('customers.globalAuditFiltersHint') }}</p>
+          <div class="audit-filter-grid mt-16">
+            <label>
+              {{ t('customers.auditFilterFrom') }}
+              <DateInputField v-model="auditFromDate" :range-start="auditFromDate" :range-end="auditToDate" :label="t('customers.auditFilterFrom')" />
+            </label>
+            <label>
+              {{ t('customers.auditFilterTo') }}
+              <DateInputField v-model="auditToDate" :range-start="auditFromDate" :range-end="auditToDate" :label="t('customers.auditFilterTo')" />
+            </label>
+            <label>
+              {{ t('customers.auditFilterLoan') }}
+              <CustomSelect v-model="auditLoanFilter" :options="auditLoanFilterOptions" />
+            </label>
+            <button class="btn btn-secondary" type="button" @click="resetAuditFilters">
+              <FilterX :size="16" />
+              {{ t('customers.auditResetFilters') }}
+            </button>
+          </div>
+        </article>
 
         <!-- ── Tab: Overview ────────────────────────── -->
         <template v-if="detailTab === 'overview'">
