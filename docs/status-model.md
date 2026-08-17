@@ -1,4 +1,18 @@
-# The loan status model
+# The status model
+
+Every state in the product, in one place. Loans first, then the other entities.
+
+**The rule across all of them: a status the application branches on is a typed enum in
+code.** `native_enum=False` where it is new, the way `UserRole` already does it — Python and
+Pydantic reject anything outside the list, but adding a value later needs no `ALTER TYPE`,
+which is the tax `LoanStatus` pays for being a native Postgres enum. Two columns were plain
+`str` with no validation at all, and both had already been exploited: any string could be
+stored in a pledge's status, and any string other than `active` renders a customer as
+archived.
+
+---
+
+# Loans
 
 `LoanStatus` has four values. This is what each one means, what moves a loan between them, and
 who owns each transition — written down because the answer used to be spread across the
@@ -155,3 +169,80 @@ Neither vocabulary invents a state, and no screen may add a fifth word for a fou
   — the money paths: arrears cleared at the counter, a partial payment that must *not* clear,
   one loan cleared by a payment on another, a reversal putting the loan back, and a closed loan
   the sweep must leave alone.
+
+
+---
+
+# Other entities
+
+## Pledges — `CollateralStatus`
+
+```
+in_custody ──> for_sale ──> sold
+     │             └──────> liquidated
+     └──> released
+```
+
+| State | Means | Set by |
+| :--- | :--- | :--- |
+| `in_custody` | The lender is holding the item. | Registering a pledge |
+| `for_sale` | The debt was foreclosed, or a settlement kept the item. | `foreclose`, `settle_loan` |
+| `released` | Returned to the customer. **Terminal.** | `release`, `settle_loan` |
+| `liquidated` | Written off without proceeds. **Terminal.** | `liquidate`, admin only |
+| `sold` | Sold, proceeds applied to the debt. **Terminal.** | `sell`, admin only |
+
+**The field is never edited directly.** `PUT /collateral-items/{id}` refuses a status different
+from the stored one, because each move has a precondition only its own endpoint checks — writing
+it freely once let a loan officer mark a pledge `released` on a loan with its full principal
+outstanding, walking past `_assert_loan_fully_settled`.
+
+There is no `returned`. It lived in the frontend types and one label, but no endpoint ever wrote
+it — only the demo seed — and it sat beside the real `released` inviting exactly that confusion.
+
+## Customers — `CustomerStatus`
+
+`active` · `archived`, and it means **visibility only**: whether the customer is offered in the
+pickers. A customer with credit records cannot be deleted, so archiving is the alternative.
+
+It is deliberately **not** about whether they may borrow again. Someone in arrears must stay
+visible so they can be collected from, and hiding them to stop new lending would hide them from
+the screen that chases the debt. If "do not lend to this person" is ever needed, it is a separate
+flag — not a third value here.
+
+## Interest charges — a cache, not a state
+
+`generated` · `partially_paid` · `paid` · `not_billed`
+
+`InterestCharge.status` is a **denormalised summary** of a calculation that lives in
+[interest_balance.py](../apps/api-server/src/modules/finance/interest_balance.py), kept in step by
+`sync_interest_charge_statuses`. It is never the source of truth for what a period owes.
+
+`not_billed` with amount 0 is the marker for a month that was deliberately never billed — a gap
+the generator must not fill later, whether it came from the historical defect
+[migration 0010](../apps/api-server/alembic/versions/20260727_0010_close_unbilled_periods.py)
+closed or from a loan being paused.
+
+**Voiding is not a fifth value.** `voided_at` is the fact; putting it in the cache too would
+create two sources for one truth.
+
+## Payments — no status
+
+`is_reversed`, a boolean, on both `Payment` and `PaymentEvent`. A payment is recorded or it was
+reversed; an enum of two values over a boolean is ceremony.
+
+`PaymentEvent.payment_type` is a different axis — not what state the payment is in, but what kind
+of movement it was — and it has its own single home in
+[utils/paymentTypes.ts](../apps/web-client/src/utils/paymentTypes.ts).
+
+## Users, backups
+
+`User.is_active` is a boolean; `UserRole` is a role, not a state. `BackupRun.status` is
+`success` / `failed`, written once per attempt and never updated.
+
+## Removed: loan applications
+
+`submitted` → `approved` used to exist on a `LoanApplication` table with three endpoints. Nothing
+ever called them, `Loan.application_id` stayed `NULL` on every row, and approval did not create
+the loan. A state machine nobody drives is worse than none: it advertises an approval gate in
+front of lending that does not exist. Dropped in
+[migration 0018](../apps/api-server/alembic/versions/20260810_0018_drop_loan_applications.py).

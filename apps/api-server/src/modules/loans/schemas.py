@@ -7,34 +7,11 @@ from src.domain.enums.loan import LoanStatus, LoanType
 from src.modules.authentication.schemas import UserSummary
 
 
-class LoanApplicationCreate(BaseModel):
-    customer_id: int
-    loan_type: LoanType
-    requested_amount: float
-    monthly_interest_rate: float
-    term_months: int
-    notes: str = ""
 
 
-class LoanApplicationRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    customer_id: int
-    loan_type: LoanType
-    requested_amount: float
-    monthly_interest_rate: float
-    term_months: int
-    notes: str
-    status: str
-    reviewed_by: int | None
-    approved_by: int | None
-    created_at: datetime
-    created_by: UserSummary | None = None
 
 
 class LoanCreate(BaseModel):
-    application_id: int | None = None
     customer_id: int
     loan_type: LoanType
     description: str = ""
@@ -50,7 +27,6 @@ class LoanRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    application_id: int | None
     customer_id: int
     loan_type: LoanType
     description: str

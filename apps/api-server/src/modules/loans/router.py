@@ -5,7 +5,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import AuditLog, CollateralItem, GlobalSettings, InterestCharge, Loan, LoanApplication, Payment, PaymentEvent, User
+from src.infrastructure.persistence.models import AuditLog, CollateralItem, GlobalSettings, InterestCharge, Loan, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.finance.interest_balance import default_grace_days, pending_interest_total_for_loan
 from src.modules.finance.interest_generation import (
@@ -19,8 +19,6 @@ from src.modules.loans.schemas import (
     CloseLoanRequest,
     PauseLoanRequest,
     SettleLoanRequest,
-    LoanApplicationCreate,
-    LoanApplicationRead,
     LoanCreate,
     LoanRead,
     LoanUpdate,
@@ -34,80 +32,13 @@ from src.shared.utils.audit import write_audit
 router = APIRouter(tags=["loans"])
 
 
-@router.post("/loan-applications", response_model=LoanApplicationRead, status_code=status.HTTP_201_CREATED)
-def create_application(
-    payload: LoanApplicationCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
-) -> LoanApplication:
-    application = LoanApplication(**payload.model_dump())
-    db.add(application)
-    db.commit()
-    db.refresh(application)
-
-    write_audit(
-        db,
-        action="create_loan_application",
-        entity_type="LoanApplication",
-        entity_id=str(application.id),
-        user=current_user,
-        new_data=f"customer_id={application.customer_id}",
-    )
-
-    return application
-
-
-@router.get("/loan-applications", response_model=list[LoanApplicationRead])
-def list_applications(
-    db: Session = Depends(get_db),
-    _: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
-) -> list[LoanApplication]:
-    return list(db.scalars(select(LoanApplication).order_by(LoanApplication.id.desc())).all())
-
-
-@router.post("/loan-applications/{application_id}/approve", response_model=LoanApplicationRead)
-def approve_application(
-    application_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
-) -> LoanApplication:
-    application = db.get(LoanApplication, application_id)
-    if application is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-
-    application.status = "approved"
-    application.reviewed_by = current_user.id
-    application.approved_by = current_user.id
-    db.commit()
-    db.refresh(application)
-
-    write_audit(
-        db,
-        action="approve_loan_application",
-        entity_type="LoanApplication",
-        entity_id=str(application.id),
-        user=current_user,
-        new_data="status=approved",
-    )
-
-    return application
-
-
 @router.post("/loans", response_model=LoanRead, status_code=status.HTTP_201_CREATED)
 def create_loan(
     payload: LoanCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
 ) -> Loan:
-    if payload.application_id:
-        application = db.get(LoanApplication, payload.application_id)
-        if application is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found")
-        if application.status != "approved":
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Application must be approved")
-
     loan = Loan(
-        application_id=payload.application_id,
         customer_id=payload.customer_id,
         loan_type=payload.loan_type,
         description=payload.description,
@@ -351,7 +282,6 @@ def renew_loan(
 
     renewed = Loan(
         customer_id=source.customer_id,
-        application_id=source.application_id,
         loan_type=source.loan_type,
         # The pledge description and the penalty policy belong to the debt, not to the row
         # that happened to carry it: leaving them out started the new loan with an empty

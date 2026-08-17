@@ -320,8 +320,11 @@ def test_editing_a_pledge_cannot_change_its_custody_status(
     bypass = client.put(f"/api/v1/collateral-items/{item_id}", headers=officer, json={**body, "status": "released"})
     assert bypass.status_code == 400, "the edit endpoint released a pledge of an indebted loan"
 
+    # A value outside the enum is now refused by the schema, before the endpoint runs at all.
+    # It used to reach the handler and be rejected there; both answers are a refusal, but 422
+    # is the one that says "this is not a custody status" rather than "not from here".
     junk = client.put(f"/api/v1/collateral-items/{item_id}", headers=officer, json={**body, "status": "banana"})
-    assert junk.status_code == 400
+    assert junk.status_code == 422
 
     db_session.expire_all()
     assert db_session.get(CollateralItem, item_id).status == "in_custody"

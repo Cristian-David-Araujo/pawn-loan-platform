@@ -7,27 +7,13 @@ from sqlalchemy.orm import Session
 from src.infrastructure.persistence.models import AuditLog, CollateralItem, InterestCharge, Loan, Payment, PaymentEvent
 
 
-def test_application_approve_and_create_loan(client: TestClient, auth_headers: dict[str, str], create_customer) -> None:
+def test_create_loan(client: TestClient, auth_headers: dict[str, str], create_customer) -> None:
+    """Loans are opened directly. The loan-application endpoints that used to stand in front
+    of this were removed: nothing ever called them, approval did not create the loan, and a
+    state machine nobody drives suggests a gate that does not exist."""
     customer = create_customer(document_number="LOAN-CUST-1")
 
-    app_payload = {
-        "customer_id": customer["id"],
-        "loan_type": "pawn",
-        "requested_amount": 1200,
-        "monthly_interest_rate": 8.5,
-        "term_months": 6,
-        "notes": "Initial test app",
-    }
-    app_response = client.post("/api/v1/loan-applications", headers=auth_headers, json=app_payload)
-    assert app_response.status_code == 201
-    application_id = app_response.json()["id"]
-
-    approve_response = client.post(f"/api/v1/loan-applications/{application_id}/approve", headers=auth_headers)
-    assert approve_response.status_code == 200
-    assert approve_response.json()["status"] == "approved"
-
     loan_payload = {
-        "application_id": application_id,
         "customer_id": customer["id"],
         "loan_type": "pawn",
         "principal_amount": 1000,
@@ -38,6 +24,11 @@ def test_application_approve_and_create_loan(client: TestClient, auth_headers: d
     loan_response = client.post("/api/v1/loans", headers=auth_headers, json=loan_payload)
     assert loan_response.status_code == 201
     assert loan_response.json()["outstanding_principal"] == 1000
+
+
+def test_loan_application_endpoints_are_gone(client: TestClient, auth_headers: dict[str, str]) -> None:
+    assert client.get("/api/v1/loan-applications", headers=auth_headers).status_code == 404
+
 
 
 def test_close_without_force_requires_zero_outstanding(

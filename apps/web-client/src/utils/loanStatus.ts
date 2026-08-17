@@ -19,7 +19,7 @@
  *
  * Both vocabularies describe the same stored value. Neither invents a state.
  *
- * See docs/loan-status-model.md for what each state means and what moves a loan between them.
+ * See docs/status-model.md for what each state means and what moves a loan between them.
  */
 
 export type LoanStatus = 'active' | 'overdue' | 'closed' | 'defaulted'
@@ -61,3 +61,49 @@ export const loanStatusKey = (status: string): string => SCREEN_KEYS[status] ?? 
 export const loanStatusDocumentKey = (status: string): string => DOCUMENT_KEYS[status] ?? status
 
 export const loanStatusClass = (status: string): string => STATUS_CLASSES[status] ?? 'status-active'
+
+/* ── Why a loan is closed ────────────────────────────────────────────────────────────────
+ *
+ * `closed` hides four different endings, and for a report they are not the same event:
+ * a customer paid, the loan was renewed into another, an operator wrote the balance off, or
+ * it was settled for less than owed. Each already leaves its own mark on the row; what was
+ * missing was one place that reads them, so every report worked it out its own way or not at
+ * all.
+ *
+ * Derived, never stored: a fifth `LoanStatus` value would need a migration that alters a
+ * native Postgres type and a review of every comparison against the four that exist, to
+ * record something the columns already say.
+ */
+export type LoanClosureReason = 'paid' | 'renewed' | 'settled' | 'written_off'
+
+const CLOSURE_KEYS: Record<LoanClosureReason, string> = {
+  paid: 'loanStatus.closurePaid',
+  renewed: 'loanStatus.closureRenewed',
+  settled: 'loanStatus.closureSettled',
+  written_off: 'loanStatus.closureWrittenOff'
+}
+
+export interface ClosableLoan {
+  status: string
+  settledAt?: string | null
+  forceClosedAt?: string | null
+  /** Set on the loan that *replaced* this one, so the source is identified by being pointed at. */
+  renewedIntoId?: number | null
+}
+
+/**
+ * Why a closed loan is closed, or `null` if it is still open.
+ *
+ * Order matters. A renewal closes the source *and* zeroes its outstanding, and a settlement
+ * closes a loan that may also carry a forced-close stamp from an earlier attempt; the most
+ * specific fact wins, and "paid" is only what is left when none of the others applies.
+ */
+export const loanClosureReason = (loan: ClosableLoan): LoanClosureReason | null => {
+  if (loan.status !== 'closed') return null
+  if (loan.renewedIntoId) return 'renewed'
+  if (loan.settledAt) return 'settled'
+  if (loan.forceClosedAt) return 'written_off'
+  return 'paid'
+}
+
+export const loanClosureReasonKey = (reason: LoanClosureReason): string => CLOSURE_KEYS[reason]
