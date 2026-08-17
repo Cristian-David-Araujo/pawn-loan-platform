@@ -483,6 +483,7 @@ import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
+import { interestPeriodClass, interestPeriodKey } from '../utils/loanStatus'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -839,27 +840,10 @@ const advanceAmount = computed(() => interestAllocationPreview.value.advance)
    unticked the two described different debts. */
 const remainingAfterInterestPayment = computed(() => Math.max(0, totalPendingOutstanding.value - interestAmountToPay.value))
 
-const getPendingStatusKey = (item: InterestPendingItem) => {
-  if (item.overdue) {
-    return 'common.overdue'
-  }
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const dueDate = new Date(item.due_date)
-  dueDate.setHours(0, 0, 0, 0)
-
-  return dueDate.getTime() === today.getTime() ? 'payments.current' : 'payments.upcoming'
-}
-
-const getPendingStatusClass = (item: InterestPendingItem) => {
-  if (item.overdue) {
-    return 'pill-overdue'
-  }
-
-  return getPendingStatusKey(item) === 'payments.current' ? 'pill-current' : 'pill-upcoming'
-}
+/* One implementation, in utils/loanStatus. This screen and the payments screen held
+   byte-identical copies, and the printed statement a third, cruder one. */
+const getPendingStatusKey = (item: { overdue: boolean; due_date: string }) => interestPeriodKey(item)
+const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => interestPeriodClass(item)
 
 const getPaymentTypeLabel = (paymentType: string) => t(paymentTypeKey(paymentType))
 

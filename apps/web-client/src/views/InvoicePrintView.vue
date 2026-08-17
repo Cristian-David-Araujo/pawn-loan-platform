@@ -458,8 +458,11 @@
               <td class="text-right">{{ formatCurrency(item.penalty_amount) }}</td>
               <td class="text-right balance-value">{{ formatCurrency(item.current_outstanding_balance) }}</td>
               <td>
-                <span class="status-badge" :class="item.overdue ? 'status-overdue' : 'status-active'">
-                  {{ item.overdue ? t('common.overdue') : t('common.periodCurrent') }}
+                <!-- The same three states the screens use, in the document vocabulary. This
+                     was a two-way overdue/current split, so a period due in ten days and one
+                     due today both printed "vigente". -->
+                <span class="status-badge" :class="periodClass(item)">
+                  {{ t(interestPeriodDocumentKey(item)) }}
                 </span>
               </td>
             </tr>
@@ -583,7 +586,7 @@ import { usePlatformStore } from '../stores/platformStore'
 import { formatCurrency } from '../utils/currency'
 import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
-import { loanStatusClass, loanStatusDocumentKey } from '../utils/loanStatus'
+import { interestPeriodDocumentKey, interestPeriodState, loanStatusClass, loanStatusDocumentKey } from '../utils/loanStatus'
 import { apiClient } from '../services/api'
 
 const route = useRoute()
@@ -759,7 +762,6 @@ const collateralLabelSpan = computed(
 
 const collateralStatusKeys: Record<string, string> = {
   'in-custody': 'collaterals.statusInCustody',
-  returned: 'collaterals.statusReturned',
   released: 'collaterals.statusReleased',
   for_sale: 'collaterals.statusForSale',
   sold: 'collaterals.statusSold',
@@ -772,7 +774,7 @@ const collateralStatusLabel = (value: string) => {
 }
 
 const collateralStatusClass = (value: string) => {
-  if (value === 'in-custody' || value === 'returned') return 'status-closed'
+  if (value === 'in-custody') return 'status-closed'
   if (value === 'liquidated' || value === 'sold') return 'status-overdue'
   return 'status-active'
 }
@@ -1010,6 +1012,17 @@ const loanStatusLabel = computed(() => {
 })
 
 const getLoanStatusClass = (l: { status: string }) => loanStatusClass(l.status)
+
+/* The print stylesheet has its own pill names, so the state is mapped rather than the
+   screen's class rewritten — that produced `status-current` and `status-upcoming`, which
+   no rule defines and which therefore styled nothing at all. */
+const PERIOD_PRINT_CLASS: Record<string, string> = {
+  overdue: 'status-overdue',
+  due_today: 'status-due-today',
+  upcoming: 'status-active'
+}
+const periodClass = (item: { overdue: boolean; due_date: string }) =>
+  PERIOD_PRINT_CLASS[interestPeriodState(item)]
 
 const currentLoanStatusClass = computed(() => {
   if (!loan.value) return ''
@@ -1379,6 +1392,14 @@ onMounted(async () => {
 .status-closed {
   background: var(--success-soft);
   color: var(--success-text);
+}
+
+/* Due today: the one period state worth walking to the counter for, so it is warned rather
+   than informational. It never rendered before — the comparison behind it could not be true
+   west of Greenwich. */
+.status-due-today {
+  background: var(--warning-soft);
+  color: var(--warning-text);
 }
 
 /* ── Notices: one shape, tinted by meaning. ── */

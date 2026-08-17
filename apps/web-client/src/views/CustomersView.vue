@@ -871,6 +871,7 @@ import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, formatDateTime, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
+import { interestPeriodClass, interestPeriodKey } from '../utils/loanStatus'
 
 interface InterestPendingItem {
   interest_charge_id: number
@@ -1684,27 +1685,10 @@ const paymentMethodLabel = (method: string) => {
   return t('common.other')
 }
 
-const getPendingStatusKey = (item: { overdue: boolean; due_date: string }) => {
-  if (item.overdue) {
-    return 'common.overdue'
-  }
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const dueDate = new Date(item.due_date)
-  dueDate.setHours(0, 0, 0, 0)
-
-  return dueDate.getTime() === today.getTime() ? 'payments.current' : 'payments.upcoming'
-}
-
-const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => {
-  if (item.overdue) {
-    return 'pill-overdue'
-  }
-
-  return getPendingStatusKey(item) === 'payments.current' ? 'pill-current' : 'pill-upcoming'
-}
+/* One implementation, in utils/loanStatus. This screen and the payments screen held
+   byte-identical copies, and the printed statement a third, cruder one. */
+const getPendingStatusKey = (item: { overdue: boolean; due_date: string }) => interestPeriodKey(item)
+const getPendingStatusClass = (item: { overdue: boolean; due_date: string }) => interestPeriodClass(item)
 
 const paymentTypeLabel = (paymentType: string) => t(paymentTypeKey(paymentType))
 

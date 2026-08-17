@@ -209,6 +209,31 @@ visible so they can be collected from, and hiding them to stop new lending would
 the screen that chases the debt. If "do not lend to this person" is ever needed, it is a separate
 flag — not a third value here.
 
+## Billing periods — derived, three states
+
+Not a column at all. A period's state is its due date against today, plus whether it still owes,
+and the middle value is the point: **vence hoy** is what sends someone to the counter.
+
+| State | Means | On screen | On a document |
+| :--- | :--- | :--- | :--- |
+| `overdue` | Past its due date (period end + grace) with a balance | Vencido | En mora |
+| `due_today` | Falls due today | Vence hoy | Vence hoy |
+| `upcoming` | Still ahead | Próximo | Por vencer |
+
+`overdue` is the **server's** verdict — it accounts for grace days — and it wins over the date
+comparison. Only the other two are decided in the client.
+
+One implementation, in [utils/loanStatus.ts](../apps/web-client/src/utils/loanStatus.ts). There
+were three: the customers and payments screens held byte-identical copies, and the printed
+statement a cruder inline one with only *two* states, so a period due in ten days read "Próximo"
+on screen and "Vigente" on the statement the customer kept.
+
+All three compared `Date` objects, and that was broken wherever it ran. `new Date('2026-08-17')`
+parses as UTC midnight, which west of Greenwich is the previous evening, and `setHours(0,0,0,0)`
+then lands on the previous day — so in Bogotá the "due today" branch could never be true and the
+one state worth showing never appeared. ISO dates compare correctly as strings, which is what it
+does now.
+
 ## Interest charges — a cache, not a state
 
 `generated` · `partially_paid` · `paid` · `not_billed`

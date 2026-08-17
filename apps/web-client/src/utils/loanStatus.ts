@@ -107,3 +107,68 @@ export const loanClosureReason = (loan: ClosableLoan): LoanClosureReason | null 
 }
 
 export const loanClosureReasonKey = (reason: LoanClosureReason): string => CLOSURE_KEYS[reason]
+
+/* ── A billing period ────────────────────────────────────────────────────────────────────
+ *
+ * Not a stored column: a period's state is its due date against today, plus whether it still
+ * owes. Three values, and the middle one is the point — "vence hoy" is what sends someone to
+ * the counter.
+ *
+ * There were three implementations. `CustomersView` and `PaymentsView` held byte-identical
+ * copies, and `InvoicePrintView` had a cruder inline version with only two states, so a period
+ * due in ten days read "Próximo" on screen and "Vigente" on the statement the customer was
+ * handed — the document being the one that gets kept.
+ *
+ * All three compared `Date` objects, and that was broken everywhere it ran. `new Date('2026-08-17')`
+ * parses as UTC midnight, which west of Greenwich is the *previous* evening; `setHours(0,0,0,0)`
+ * then lands on the previous day. In Bogotá the "due today" branch could never be true, so the
+ * one state worth showing never appeared. ISO dates sort and compare as strings, so that is what
+ * this does.
+ */
+export type InterestPeriodState = 'overdue' | 'due_today' | 'upcoming'
+
+const PERIOD_SCREEN_KEYS: Record<InterestPeriodState, string> = {
+  overdue: 'common.overdue',
+  due_today: 'payments.current',
+  upcoming: 'payments.upcoming'
+}
+
+const PERIOD_DOCUMENT_KEYS: Record<InterestPeriodState, string> = {
+  overdue: 'loanStatus.periodDocOverdue',
+  due_today: 'loanStatus.periodDocDueToday',
+  upcoming: 'loanStatus.periodDocUpcoming'
+}
+
+const PERIOD_CLASSES: Record<InterestPeriodState, string> = {
+  overdue: 'pill-overdue',
+  due_today: 'pill-current',
+  upcoming: 'pill-upcoming'
+}
+
+/** Today in the browser's own calendar, as `YYYY-MM-DD`. Built from the local parts on
+ *  purpose: `toISOString()` is UTC and would reintroduce the off-by-one this replaced. */
+const todayIso = (): string => {
+  const now = new Date()
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
+export interface DatedPeriod {
+  overdue: boolean
+  due_date: string
+}
+
+export const interestPeriodState = (item: DatedPeriod): InterestPeriodState => {
+  // `overdue` is the server's verdict, which accounts for grace days; it wins.
+  if (item.overdue) return 'overdue'
+  return (item.due_date ?? '').slice(0, 10) === todayIso() ? 'due_today' : 'upcoming'
+}
+
+export const interestPeriodKey = (item: DatedPeriod): string =>
+  PERIOD_SCREEN_KEYS[interestPeriodState(item)]
+
+export const interestPeriodDocumentKey = (item: DatedPeriod): string =>
+  PERIOD_DOCUMENT_KEYS[interestPeriodState(item)]
+
+export const interestPeriodClass = (item: DatedPeriod): string =>
+  PERIOD_CLASSES[interestPeriodState(item)]

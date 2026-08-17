@@ -754,6 +754,9 @@ export const messages = {
       closureRenewed: 'Renewed',
       closureSettled: 'Settled for less',
       closureWrittenOff: 'Written off',
+      periodDocOverdue: 'Overdue',
+      periodDocDueToday: 'Due today',
+      periodDocUpcoming: 'Not yet due',
     },
     reporting: {
       title: 'Reporting',
@@ -1600,6 +1603,9 @@ export const messages = {
       closureRenewed: 'Renovado',
       closureSettled: 'Liquidado por menos',
       closureWrittenOff: 'Castigado',
+      periodDocOverdue: 'En mora',
+      periodDocDueToday: 'Vence hoy',
+      periodDocUpcoming: 'Por vencer',
     },
     reporting: {
       title: 'Reportes',
