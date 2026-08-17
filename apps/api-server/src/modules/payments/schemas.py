@@ -4,16 +4,6 @@ from pydantic import BaseModel, ConfigDict, Field
 from src.modules.authentication.schemas import UserSummary
 
 
-class PaymentCreate(BaseModel):
-    loan_id: int
-    payment_date: date
-    total_amount: float
-    allocated_to_penalty: float = 0
-    allocated_to_interest: float = 0
-    allocated_to_fees: float = 0
-    allocated_to_principal: float = 0
-    payment_method: str = "cash"
-    notes: str = ""
 
 
 class PaymentUpdate(BaseModel):

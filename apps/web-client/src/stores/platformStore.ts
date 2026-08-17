@@ -159,16 +159,6 @@ interface UpdateCollateralPayload {
   storageLocation: string
 }
 
-interface CreatePaymentPayload {
-  loanId: number
-  totalAmount: number
-  allocatedToPenalty: number
-  allocatedToInterest: number
-  allocatedToFees: number
-  allocatedToPrincipal: number
-  paymentMethod: 'cash' | 'bank-transfer' | 'other'
-  notes: string
-}
 
 /**
  * Correcting how a payment was recorded, never how much money it moved: the amounts come
@@ -487,35 +477,6 @@ const createCollateral = async (payload: CreateCollateralPayload) => {
   await refreshAll()
 }
 
-const createPayment = async (payload: CreatePaymentPayload) => {
-  const allocationSum =
-    payload.allocatedToPenalty +
-    payload.allocatedToInterest +
-    payload.allocatedToFees +
-    payload.allocatedToPrincipal
-
-  if (Math.round(allocationSum * 100) !== Math.round(payload.totalAmount * 100)) {
-    return { ok: false, messageKey: 'messages.allocationMustEqualTotal' }
-  }
-
-  await apiClient.request<BackendPayment>('/payments', {
-    method: 'POST',
-    body: JSON.stringify({
-      loan_id: payload.loanId,
-      payment_date: new Date().toISOString().slice(0, 10),
-      total_amount: payload.totalAmount,
-      allocated_to_penalty: payload.allocatedToPenalty,
-      allocated_to_interest: payload.allocatedToInterest,
-      allocated_to_fees: payload.allocatedToFees,
-      allocated_to_principal: payload.allocatedToPrincipal,
-      payment_method: payload.paymentMethod,
-      notes: payload.notes
-    })
-  })
-
-  await refreshAll()
-  return { ok: true, messageKey: 'messages.paymentRegistered' }
-}
 
 const updatePayment = async (payload: UpdatePaymentPayload) => {
   await apiClient.request<BackendPayment>(`/payments/${payload.id}`, {
@@ -707,7 +668,6 @@ const dashboardStats = computed(() => {
     deleteLoan,
     createCollateral,
     updateCollateral,
-    createPayment,
     updatePayment,
     updateGlobalSettings,
     forecloseLoan,
