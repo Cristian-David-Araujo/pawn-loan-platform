@@ -236,6 +236,30 @@
           </span>
         </div>
 
+        <!-- The customer's position, above the tabs and above the fold.
+             It sat at the foot of the Resumen tab, starting at y=1177 on an 1100px viewport:
+             the four figures that answer "how is this customer doing" were the last thing on
+             the page and only on one tab. They describe the customer, not a section, so they
+             belong beside the identity and stay put while the tabs change. -->
+        <div class="grid grid-4 mt-16">
+          <div class="card stat-card stat-accent-blue">
+            <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-amber">
+            <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-green">
+            <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
+            <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
+          </div>
+          <div class="card stat-card stat-accent-indigo">
+            <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
+            <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
+          </div>
+        </div>
+
         <!-- Was a `.notice` with an inline style repainting it amber; `.notice-warning` is
              that same tone as a system class. -->
         <p v-if="hasCustomerCreditTraceability" class="notice notice-warning mt-16">{{ t('customers.traceabilityDeleteHint') }}</p>
@@ -344,24 +368,6 @@
           </span>
         </div>
 
-        <div class="grid grid-4 mt-16">
-          <div class="card stat-card stat-accent-blue">
-            <p class="stat-label">{{ t('customers.totalPaidLabel') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalCustomerPaid) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-amber">
-            <p class="stat-label">{{ t('customers.pendingOutstanding') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalPendingOutstanding) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-green">
-            <p class="stat-label">{{ t('customers.availableAdvance') }}</p>
-            <p class="stat-value">{{ formatCurrency(availableAdvanceBalance) }}</p>
-          </div>
-          <div class="card stat-card stat-accent-indigo">
-            <p class="stat-label">{{ t('customers.totalOutstandingPrincipal') }}</p>
-            <p class="stat-value">{{ formatCurrency(totalOutstandingPrincipal) }}</p>
-          </div>
-        </div>
         </template>
 
         <!-- ── Tab: Edit ─────────────────────────── -->
@@ -893,6 +899,7 @@ import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import VoidInterestChargeModal, { type VoidableCharge } from '../components/VoidInterestChargeModal.vue'
 import PaymentAllocationDetail from '../components/PaymentAllocationDetail.vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useBackNavigation } from '../composables/useBackNavigation'
 import { Archive, ArrowLeft, Ban, CheckCircle2, ChevronDown, ChevronRight, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
@@ -1327,8 +1334,11 @@ const openCustomerDetail = (customerId: number) => {
   void router.push({ name: 'customer-detail', params: { id: String(customerId), tab: 'overview' } })
 }
 
+/* Same reasoning as the loan page: a customer is also reached from more than one place. */
+const goBackFromCustomer = useBackNavigation({ name: 'customers' })
+
 const closeDetail = () => {
-  void router.push({ name: 'customers' })
+  goBackFromCustomer()
 }
 
 /* `push`, so the browser's back button returns to the tab you came from rather than leaving
