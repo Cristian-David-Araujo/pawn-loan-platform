@@ -746,6 +746,12 @@ export const messages = {
       confirmVoidCharge: 'Void this charge',
       chargeVoided: 'Charge #{id} was voided.'
     },
+    loanStatus: {
+      docUpToDate: 'Up to date',
+      docOverdue: 'Overdue',
+      docSettled: 'Settled',
+      docForeclosed: 'Foreclosed'
+    },
     reporting: {
       title: 'Reporting',
       subtitle: 'Operational reports with collection analytics and portfolio behavior.',
@@ -1582,6 +1588,12 @@ export const messages = {
       voidReasonPlaceholder: '¿Por qué nunca debió cobrarse este cargo?',
       confirmVoidCharge: 'Anular este cargo',
       chargeVoided: 'Se anuló el cargo #{id}.'
+    },
+    loanStatus: {
+      docUpToDate: 'Al día',
+      docOverdue: 'En mora',
+      docSettled: 'Saldado',
+      docForeclosed: 'Ejecutado'
     },
     reporting: {
       title: 'Reportes',
