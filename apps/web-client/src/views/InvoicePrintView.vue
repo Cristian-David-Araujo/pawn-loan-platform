@@ -387,7 +387,7 @@
           </p>
           <p>
             <strong>{{ t('common.loanStatus') }}:</strong>
-            <span class="status-badge" :class="loanStatusClass">{{ loanStatusLabel }}</span>
+            <span class="status-badge" :class="currentLoanStatusClass">{{ loanStatusLabel }}</span>
           </p>
         </div>
 
@@ -583,6 +583,7 @@ import { usePlatformStore } from '../stores/platformStore'
 import { formatCurrency } from '../utils/currency'
 import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
+import { loanStatusClass, loanStatusDocumentKey } from '../utils/loanStatus'
 import { apiClient } from '../services/api'
 
 const route = useRoute()
@@ -999,32 +1000,18 @@ const getPaymentTypeLabel = (p: typeof payment.value) => {
   return t('common.typeMixedPayment')
 }
 
-const getLoanStatusLabel = (l: { status: string }) => {
-  const keys: Record<string, string> = {
-    active: 'common.active',
-    overdue: 'common.overdue',
-    defaulted: 'common.defaulted',
-    closed: 'common.closed'
-  }
-  const key = keys[l.status]
-  return key ? t(key) : l.status
-}
+/* The document vocabulary, not the screen one: a customer reading this wants to know whether
+   they owe anything, and "al día" answers that where "Activo" did not. See utils/loanStatus. */
+const getLoanStatusLabel = (l: { status: string }) => t(loanStatusDocumentKey(l.status))
 
 const loanStatusLabel = computed(() => {
   if (!loan.value) return ''
   return getLoanStatusLabel(loan.value)
 })
 
-const getLoanStatusClass = (l: { status: string }) => {
-  return {
-    'status-active': l.status === 'active',
-    'status-overdue': l.status === 'overdue',
-    'status-closed': l.status === 'closed',
-    'status-defaulted': l.status === 'defaulted'
-  }
-}
+const getLoanStatusClass = (l: { status: string }) => loanStatusClass(l.status)
 
-const loanStatusClass = computed(() => {
+const currentLoanStatusClass = computed(() => {
   if (!loan.value) return ''
   return getLoanStatusClass(loan.value)
 })

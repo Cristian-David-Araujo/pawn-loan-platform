@@ -1,5 +1,6 @@
 """Automatic loan status transitions driven by the interest ledger."""
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import date
 
@@ -22,14 +23,34 @@ class LoanStatusTransition:
     new_status: LoanStatus
 
 
-def refresh_overdue_loan_statuses(db: Session, as_of_date: date) -> list[LoanStatusTransition]:
+def refresh_overdue_loan_statuses(
+    db: Session,
+    as_of_date: date,
+    *,
+    loan_ids: Collection[int] | None = None,
+) -> list[LoanStatusTransition]:
     """Move loans between ``active`` and ``overdue`` based on past due interest.
 
     A loan is overdue when at least one billing period is past its due date (period
     end plus the configured grace days) and still has an outstanding balance. When
     the past due balance is settled the loan returns to ``active``.
+
+    ``loan_ids`` narrows the sweep to a known set, which is what the money paths use: a
+    payment knows exactly whose book it touched and has no business re-evaluating the
+    portfolio. Left out, every managed loan is examined — the interest cycle's job, since it
+    is reacting to the calendar rather than to an event.
+
+    Narrowing changes which loans can *transition*, never how one is judged:
+    ``pending_interest_for_loans`` nets each customer's whole book internally, so a loan
+    reaches the same verdict whether it was asked about alone or with the rest.
     """
-    loans = list(db.scalars(select(Loan).where(Loan.status.in_(MANAGED_STATUSES))).all())
+    query = select(Loan).where(Loan.status.in_(MANAGED_STATUSES))
+    if loan_ids is not None:
+        if not loan_ids:
+            return []
+        query = query.where(Loan.id.in_(set(loan_ids)))
+
+    loans = list(db.scalars(query).all())
     if not loans:
         return []
 

@@ -10,6 +10,7 @@ from src.infrastructure.persistence.models import InterestCharge, Loan, Payment,
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.finance.allocation import AllocationTarget, allocate_oldest_first
 from src.modules.finance.locks import lock_customer_loans, lock_loans
+from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.modules.finance.interest_balance import (
     charge_due_date,
     default_grace_days,
@@ -356,6 +357,20 @@ def pay_interest(
     for loan_id in {item.loan_id for item in allocations}:
         sync_interest_charge_statuses(db, loan_id)
 
+    # A loan that just cleared its past-due interest is no longer overdue, and it must say so
+    # now. This used to be reached only by the interest cycle, so the label lagged the money
+    # by up to AUTO_INTEREST_GENERATION_INTERVAL_MINUTES — a day, by default: the customer
+    # paid at the counter, the receipt printed, and the loan still read "vencido".
+    #
+    # Scoped to the customer's whole book, not to the loans that received an event. Interest
+    # is allocated oldest-first across every loan they hold and the advance pool is theirs
+    # rather than any one loan's, so paying on #7 can settle a period on #12. The book is
+    # already locked by `lock_customer_loans` above, so this costs no extra contention.
+    customer_loan_ids = list(
+        db.scalars(select(Loan.id).where(Loan.customer_id == payload.customer_id)).all()
+    )
+    transitions = refresh_overdue_loan_statuses(db, payment_date, loan_ids=customer_loan_ids)
+
     # Same transaction as the money: written after the commit, this row is a second
     # transaction that can fail while the payment stands, leaving a collection nobody
     # appears to have taken.
@@ -365,7 +380,10 @@ def pay_interest(
         entity_type="PaymentEvent",
         entity_id=f"customer={payload.customer_id}",
         user=current_user,
-        new_data=f"entered={payload.total_amount},allocated={total_allocated}",
+        new_data=(
+            f"entered={payload.total_amount},allocated={total_allocated},"
+            f"{describe_transitions(transitions)}"
+        ),
         commit=False,
     )
     db.commit()
@@ -608,6 +626,18 @@ def pay_principal(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to allocate payment")
 
     total_allocated = round(sum(item.allocated_to_principal for item in allocations), 2)
+
+    # Principal cannot by itself change whether a loan is overdue — that is decided by
+    # past-due *interest*. This is here so the rule "every money path leaves the status
+    # correct before it commits" holds without exception, and because this path does move a
+    # loan to `closed` at zero principal: a loan that was `overdue` and is now closed must
+    # not be re-examined, which the managed-status filter already guarantees.
+    transitions = refresh_overdue_loan_statuses(
+        db,
+        payment_date,
+        loan_ids=[item.loan_id for item in allocations],
+    )
+
     write_audit(
         db,
         commit=False,
@@ -617,7 +647,7 @@ def pay_principal(
         user=current_user,
         new_data=(
             f"payment={payment.id},loans={[item.loan_id for item in allocations]},"
-            f"amount={total_allocated}"
+            f"amount={total_allocated},{describe_transitions(transitions)}"
         ),
     )
     db.commit()
@@ -825,6 +855,16 @@ def reverse_payment(
     for loan_id in affected_loan_ids:
         sync_interest_charge_statuses(db, loan_id)
 
+    # The mirror of the collection: putting the interest back can make a loan overdue again,
+    # and the operator who just reversed a payment is the one who needs to see that. It runs
+    # after the `closed` -> `active` reopening above, so a loan restored to active is judged
+    # on the debt it now carries rather than staying active by default.
+    reversal_transitions = refresh_overdue_loan_statuses(
+        db,
+        get_local_date(db),
+        loan_ids=affected_loan_ids,
+    )
+
     write_audit(
         db,
         commit=False,
@@ -839,7 +879,8 @@ def reverse_payment(
         ),
         new_data=(
             f"is_reversed=true,reversed_events={len(linked_events)},"
-            f"principal_restored={restored_by_loan},reason={payment.reversal_reason}"
+            f"principal_restored={restored_by_loan},reason={payment.reversal_reason},"
+            f"{describe_transitions(reversal_transitions)}"
         ),
     )
 
