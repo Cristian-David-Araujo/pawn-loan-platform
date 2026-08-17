@@ -81,15 +81,42 @@ const login = async (payload: LoginPayload) => {
   await fetchCurrentUser()
 }
 
-const fetchCurrentUser = async () => {
-  if (!state.accessToken) return
-  const response = await fetch(`${API_BASE_URL}/auth/me`, {
-    headers: { Authorization: `Bearer ${state.accessToken}` }
-  })
-  if (response.ok) {
-    state.currentUser = (await response.json()) as UserProfile
-  } else {
-    logout()
+/** Confirms the stored token still names a session, and loads who it belongs to.
+ *
+ * The router awaits this before it decides whether a guarded route may be entered, so two
+ * things matter beyond fetching a profile.
+ *
+ * **It must not throw.** An exception here escapes the navigation guard and the router
+ * rejects the navigation outright — the app stops on whatever was on screen, which for a
+ * cold start is nothing at all. A dropped connection is not a reason to show a blank page.
+ *
+ * **Only the server rejecting the token ends the session.** A 5xx, a timeout or an
+ * unreachable host say nothing about whether the token is valid, and signing the operator
+ * out over them would discard a good session because a proxy hiccuped. That is the same
+ * distinction `LoginView` makes between `auth.invalidCredentials` and
+ * `auth.serviceUnreachable`: a request that was never answered has made no claim.
+ */
+const fetchCurrentUser = async (): Promise<boolean> => {
+  if (!state.accessToken) return false
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      headers: { Authorization: `Bearer ${state.accessToken}` }
+    })
+
+    if (response.ok) {
+      state.currentUser = (await response.json()) as UserProfile
+      return true
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      logout()
+    }
+
+    return false
+  } catch {
+    // Never answered: keep the session and let the app try again on the next request.
+    return false
   }
 }
 
