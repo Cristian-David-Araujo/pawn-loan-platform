@@ -48,7 +48,23 @@ const router = createRouter({
         { path: '', redirect: '/dashboard' },
         { path: 'dashboard', name: 'dashboard', component: DashboardView, meta: { labelKey: 'app.dashboard' } },
         { path: 'customers', name: 'customers', component: CustomersView, meta: { labelKey: 'app.customers' } },
+        /* A record with its own identity gets its own address.
+         *
+         * The customer detail was a modal, and modals stack: from inside it an operator could
+         * open a loan detail, and from that an edit form, and from that a confirmation — up to
+         * eight backdrops deep. It also could not be linked to, and the browser's back button
+         * left the whole screen rather than the tab.
+         *
+         * The tab is in the path for the same reason the id is: "the payments of customer 7"
+         * is a place, and back should return to the tab before it. */
+        {
+          path: 'customers/:id/:tab?',
+          name: 'customer-detail',
+          component: CustomersView,
+          meta: { labelKey: 'app.customers' }
+        },
         { path: 'loans', name: 'loans', component: LoansView, meta: { labelKey: 'app.loans' } },
+        { path: 'loans/:id', name: 'loan-detail', component: LoansView, meta: { labelKey: 'app.loans' } },
         {
           path: 'collaterals',
           name: 'collaterals',
