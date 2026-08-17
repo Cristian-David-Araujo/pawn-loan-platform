@@ -31,7 +31,6 @@ from src.modules.payments.schemas import (
     InterestPendingResponse,
     PaymentAllocationRead,
     PaymentAllocationsResponse,
-    PaymentCreate,
     PaymentEventRead,
     PaymentRead,
     PaymentReversalRequest,
@@ -828,46 +827,6 @@ def list_payments(
 ) -> list[Payment]:
     return list(db.query(Payment).order_by(Payment.id.desc()).all())
 
-
-@router.post("", response_model=PaymentRead, status_code=status.HTTP_201_CREATED)
-def create_payment(
-    payload: PaymentCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer, UserRole.collector)),
-) -> Payment:
-    loan = db.get(Loan, payload.loan_id)
-    if loan is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Loan not found")
-
-    allocated_sum = (
-        payload.allocated_to_penalty
-        + payload.allocated_to_interest
-        + payload.allocated_to_fees
-        + payload.allocated_to_principal
-    )
-    if round(allocated_sum, 2) != round(payload.total_amount, 2):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Allocation sum must match total amount")
-
-    payment = Payment(**payload.model_dump(), received_by=current_user.id)
-    db.add(payment)
-
-    loan.outstanding_principal = max(0, loan.outstanding_principal - payload.allocated_to_principal)
-    if loan.outstanding_principal == 0:
-        loan.status = LoanStatus.closed
-
-    db.commit()
-    db.refresh(payment)
-
-    write_audit(
-        db,
-        action="create_payment",
-        entity_type="Payment",
-        entity_id=str(payment.id),
-        user=current_user,
-        new_data=f"amount={payment.total_amount}",
-    )
-
-    return payment
 
 
 @router.put("/{payment_id}", response_model=PaymentRead)

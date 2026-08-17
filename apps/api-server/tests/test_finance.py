@@ -36,21 +36,27 @@ def test_loan_balance_and_ledger(client: TestClient, auth_headers: dict[str, str
     )
     assert interest_response.status_code == 200
 
-    payment_response = client.post(
-        "/api/v1/payments",
+    # Interest and principal are separate collections now — the endpoint that took both in
+    # one body, with the caller responsible for making the buckets add up, is gone.
+    customer_id = client.get(f"/api/v1/loans/{loan['id']}", headers=auth_headers).json()["customer_id"]
+    interest_payment = client.post(
+        "/api/v1/payments/interest",
+        headers=auth_headers,
+        json={"customer_id": customer_id, "total_amount": 100, "payment_method": "cash"},
+    )
+    assert interest_payment.status_code == 200, interest_payment.text
+
+    principal_payment = client.post(
+        "/api/v1/payments/principal",
         headers=auth_headers,
         json={
             "loan_id": loan["id"],
-            "payment_date": str(date.today()),
-            "total_amount": 150,
-            "allocated_to_penalty": 0,
-            "allocated_to_interest": 100,
-            "allocated_to_fees": 0,
-            "allocated_to_principal": 50,
+            "total_amount": 50,
             "payment_method": "cash",
+            "allow_with_unpaid_interest": True,
         },
     )
-    assert payment_response.status_code == 201
+    assert principal_payment.status_code == 200, principal_payment.text
 
     balance_response = client.get(f"/api/v1/loans/{loan['id']}/balance", headers=auth_headers)
     assert balance_response.status_code == 200
@@ -64,7 +70,8 @@ def test_loan_balance_and_ledger(client: TestClient, auth_headers: dict[str, str
     ledger = ledger_response.json()
     assert ledger["loan_id"] == loan["id"]
     assert len(ledger["interest_charges"]) >= 1
-    assert len(ledger["payments"]) == 1
+    # Two rows now: the same 150 arrives as two collections rather than one.
+    assert len(ledger["payments"]) == 2
 
 
 def _unbilled_cycle() -> tuple[date, date]:
