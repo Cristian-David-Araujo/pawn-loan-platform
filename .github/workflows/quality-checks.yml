@@ -105,3 +105,10 @@ jobs:
       # and on the light theme paints dark ink on a saturated fill. That shipped twice.
       - name: Design tokens exist
         run: npm run check:tokens
+
+      # Mounts every view. vue-tsc cannot see these failures: an invalid template makes it
+      # stop counting template usage, so a broken view is reported as *unused variables* —
+      # its verdict inverts exactly when something is badly broken. Three views shipped a
+      # blank page in one sitting before this existed, each found by driving a browser.
+      - name: Views render
+        run: npm test
