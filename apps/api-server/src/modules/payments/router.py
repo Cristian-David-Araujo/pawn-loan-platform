@@ -93,6 +93,27 @@ def _pending_interest_items_for_customer(db: Session, customer_id: int, today: d
     ]
 
 
+def _reject_replay(db: Session, key: str | None) -> None:
+    """Refuse a collection that has already been recorded under this key.
+
+    A refusal rather than a replay of the original response. Replaying is the stricter
+    contract, but it means rebuilding an allocation response from stored rows — more code on
+    the money path than the defect warrants, and the operator's question ("did that go
+    through?") is answered just as well by naming the payment that already exists.
+
+    Nothing is written before this runs, so a rejected retry leaves no trace.
+    """
+    if not key:
+        return
+
+    existing = db.scalar(select(Payment.id).where(Payment.idempotency_key == key))
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This payment was already recorded (#{existing})",
+        )
+
+
 @router.get("/customers/{customer_id}/interest-pending", response_model=InterestPendingResponse)
 def get_pending_interest(
     customer_id: int,
@@ -249,6 +270,7 @@ def pay_interest(
     if payload.total_amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Total amount must be greater than zero")
 
+    _reject_replay(db, payload.idempotency_key)
     payment_date = payload.payment_date or get_local_date(db)
 
     # Allocation and the advance pool both span the customer's whole book, so the book is
@@ -276,6 +298,7 @@ def pay_interest(
             allocated_to_principal=0,
             payment_method=payload.payment_method,
             received_by=current_user.id,
+            idempotency_key=payload.idempotency_key,
         )
         db.add(payment)
         db.flush()
@@ -349,6 +372,7 @@ def pay_interest(
         allocated_to_principal=0,
         payment_method=payload.payment_method,
         received_by=current_user.id,
+            idempotency_key=payload.idempotency_key,
     )
     db.add(payment)
     db.flush()
@@ -633,6 +657,7 @@ def pay_principal(
     if payload.total_amount <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Total amount must be greater than zero")
 
+    _reject_replay(db, payload.idempotency_key)
     payment_date = payload.payment_date or get_local_date(db)
     targets = _resolve_principal_targets(db, payload)
     lock_loans(db, targets)
@@ -676,6 +701,7 @@ def pay_principal(
         allocated_to_principal=round(payload.total_amount, 2),
         payment_method=payload.payment_method,
         received_by=current_user.id,
+            idempotency_key=payload.idempotency_key,
     )
     db.add(payment)
     db.flush()

@@ -592,6 +592,16 @@ const historyFromDate = ref('')
 const historyToDate = ref('')
 const historyLoanFilter = ref('all')
 const historyTypeFilter = ref('all')
+/* One key per submit, so a click that is sent twice — a slow connection, a button that still
+   looked live — is recognised by the server as the same collection rather than taken again.
+   Minted here rather than server-side for the obvious reason: only the client knows that two
+   requests are the same attempt.
+   `randomUUID` needs a secure context, which the app has (HTTPS in production, localhost in
+   development); the fallback keeps a plain-HTTP deployment working rather than silently
+   dropping the protection. */
+const attemptKey = () =>
+  crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`
+
 const processing = ref(false)
 const { message, messageClass, notify, fail, report } = usePageMessage()
 const paymentPendingReversal = ref<Payment | null>(null)
@@ -1011,6 +1021,7 @@ const submitInterestPayment = async () => {
     await apiClient.request('/payments/interest', {
       method: 'POST',
       body: JSON.stringify({
+        idempotency_key: attemptKey(),
         customer_id: selectedCustomerId.value,
         pay_all_pending: true,
         selected_charge_ids: [],
@@ -1156,6 +1167,7 @@ const submitPrincipalPayment = async () => {
     const result = await apiClient.request<PrincipalPaymentResult>('/payments/principal', {
       method: 'POST',
       body: JSON.stringify({
+        idempotency_key: attemptKey(),
         customer_id: selectedCustomerId.value,
         // Honoured server-side, unlike the interest flow: the operator picks the loans.
         selected_loan_ids: [...selectedPrincipalLoanIds.value],

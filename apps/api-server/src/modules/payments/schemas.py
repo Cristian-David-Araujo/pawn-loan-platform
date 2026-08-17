@@ -94,6 +94,10 @@ class InterestPaymentRequest(BaseModel):
     payment_date: date | None = None
     payment_method: str = "cash"
     notes: str = ""
+    # A retry carries the key of the attempt it repeats, and gets that payment back rather
+    # than taking the money a second time. Optional: a caller that does not send one keeps the
+    # old behaviour, which is what every existing integration and the test suite rely on.
+    idempotency_key: str | None = Field(default=None, max_length=64)
 
 
 class InterestPaymentAllocation(BaseModel):
@@ -151,6 +155,10 @@ class PrincipalPaymentRequest(BaseModel):
     payment_method: str = "cash"
     allow_with_unpaid_interest: bool = False
     notes: str = ""
+    # A retry carries the key of the attempt it repeats, and gets that payment back rather
+    # than taking the money a second time. Optional: a caller that does not send one keeps the
+    # old behaviour, which is what every existing integration and the test suite rely on.
+    idempotency_key: str | None = Field(default=None, max_length=64)
 
 
 class PrincipalAllocation(BaseModel):
