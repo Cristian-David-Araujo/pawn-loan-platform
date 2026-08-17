@@ -62,7 +62,9 @@
           :class="{
             'is-muted': !day.inCurrentMonth,
             'is-selected': day.iso === selectedIso,
-            'is-today': day.iso === todayIso
+            'is-today': day.iso === todayIso,
+            'is-range-edge': isRangeEdge(day.iso),
+            'is-in-range': isInsideRange(day.iso)
           }"
           @click="selectDay(day.iso)"
         >
@@ -93,11 +95,24 @@ const props = withDefaults(
     placeholder?: string
     title?: string
     required?: boolean
+    /* The span this field belongs to, when it is one half of a from/to pair.
+     *
+     * Both fields receive the *same* two values, so opening either calendar shows the whole
+     * range shaded rather than a single lit day — an operator picking "hasta" can see where
+     * "desde" landed without closing the popover.
+     *
+     * They stay optional, so a lone date field (a disbursement, a payment date) is unchanged
+     * and there is still exactly one date component in the app rather than a second one that
+     * would drift from this one. */
+    rangeStart?: string
+    rangeEnd?: string
   }>(),
   {
     placeholder: '',
     title: '',
-    required: false
+    required: false,
+    rangeStart: '',
+    rangeEnd: ''
   }
 )
 
@@ -114,6 +129,28 @@ const emit = defineEmits<{
    while the loan and report filters prompted with `DD/MM/YYYY`. Every date field in the app
    is this component, so the answer belongs to it and there is nothing left to keep in sync. */
 const resolvedPlaceholder = computed(() => props.placeholder || getGlobalDateFormat())
+
+/* The span, normalised to ISO and ordered, so a range typed backwards ("desde" later than
+   "hasta") still shades rather than silently showing nothing. Both ends must be present:
+   half a range is not a range, and shading from one date to nowhere would suggest the filter
+   is doing something it is not. */
+const rangeBounds = computed(() => {
+  const start = toIsoDate(props.rangeStart)
+  const end = toIsoDate(props.rangeEnd)
+  if (!start || !end) return null
+  return start <= end ? { start, end } : { start: end, end: start }
+})
+
+// ISO dates are lexicographically ordered, so string comparison is date comparison.
+const isRangeEdge = (iso: string) => {
+  const bounds = rangeBounds.value
+  return !!bounds && (iso === bounds.start || iso === bounds.end)
+}
+
+const isInsideRange = (iso: string) => {
+  const bounds = rangeBounds.value
+  return !!bounds && iso > bounds.start && iso < bounds.end
+}
 
 const { t, locale } = useI18n()
 const rootRef = ref<HTMLElement | null>(null)

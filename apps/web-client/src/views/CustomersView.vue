@@ -212,11 +212,11 @@
           <div class="audit-filter-grid mt-16">
             <label>
               {{ t('customers.auditFilterFrom') }}
-              <DateInputField v-model="auditFromDate" :label="t('customers.auditFilterFrom')" />
+              <DateInputField v-model="auditFromDate" :range-start="auditFromDate" :range-end="auditToDate" :label="t('customers.auditFilterFrom')" />
             </label>
             <label>
               {{ t('customers.auditFilterTo') }}
-              <DateInputField v-model="auditToDate" :label="t('customers.auditFilterTo')" />
+              <DateInputField v-model="auditToDate" :range-start="auditFromDate" :range-end="auditToDate" :label="t('customers.auditFilterTo')" />
             </label>
             <label>
               {{ t('customers.auditFilterLoan') }}
