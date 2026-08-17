@@ -71,12 +71,25 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const { isAuthenticated, state, fetchCurrentUser, hasRole } = useAuthState()
 
-  if (to.matched.some((record) => record.meta.requiresAuth) && !isAuthenticated.value) {
-    return { path: '/login', query: { redirect: to.fullPath } }
-  }
-
+  /* Verify the stored token BEFORE deciding whether the route may be entered.
+   *
+   * These two steps used to be the other way round, and the order was the whole bug: a
+   * token left in localStorage from an expired session made `isAuthenticated` true, so the
+   * guard admitted the navigation, and only then awaited `/auth/me`. That call clears the
+   * session on rejection — but the entry decision had already been made and was never
+   * revisited, so the app opened straight onto a dashboard whose every request then failed,
+   * showing a full screen of zeros. Reloading re-ran the guard, now with no token, and
+   * finally landed on the sign-in screen: the "just refresh it" that made this look flaky
+   * rather than broken.
+   *
+   * Having the token is not the same as having a session, and this is the line where the
+   * difference is settled. */
   if (isAuthenticated.value && !state.currentUser) {
     await fetchCurrentUser()
+  }
+
+  if (to.matched.some((record) => record.meta.requiresAuth) && !isAuthenticated.value) {
+    return { path: '/login', query: { redirect: to.fullPath } }
   }
 
   if (to.meta.guestOnly && isAuthenticated.value) {
