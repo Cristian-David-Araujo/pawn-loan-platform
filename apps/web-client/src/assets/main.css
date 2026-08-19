@@ -1529,6 +1529,30 @@ p.badge {
   border-color: var(--warning-border);
 }
 
+/* A loan whose interest clock is stopped.
+
+   Deliberately colourless. The three status hues are already spent on money at risk — green
+   in order, amber late, red foreclosed — and a fourth beside them would leave none of them
+   meaning much. A dashed outline is the one treatment that reads as "suspended" without
+   asserting that something is wrong, and it says the same thing in both themes without a
+   new token. It always sits *next to* a status chip, never instead of one. */
+.pill-paused {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--line-strong);
+  color: var(--text-secondary);
+}
+
+/* Two chips describing one row: the status, and the pause when there is one. On a phone the
+   table restacks into cards and the cell becomes full width, so they wrap rather than
+   overflow. */
+.pill-group {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
 /* ═══════════════════════════════════════════════
    TABS
    ═══════════════════════════════════════════════ */

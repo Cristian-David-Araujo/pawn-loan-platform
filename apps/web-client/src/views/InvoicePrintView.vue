@@ -41,7 +41,7 @@
             {{ formatDateDMY(payment.reversedAt.split('T')[0]) }}
           </template>
           <template v-if="payment.reverser">
-            · {{ payment.reverser.full_name || payment.reverser.username }}
+            · {{ userLabel(payment.reverser) }}
           </template>
         </span>
       </div>
@@ -79,7 +79,7 @@
           <p><strong>{{ t('common.method') }}:</strong> {{ paymentMethodLabel }}</p>
           <p v-if="payment.receiver">
             <strong>{{ t('common.receivedBy') }}:</strong>
-            {{ payment.receiver.full_name || payment.receiver.username }}
+            {{ userLabel(payment.receiver) }}
           </p>
           <p class="span-2" v-if="payment.notes">
             <strong>{{ t('common.notes') }}:</strong> {{ payment.notes }}
@@ -242,7 +242,7 @@
               </p>
               <p v-if="loan.created_by">
                 <strong>{{ t('common.createdBy') }}:</strong>
-                {{ loan.created_by.full_name || loan.created_by.username }}
+                {{ userLabel(loan.created_by) }}
               </p>
             </div>
           </div>
@@ -273,6 +273,7 @@
                     <span class="status-badge" :class="getLoanStatusClass(l)">
                       {{ getLoanStatusLabel(l) }}
                     </span>
+                    <div class="muted" v-if="l.interestPaused">{{ t('loanStatus.docInterestPaused') }}</div>
                   </td>
                   <td class="text-right">{{ l.monthlyInterestRate }}%</td>
                   <td class="text-right">{{ formatCurrency(l.outstandingPrincipal) }}</td>
@@ -331,7 +332,7 @@
                   <td class="text-right">{{ formatCurrency(event.allocated_to_penalty) }}</td>
                   <td class="text-right">{{ formatCurrency(event.allocated_to_principal) }}</td>
                   <td class="text-right">{{ formatCurrency(event.total_entered_amount) }}</td>
-                  <td>{{ event.operator?.full_name || event.operator?.username || '-' }}</td>
+                  <td>{{ userLabel(event.operator) ?? '-' }}</td>
                 </tr>
                 <tr v-if="!historyEvents.length">
                   <td colspan="9" class="text-center">{{ t('common.noPaymentsForCustomer') }}</td>
@@ -382,7 +383,10 @@
         </table>
         <!-- Non-monetary facts belong outside the figures, so the table closes on its total. -->
         <div class="info-grid">
-          <p v-if="loanStatement">
+          <p v-if="loan.interestPaused">
+            <strong>{{ t('common.nextDueDate') }}:</strong> {{ t('loanStatus.docInterestPaused') }}
+          </p>
+          <p v-else-if="loanStatement">
             <strong>{{ t('common.nextDueDate') }}:</strong> {{ formatDateDMY(loanStatement.next_due_date) }}
           </p>
           <p>
@@ -586,7 +590,8 @@ import { usePlatformStore } from '../stores/platformStore'
 import { formatCurrency } from '../utils/currency'
 import { billingAnchorDay, formatDateDMY } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
-import { interestPeriodDocumentKey, interestPeriodState, loanStatusClass, loanStatusDocumentKey } from '../utils/loanStatus'
+import { userLabel } from '../utils/userLabel'
+import { interestPeriodDocumentKey, interestPeriodState, loanStatusDocumentClass, loanStatusDocumentKey } from '../utils/loanStatus'
 import { apiClient } from '../services/api'
 
 const route = useRoute()
@@ -1011,7 +1016,7 @@ const loanStatusLabel = computed(() => {
   return getLoanStatusLabel(loan.value)
 })
 
-const getLoanStatusClass = (l: { status: string }) => loanStatusClass(l.status)
+const getLoanStatusClass = (l: { status: string }) => loanStatusDocumentClass(l.status)
 
 /* The print stylesheet has its own pill names, so the state is mapped rather than the
    screen's class rewritten — that produced `status-current` and `status-upcoming`, which

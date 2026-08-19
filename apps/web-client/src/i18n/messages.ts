@@ -317,7 +317,8 @@ export const messages = {
       thisMonth: 'This month',
       portfolio: 'Portfolio',
       overdueAmount: '{amount} outstanding',
-      nothingOverdue: 'Nothing overdue'
+      nothingOverdue: 'Nothing overdue',
+      pausedLoans: '{count} with interest paused'
     },
     customers: {
       title: 'Customers',
@@ -464,6 +465,8 @@ export const messages = {
       forecloseLoan: 'Foreclose Loan',
       pauseInterest: 'Pause interest',
       resumeInterest: 'Resume interest',
+      interestPaused: 'Interest paused',
+      interestPausedShort: 'Paused',
       pauseReasonPrompt:
         'Why is this loan being paused? The months it covers are recorded as deliberately unbilled and can never be charged later.',
       pauseReasonLabel: 'Reason for pausing',
@@ -603,6 +606,7 @@ export const messages = {
       registeredPaymentsTitle: 'Registered payments',
       noRegisteredPayments: 'No registered payments for this customer.',
       reversed: 'Reversed',
+      reversedBy: 'reversed by {name}',
       allocationSummary: 'Allocation sum: {sum} / Total: {total}',
       loanOption: 'Loan #{id} - {customer}',
       searchPlaceholder: 'Search by payment id, loan id or customer...',
@@ -768,6 +772,7 @@ export const messages = {
       docOverdue: 'Overdue',
       docSettled: 'Settled',
       docForeclosed: 'Foreclosed',
+      docInterestPaused: 'Interest paused — no new interest is being charged',
       closurePaid: 'Paid off',
       closureRenewed: 'Renewed',
       closureSettled: 'Settled for less',
@@ -1184,7 +1189,8 @@ export const messages = {
       thisMonth: 'Este mes',
       portfolio: 'Portafolio',
       overdueAmount: '{amount} pendiente',
-      nothingOverdue: 'Nada vencido'
+      nothingOverdue: 'Nada vencido',
+      pausedLoans: '{count} con interés pausado'
     },
     customers: {
       title: 'Clientes',
@@ -1331,6 +1337,8 @@ export const messages = {
       forecloseLoan: 'Pasar a Remate',
       pauseInterest: 'Pausar interés',
       resumeInterest: 'Reanudar interés',
+      interestPaused: 'Interés pausado',
+      interestPausedShort: 'Pausado',
       pauseReasonPrompt:
         '¿Por qué se pausa este préstamo? Los meses que cubra quedan registrados como no facturados a propósito y no se podrán cobrar después.',
       pauseReasonLabel: 'Motivo de la pausa',
@@ -1470,6 +1478,7 @@ export const messages = {
       registeredPaymentsTitle: 'Pagos registrados',
       noRegisteredPayments: 'No hay pagos registrados para este cliente.',
       reversed: 'Reversado',
+      reversedBy: 'reversado por {name}',
       allocationSummary: 'Suma de asignacion: {sum} / Total: {total}',
       loanOption: 'Préstamo #{id} - {customer}',
       searchPlaceholder: 'Buscar por id de pago, préstamo o cliente...',
@@ -1635,6 +1644,7 @@ export const messages = {
       docOverdue: 'En mora',
       docSettled: 'Saldado',
       docForeclosed: 'Ejecutado',
+      docInterestPaused: 'Interés pausado — no se están generando nuevos intereses',
       closurePaid: 'Pagado',
       closureRenewed: 'Renovado',
       closureSettled: 'Liquidado por menos',
