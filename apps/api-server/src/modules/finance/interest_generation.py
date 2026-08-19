@@ -37,29 +37,38 @@ def accruing_loans(db: Session) -> list[Loan]:
     return list(db.scalars(select(Loan).where(Loan.status.in_(ACCRUING_STATUSES))).all())
 
 
-def _month_anchor(year: int, month: int, anchor_day: int) -> date:
+def month_anchor(year: int, month: int, anchor_day: int) -> date:
+    """The anchor day clamped into a month that may be shorter than it.
+
+    Public because the billing cycle and the statement that tells a customer when their next
+    payment falls due must agree by construction. There were two byte-identical copies of this
+    and `add_months`, one in each module — the same duplication that has bitten this codebase
+    through `formatCurrency`, the payment-type map and the period-state helper. Here it would
+    have been worse than cosmetic: the two would have been deciding *when a period is billed*
+    and *what date the customer was promised*.
+    """
     last_day = monthrange(year, month)[1]
     day = min(max(1, anchor_day), last_day)
     return date(year, month, day)
 
 
-def _add_months(base_date: date, months: int, anchor_day: int) -> date:
+def add_months(base_date: date, months: int, anchor_day: int) -> date:
     month_index = (base_date.month - 1) + months
     year = base_date.year + (month_index // 12)
     month = (month_index % 12) + 1
-    return _month_anchor(year, month, anchor_day)
+    return month_anchor(year, month, anchor_day)
 
 
 def _iter_due_periods(as_of_date: date, disbursement_date: date) -> list[tuple[date, date]]:
     anchor_day = disbursement_date.day
     period_start = disbursement_date
-    period_end = _add_months(disbursement_date, 1, anchor_day)
+    period_end = add_months(disbursement_date, 1, anchor_day)
 
     periods: list[tuple[date, date]] = []
     while period_end <= as_of_date:
         periods.append((period_start, period_end))
         period_start = period_end
-        period_end = _add_months(period_end, 1, anchor_day)
+        period_end = add_months(period_end, 1, anchor_day)
 
     return periods
 
