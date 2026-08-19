@@ -1,4 +1,3 @@
-from calendar import monthrange
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -9,6 +8,7 @@ from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import InterestCharge, Loan, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
 from src.modules.finance.allocation import AllocationTarget, allocate_oldest_first
+from src.modules.finance.interest_generation import add_months, month_anchor
 from src.modules.finance.locks import lock_customer_loans, lock_loans
 from src.modules.finance.loan_status import describe_transitions, refresh_overdue_loan_statuses
 from src.modules.finance.interest_balance import (
@@ -49,27 +49,27 @@ from src.shared.utils.audit import write_audit
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 
-def _month_anchor(year: int, month: int, anchor_day: int) -> date:
-    last_day = monthrange(year, month)[1]
-    day = min(max(1, anchor_day), last_day)
-    return date(year, month, day)
-
-
-def _add_months(base_date: date, months: int, anchor_day: int) -> date:
-    month_index = (base_date.month - 1) + months
-    year = base_date.year + (month_index // 12)
-    month = (month_index % 12) + 1
-    return _month_anchor(year, month, anchor_day)
-
 
 def _next_interest_generation_date(as_of_date: date, disbursement_date: date) -> date:
+    """The end of the billing period the loan is currently inside.
+
+    A loan disbursed on the 19th has its first period run 19th -> 19th of the next month, so
+    on the day it is signed nothing is due yet. The anchor for the current month is the
+    disbursement date itself, and returning it made a statement printed the same afternoon
+    read "próximo vencimiento: 19/08/2026" — the day it was handed over. The guard below is
+    what keeps the answer strictly in the future of the disbursement.
+    """
     anchor_day = disbursement_date.day
-    current_anchor = _month_anchor(as_of_date.year, as_of_date.month, anchor_day)
+    current_anchor = month_anchor(as_of_date.year, as_of_date.month, anchor_day)
+
+    # Never the disbursement day or earlier: no period has ended yet.
+    if current_anchor <= disbursement_date:
+        return add_months(disbursement_date, 1, anchor_day)
 
     if as_of_date <= current_anchor:
         return current_anchor
 
-    return _add_months(current_anchor, 1, anchor_day)
+    return add_months(current_anchor, 1, anchor_day)
 
 
 def _pending_interest_items_for_customer(db: Session, customer_id: int, today: date) -> list[InterestPendingItem]:
