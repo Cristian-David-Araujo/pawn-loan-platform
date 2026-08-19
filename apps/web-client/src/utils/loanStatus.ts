@@ -40,12 +40,30 @@ const DOCUMENT_KEYS: Record<string, string> = {
   defaulted: 'loanStatus.docForeclosed'
 }
 
-/** The pill treatment. `defaulted` shares `overdue`'s danger tone: both mean money at risk. */
-const STATUS_CLASSES: Record<string, string> = {
+/* Two class maps, for the same reason there are two label maps.
+ *
+ * On paper the question is "is this debt in trouble?", so `defaulted` shares `overdue`'s
+ * danger tone. On screen the operator is looking at a lifecycle, and a foreclosure is a
+ * heavier fact than a missed month — `overdue` is amber, `defaulted` is red, and a `closed`
+ * loan wears the bare neutral pill because it asks nothing of anyone.
+ *
+ * The screen map lived as a byte-identical `switch` in `LoansView` and `CollateralsView`
+ * while this file already owned the labels for the same four values. */
+
+/** The pill treatment on a printed, customer-facing document. */
+const DOCUMENT_CLASSES: Record<string, string> = {
   active: 'status-active',
   overdue: 'status-overdue',
   closed: 'status-closed',
   defaulted: 'status-overdue'
+}
+
+/** The pill treatment on the operator's screens. `closed` is deliberately unstyled. */
+const PILL_CLASSES: Record<string, string> = {
+  active: 'pill-current',
+  overdue: 'pill-warning',
+  closed: '',
+  defaulted: 'pill-overdue'
 }
 
 /**
@@ -60,7 +78,11 @@ export const loanStatusKey = (status: string): string => SCREEN_KEYS[status] ?? 
 /** i18n key for a status on a printed, customer-facing document. */
 export const loanStatusDocumentKey = (status: string): string => DOCUMENT_KEYS[status] ?? status
 
-export const loanStatusClass = (status: string): string => STATUS_CLASSES[status] ?? 'status-active'
+export const loanStatusDocumentClass = (status: string): string =>
+  DOCUMENT_CLASSES[status] ?? 'status-active'
+
+/** Screen pill class for a status. An unknown value gets no tone rather than a wrong one. */
+export const loanStatusPillClass = (status: string): string => PILL_CLASSES[status] ?? ''
 
 /* ── Why a loan is closed ────────────────────────────────────────────────────────────────
  *

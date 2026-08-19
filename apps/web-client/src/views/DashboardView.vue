@@ -41,6 +41,7 @@
       <StatCard
         :label="t('dashboard.activeLoans')"
         :value="String(stats.activeLoans)"
+        :caption="stats.pausedLoans ? t('dashboard.pausedLoans', { count: stats.pausedLoans }) : undefined"
         :icon="BadgeDollarSign"
         tone="blue"
         :to="{ path: '/loans' }"

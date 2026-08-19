@@ -545,7 +545,9 @@
                 <td :data-label="t('common.principal')">{{ formatCurrency(loan.principalAmount) }}</td>
                 <td :data-label="t('loans.outstanding')">{{ formatCurrency(loan.outstandingPrincipal) }}</td>
                 <td :data-label="t('loans.rate')">{{ loan.monthlyInterestRate }}%</td>
-                <td :data-label="t('common.status')">{{ t(`common.${loan.status}`) }}</td>
+                <td :data-label="t('common.status')">
+                  <LoanStatusPill :status="loan.status" :paused="loan.interestPaused" :pauseReason="loan.interestPauseReason" />
+                </td>
                 <td>
                   <div class="form-inline">
                     <button v-if="hasRole([UserRole.Administrator, UserRole.LoanOfficer])" class="btn btn-secondary btn-icon" type="button" :title="t('customers.editLoan')" @click.stop="openLoanEditModal(loan)">
@@ -594,6 +596,7 @@
                 <th>{{ t('common.fees') }}</th>
                 <th>{{ t('common.principal') }}</th>
                 <th>{{ t('common.method') }}</th>
+                <th>{{ t('common.receivedBy') }}</th>
                 <th>{{ t('payments.notes') }}</th>
                 <th>{{ t('common.status') }}</th>
                 <th>{{ t('common.actions') }}</th>
@@ -625,13 +628,17 @@
                 <td :data-label="t('common.method')">
                   {{ paymentMethodLabel(payment.paymentMethod) }}
                 </td>
+                <td :data-label="t('common.receivedBy')">{{ userLabel(payment.receiver) ?? '-' }}</td>
                 <td class="muted" :data-label="t('payments.notes')">{{ payment.notes || '-' }}</td>
                 <td :data-label="t('common.status')">
                   <span :class="['pill', payment.isReversed ? 'pill-overdue' : 'pill-current']">
                     {{ payment.isReversed ? t('payments.reversed') : t('common.active') }}
                   </span>
-                  <div class="muted mt-1" v-if="payment.isReversed && payment.reversalReason">
-                    {{ payment.reversalReason }}
+                  <div class="muted mt-1" v-if="payment.isReversed">
+                    <span v-if="payment.reversalReason">{{ payment.reversalReason }}</span>
+                    <span v-if="userLabel(payment.reverser)">
+                      · {{ t('payments.reversedBy', { name: userLabel(payment.reverser) }) }}
+                    </span>
                   </div>
                 </td>
                 <td>
@@ -664,7 +671,7 @@
                 </td>
               </tr>
               <tr v-if="expandedPaymentId === payment.id" class="row-detail">
-                <td :colspan="hasRole([UserRole.Administrator, UserRole.LoanOfficer]) ? 12 : 12">
+                <td colspan="13">
                   <PaymentAllocationDetail :paymentId="payment.id" />
                 </td>
               </tr>
@@ -918,6 +925,7 @@ import { useI18n } from 'vue-i18n'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { usePageMessage } from '../composables/usePageMessage'
 import LoanDetailModal from '../components/LoanDetailModal.vue'
+import LoanStatusPill from '../components/LoanStatusPill.vue'
 import PaymentReversalModal from '../components/PaymentReversalModal.vue'
 import VoidInterestChargeModal, { type VoidableCharge } from '../components/VoidInterestChargeModal.vue'
 import PaymentAllocationDetail from '../components/PaymentAllocationDetail.vue'
@@ -934,6 +942,7 @@ import type { CollateralItem, Customer, Loan, Payment } from '../types/domain'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, formatDateTime, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
+import { userLabel } from '../utils/userLabel'
 import { interestPeriodClass, interestPeriodKey } from '../utils/loanStatus'
 
 interface InterestPendingItem {

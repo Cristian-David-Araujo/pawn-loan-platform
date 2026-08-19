@@ -86,9 +86,7 @@
                 <td :data-label="t('common.loan')">
                   <div class="fw-bold">#{{ item.loan_id || item.loanId }}</div>
                   <div v-if="item.loan_status || item.loanStatus" class="mt-1">
-                    <span :class="['pill', getLoanStatusClass(item.loan_status || item.loanStatus)]">
-                      {{ t(`common.${(item.loan_status || item.loanStatus).toLowerCase()}`) }}
-                    </span>
+                    <LoanStatusPill :status="(item.loan_status || item.loanStatus).toLowerCase()" />
                   </div>
                 </td>
                 <td class="text-right" :data-label="t('common.principal')">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
@@ -128,9 +126,7 @@
                 <td :data-label="t('common.loan')">
                   <div class="fw-bold">#{{ item.loan_id || item.loanId }}</div>
                   <div v-if="item.loan_status || item.loanStatus" class="mt-1">
-                    <span :class="['pill', getLoanStatusClass(item.loan_status || item.loanStatus)]">
-                      {{ t(`common.${(item.loan_status || item.loanStatus).toLowerCase()}`) }}
-                    </span>
+                    <LoanStatusPill :status="(item.loan_status || item.loanStatus).toLowerCase()" />
                   </div>
                 </td>
                 <td class="text-right" :data-label="t('common.principal')">{{ item.loan_principal || item.loanPrincipal ? formatCurrency(item.loan_principal || item.loanPrincipal) : '-' }}</td>
@@ -229,6 +225,7 @@ import { usePlatformStore } from '../stores/platformStore'
 import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
+import LoanStatusPill from '../components/LoanStatusPill.vue'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { usePageMessage } from '../composables/usePageMessage'
 import { Shield, DollarSign, X, AlertTriangle, PackageCheck } from 'lucide-vue-next'
@@ -286,16 +283,6 @@ const getStatusClass = (status: string) => {
     case 'sold': return 'pill-current'
     case 'released': return 'pill-upcoming'
     case 'liquidated': return 'pill-overdue'
-    default: return ''
-  }
-}
-
-const getLoanStatusClass = (status: string) => {
-  switch(status.toLowerCase()) {
-    case 'active': return 'pill-current'
-    case 'overdue': return 'pill-warning'
-    case 'defaulted': return 'pill-overdue'
-    case 'closed': return ''
     default: return ''
   }
 }

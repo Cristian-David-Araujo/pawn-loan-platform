@@ -45,6 +45,9 @@ const PAIRS = [
   ['--danger-text', '--surface', 'a destructive row action', 4.5],
   ['--danger-text', '--danger-soft', 'a destructive row action, hovered', 4.5],
   ['--info-text', '--info-soft', 'an info pill', 4.5],
+  // The paused chip is the one pill with no fill of its own, so it is read against
+  // whatever it sits on: a table row on a panel, or the canvas behind a card list.
+  ['--text-secondary', '--bg', 'a paused-loan chip on the canvas', 4.5],
   ['--sidebar-text', '--sidebar-bg', 'the active sidebar link', 4.5],
   ['--sidebar-link', '--sidebar-bg', 'a resting sidebar link', 4.5],
   ['--sidebar-muted', '--sidebar-bg', "the sidebar's role label", 4.5],
