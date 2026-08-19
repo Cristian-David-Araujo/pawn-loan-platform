@@ -48,6 +48,18 @@ Two facts that are easy to assume and are wrong:
   still turn the loan `overdue` — a pause is an agreement about what comes next, not a way to
   make existing arrears disappear from the reports.
 
+  Because it is not a status, **it needs a chip of its own next to the status**, never in place
+  of one: `overdue` + paused is a real and important combination — the arrears stand, they have
+  simply stopped growing. `LoanStatusPill` renders that pair and is the only place either is
+  decided; the loans list, the customer's loans tab and the collateral view all mount it. The
+  pause was previously visible nowhere but inside the loan detail, and there only as the label
+  of the button that undoes it, so the sole way to ask "is this loan still accruing?" was to
+  open every loan in turn. It is filterable from the loans list for the same reason.
+
+  It also reaches the customer's printed statement, where the loan and customer documents say
+  the interest is paused **instead of naming a next due date**. Printing a date meant promising
+  a charge that the pause had already decided would never be raised.
+
 ---
 
 ## 2. What moves a loan

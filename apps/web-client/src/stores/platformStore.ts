@@ -590,6 +590,12 @@ const updateCollateral = async (payload: UpdateCollateralPayload) => {
 const dashboardStats = computed(() => {
   const activeLoans = state.loans.filter((item) => item.status === 'active').length
   const overdueLoans = state.loans.filter((item) => item.status === 'overdue').length
+  /* Paused loans are counted as active, because they are: still open, still owed, still on
+     the books. What they are not is *earning*, and the tile that reports the open book had no
+     way to say so — which is the one thing about them that changes what the owner does. */
+  const pausedLoans = state.loans.filter(
+    (item) => item.interestPaused && (item.status === 'active' || item.status === 'overdue')
+  ).length
   const portfolioOutstanding = state.loans.reduce((sum, item) => sum + item.outstandingPrincipal, 0)
 
   const now = new Date()
@@ -607,6 +613,7 @@ const dashboardStats = computed(() => {
     customers: state.customers.length,
     activeLoans,
     overdueLoans,
+    pausedLoans,
     collateralInCustody: state.collateralItems.filter((item) => item.status === 'in-custody').length,
     portfolioOutstanding,
     cashCollectedMonth,

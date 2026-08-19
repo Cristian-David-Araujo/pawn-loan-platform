@@ -298,7 +298,7 @@
             <th class="text-right">{{ t('payments.penalty') }}</th>
             <th class="text-right">{{ t('common.principal') }}</th>
             <th>{{ t('common.method') }}</th>
-            <th>{{ t('common.receivedBy', 'Received by') }}</th>
+            <th>{{ t('common.receivedBy') }}</th>
             <th>{{ t('common.status') }}</th>
             <th>{{ t('common.actions') }}</th>
           </tr>
@@ -326,7 +326,7 @@
               <td class="text-right" :data-label="t('payments.penalty')">{{ formatCurrency(payment.allocatedToPenalty) }}</td>
               <td class="text-right" :data-label="t('common.principal')">{{ formatCurrency(payment.allocatedToPrincipal) }}</td>
               <td :data-label="t('common.method')">{{ getPaymentMethodLabel(payment.paymentMethod) }}</td>
-              <td :data-label="t('common.receivedBy', 'Received by')">{{ payment?.receiver?.full_name || payment?.receiver?.username || '-' }}</td>
+              <td :data-label="t('common.receivedBy')">{{ userLabel(payment.receiver) ?? '-' }}</td>
               <td :data-label="t('common.status')">
                 <span :class="['pill', payment.isReversed ? 'pill-overdue' : 'pill-current']">
                   {{ payment.isReversed ? t('payments.reversed') : t('common.active') }}
@@ -365,7 +365,7 @@
                       · {{ formatDateDMY(payment.reversedAt.split('T')[0]) }}
                     </span>
                     <span v-if="payment.reverser">
-                      · {{ payment.reverser.full_name || payment.reverser.username }}
+                      · {{ userLabel(payment.reverser) }}
                     </span>
                   </p>
                   <p v-if="payment.notes" class="muted"><strong>{{ t('payments.notes') }}:</strong> {{ payment.notes }}</p>
@@ -483,6 +483,7 @@ import { useAuthState, UserRole } from '../modules/authentication/authState'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY, toIsoDate } from '../utils/date'
 import { paymentTypeKey } from '../utils/paymentTypes'
+import { userLabel } from '../utils/userLabel'
 import { interestPeriodClass, interestPeriodKey } from '../utils/loanStatus'
 
 interface InterestPendingItem {
