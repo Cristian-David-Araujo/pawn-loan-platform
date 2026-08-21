@@ -583,7 +583,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { usePlatformStore } from '../stores/platformStore'
@@ -1041,6 +1041,8 @@ const paymentMethodLabel = computed(() => {
   return t('common.other')
 })
 
+let printTimer: number | undefined
+
 const loadStatement = async (customerId: number) => {
   const [context, pending] = await Promise.all([
     apiClient.request<{ items: LoanStatement[] }>(`/payments/customers/${customerId}/principal-context`),
@@ -1081,9 +1083,13 @@ onMounted(async () => {
   }
 
   ready.value = true
-  setTimeout(() => {
+  printTimer = window.setTimeout(() => {
     window.print()
   }, 500)
+})
+
+onBeforeUnmount(() => {
+  if (printTimer !== undefined) window.clearTimeout(printTimer)
 })
 </script>
 
