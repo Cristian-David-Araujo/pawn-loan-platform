@@ -1,13 +1,19 @@
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from src.domain.enums.loan import LoanStatus
-from src.infrastructure.persistence.models import CollateralItem, Loan, Payment, PaymentEvent, User
+from src.infrastructure.persistence.models import CollateralItem, CollateralPhoto, Loan, Payment, PaymentEvent, User
 from src.infrastructure.utils.datetime_utils import get_local_date, get_local_datetime
-from src.modules.collateral.schemas import CollateralCreate, CollateralRead, CollateralUpdate, CollateralSell
+from src.modules.collateral.schemas import (
+    CollateralCreate,
+    CollateralPhotoRead,
+    CollateralRead,
+    CollateralSell,
+    CollateralUpdate,
+)
 from src.modules.finance.allocation import AllocationTarget, allocate_oldest_first
 from src.modules.finance.locks import lock_loans
 from src.modules.finance.interest_balance import (
@@ -19,8 +25,11 @@ from src.domain.enums.user import UserRole
 from src.shared.dependencies.auth import get_current_user, require_roles
 from src.shared.dependencies.db import get_db
 from src.shared.utils.audit import write_audit
+from src.shared.utils.uploads import MAX_COLLATERAL_PHOTO_BYTES, read_validated_upload
 
 router = APIRouter(prefix="/collateral-items", tags=["collateral"])
+
+MAX_PHOTOS_PER_COLLATERAL = 12
 
 
 def _custody_code_for(item_id: int) -> str:
@@ -96,6 +105,112 @@ def list_collateral_items(
     if status:
         query = query.filter(CollateralItem.status == status)
     return list(query.order_by(CollateralItem.id.desc()).all())
+
+
+@router.get("/{item_id}/photos", response_model=list[CollateralPhotoRead])
+def list_collateral_photos(
+    item_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> list[CollateralPhoto]:
+    if db.get(CollateralItem, item_id) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collateral item not found")
+    return list(
+        db.scalars(
+            select(CollateralPhoto)
+            .where(CollateralPhoto.collateral_item_id == item_id)
+            .order_by(CollateralPhoto.created_at.asc(), CollateralPhoto.id.asc())
+        ).all()
+    )
+
+
+@router.post("/{item_id}/photos", response_model=CollateralPhotoRead, status_code=status.HTTP_201_CREATED)
+def upload_collateral_photo(
+    item_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
+) -> CollateralPhoto:
+    item = db.get(CollateralItem, item_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collateral item not found")
+
+    photo_count = db.scalar(
+        select(func.count(CollateralPhoto.id)).where(CollateralPhoto.collateral_item_id == item_id)
+    ) or 0
+    if photo_count >= MAX_PHOTOS_PER_COLLATERAL:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A collateral item can have at most {MAX_PHOTOS_PER_COLLATERAL} photos",
+        )
+
+    content, content_type, filename = read_validated_upload(
+        file, max_bytes=MAX_COLLATERAL_PHOTO_BYTES
+    )
+    photo = CollateralPhoto(
+        collateral_item_id=item.id,
+        filename=filename,
+        content_type=content_type,
+        size_bytes=len(content),
+        content=content,
+        uploaded_by_id=current_user.id,
+    )
+    db.add(photo)
+    db.flush()
+    write_audit(
+        db,
+        action="upload_collateral_photo",
+        entity_type="CollateralPhoto",
+        entity_id=str(photo.id),
+        user=current_user,
+        new_data=f"collateral_item_id={item.id},filename={filename},size_bytes={len(content)}",
+    )
+    db.refresh(photo)
+    return photo
+
+
+@router.get("/{item_id}/photos/{photo_id}/file")
+def download_collateral_photo(
+    item_id: int,
+    photo_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(get_current_user),
+) -> Response:
+    photo = db.get(CollateralPhoto, photo_id)
+    if photo is None or photo.collateral_item_id != item_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collateral photo not found")
+    return Response(
+        content=photo.content,
+        media_type=photo.content_type,
+        headers={
+            "Content-Disposition": f'inline; filename="{photo.filename}"',
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.delete("/{item_id}/photos/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_collateral_photo(
+    item_id: int,
+    photo_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.administrator, UserRole.loan_officer)),
+) -> Response:
+    photo = db.get(CollateralPhoto, photo_id)
+    if photo is None or photo.collateral_item_id != item_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collateral photo not found")
+
+    db.delete(photo)
+    write_audit(
+        db,
+        action="delete_collateral_photo",
+        entity_type="CollateralPhoto",
+        entity_id=str(photo_id),
+        user=current_user,
+        old_data=f"collateral_item_id={item_id},filename={photo.filename}",
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.put("/{item_id}", response_model=CollateralRead)

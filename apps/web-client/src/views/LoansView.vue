@@ -135,6 +135,14 @@
         </label>
       </div>
 
+      <FileCapturePicker
+        v-if="applyCollateralAssociation"
+        v-model="collateralForm.photos"
+        class="mt-8"
+        :label="t('media.collateralPhotos')"
+        :hint="t('media.photoHint')"
+      />
+
       <div v-if="applyCollateralAssociation" class="form-inline">
         <button class="btn btn-secondary" type="button" @click="addCollateralToQueue">
           <FilePlus2 :size="16" />
@@ -149,6 +157,7 @@
             <th>{{ t('common.description') }}</th>
             <th>{{ t('collateral.appraisedValue') }}</th>
             <th>{{ t('collateral.storageLocation') }}</th>
+            <th>{{ t('media.photos') }}</th>
             <th>{{ t('common.actions') }}</th>
           </tr>
         </thead>
@@ -157,6 +166,7 @@
             <td>{{ item.description }}</td>
             <td>{{ formatCurrency(item.appraisedValue) }}</td>
             <td>{{ item.storageLocation }}</td>
+            <td class="num">{{ item.photos.length }}</td>
             <td>
               <button class="btn btn-secondary" type="button" @click="removeCollateralFromQueue(index)">
                 <Trash2 :size="16" />
@@ -338,6 +348,7 @@ import { BadgeDollarSign, ClockAlert, FilePlus2, FilterX, HandCoins, Info, Trash
 import CustomerAutocomplete from '../components/CustomerAutocomplete.vue'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
+import FileCapturePicker from '../components/FileCapturePicker.vue'
 import PageHeader from '../components/PageHeader.vue'
 import StatCard from '../components/StatCard.vue'
 import { usePlatformStore } from '../stores/platformStore'
@@ -360,6 +371,7 @@ interface CollateralQueueItem {
   description: string
   appraisedValue: number
   storageLocation: string
+  photos: File[]
 }
 
 interface InterestPendingItem {
@@ -384,7 +396,7 @@ interface InterestPendingResponse {
 }
 
 
-const { state, createLoan, createCollateral, ensureInitialized } = usePlatformStore()
+const { state, createLoan, createCollateral, ensureInitialized, uploadCollateralPhotos } = usePlatformStore()
 const { customerLabel: getCustomerLabel } = useCustomerLabel()
 const { hasRole } = useAuthState()
 const router = useRouter()
@@ -535,12 +547,15 @@ const handleCreateLoan = async () => {
 
   if (applyCollateralAssociation.value && collateralQueue.value.length) {
     for (const item of collateralQueue.value) {
-      await createCollateral({
+      const collateral = await createCollateral({
         loanId: createdLoan.id,
         description: item.description,
         appraisedValue: item.appraisedValue,
         storageLocation: item.storageLocation
       })
+      if (item.photos.length) {
+        await uploadCollateralPhotos(collateral.id, item.photos)
+      }
     }
   }
 
@@ -552,6 +567,7 @@ const handleCreateLoan = async () => {
   collateralForm.description = ''
   collateralForm.appraisedValue = 1000
   collateralForm.storageLocation = 'Vault A-01'
+  collateralForm.photos = []
 
   if (printInvoiceOnSave.value) {
     router.push(`/print/invoice/loan/${createdLoan.id}`)
@@ -562,7 +578,8 @@ const handleCreateLoan = async () => {
 const collateralForm = reactive({
   description: '',
   appraisedValue: 1000,
-  storageLocation: 'Vault A-01'
+  storageLocation: 'Vault A-01',
+  photos: [] as File[]
 })
 
 const addCollateralToQueue = () => {
@@ -575,13 +592,15 @@ const addCollateralToQueue = () => {
     {
       description: collateralForm.description.trim(),
       appraisedValue: collateralForm.appraisedValue,
-      storageLocation: collateralForm.storageLocation.trim()
+      storageLocation: collateralForm.storageLocation.trim(),
+      photos: collateralForm.photos
     }
   ]
 
   collateralForm.description = ''
   collateralForm.appraisedValue = 1000
   collateralForm.storageLocation = 'Vault A-01'
+  collateralForm.photos = []
 }
 
 const removeCollateralFromQueue = (index: number) => {

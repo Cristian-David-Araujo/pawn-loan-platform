@@ -301,6 +301,12 @@
           </span>
         </div>
 
+        <CustomerIdentityDocumentPanel
+          class="mt-16"
+          :customer-id="selectedCustomer.id"
+          :can-edit="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
+        />
+
         <!-- The customer's position, above the tabs and above the fold.
              It sat at the foot of the Resumen tab, starting at y=1177 on an 1100px viewport:
              the four figures that answer "how is this customer doing" were the last thing on
@@ -934,6 +940,7 @@ import { useBackNavigation } from '../composables/useBackNavigation'
 import { Archive, ArrowLeft, Ban, CheckCircle2, ChevronDown, ChevronRight, FilterX, HandCoins, LayoutDashboard, Package, Pencil, Save, Trash2, UserPlus, Users, Wallet, X, Printer } from 'lucide-vue-next'
 import DateInputField from '../components/DateInputField.vue'
 import CurrencyInput from '../components/CurrencyInput.vue'
+import CustomerIdentityDocumentPanel from '../components/CustomerIdentityDocumentPanel.vue'
 import PageHeader from '../components/PageHeader.vue'
 import { apiClient } from '../services/api'
 import { usePlatformStore } from '../stores/platformStore'

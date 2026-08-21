@@ -1,6 +1,17 @@
 from datetime import UTC, date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Date,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.domain.enums.loan import LoanStatus, LoanType
@@ -48,6 +59,32 @@ class Customer(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)
     
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id], lazy="selectin")
+
+
+class CustomerIdentityDocument(Base):
+    """A scanned side of the identity document supplied for a customer.
+
+    The file deliberately lives in the database instead of a container path: a document is
+    part of the customer record, must be protected by the same authorisation as the record,
+    and must survive the application's existing export/restore workflow.
+    """
+
+    __tablename__ = "customer_identity_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("customers.id", ondelete="CASCADE"), index=True)
+    # A scan records both physical sides separately. `combined` preserves a PDF or legacy
+    # one-file upload without pretending the application knows which page is which.
+    side: Mapped[str] = mapped_column(String(12), default="front")
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc, onupdate=now_utc)
+
+    __table_args__ = (UniqueConstraint("customer_id", "side", name="uq_customer_identity_documents_customer_side"),)
 
 
 
@@ -183,6 +220,23 @@ class CollateralItem(Base):
         from src.modules.finance.interest_balance import pending_interest_total_for_loan
 
         return pending_interest_total_for_loan(session, self.loan, get_local_date(session))
+
+
+class CollateralPhoto(Base):
+    """A compressed evidence photo for one pledged item."""
+
+    __tablename__ = "collateral_photos"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    collateral_item_id: Mapped[int] = mapped_column(
+        ForeignKey("collateral_items.id", ondelete="CASCADE"), index=True
+    )
+    filename: Mapped[str] = mapped_column(String(255))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size_bytes: Mapped[int] = mapped_column(Integer)
+    content: Mapped[bytes] = mapped_column(LargeBinary)
+    uploaded_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_utc)
 
 
 class InterestCharge(Base):

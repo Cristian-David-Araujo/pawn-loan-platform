@@ -464,7 +464,7 @@ const createLoan = async (payload: CreateLoanPayload) => {
 }
 
 const createCollateral = async (payload: CreateCollateralPayload) => {
-  await apiClient.request<BackendCollateral>('/collateral-items', {
+  const created = await apiClient.request<BackendCollateral>('/collateral-items', {
     method: 'POST',
     body: JSON.stringify({
       loan_id: payload.loanId,
@@ -475,6 +475,15 @@ const createCollateral = async (payload: CreateCollateralPayload) => {
   })
 
   await refreshAll()
+  return mapCollateral(created)
+}
+
+const uploadCollateralPhotos = async (itemId: number, files: File[]) => {
+  for (const file of files) {
+    const formData = new FormData()
+    formData.append('file', file, file.name)
+    await apiClient.requestUpload(`/collateral-items/${itemId}/photos`, formData)
+  }
 }
 
 
@@ -674,6 +683,7 @@ const dashboardStats = computed(() => {
     updateLoan,
     deleteLoan,
     createCollateral,
+    uploadCollateralPhotos,
     updateCollateral,
     updatePayment,
     updateGlobalSettings,

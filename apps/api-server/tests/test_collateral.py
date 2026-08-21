@@ -7,6 +7,9 @@ from src.domain.enums.loan import LoanStatus
 from src.infrastructure.persistence.models import CollateralItem, InterestCharge, Loan
 
 
+JPEG_BYTES = b"\xff\xd8\xff\xe0" + b"JFIF\x00" + b"test-photo"
+
+
 def test_create_collateral_requires_existing_loan(client: TestClient, auth_headers: dict[str, str]) -> None:
     payload = {
         "loan_id": 999,
@@ -51,6 +54,80 @@ def test_create_collateral_rejects_personal_loan(
         },
     )
     assert collateral_response.status_code == 400
+
+
+def test_collateral_photos_are_uploaded_served_and_removed(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+) -> None:
+    loan = create_loan(principal=812)
+    item_response = client.post(
+        "/api/v1/collateral-items",
+        headers=auth_headers,
+        json={
+            "loan_id": loan["id"],
+            "description": "Camera with evidence photo",
+            "appraised_value": 900,
+            "storage_location": "Vault Media",
+        },
+    )
+    assert item_response.status_code == 201
+    item_id = item_response.json()["id"]
+
+    upload = client.post(
+        f"/api/v1/collateral-items/{item_id}/photos",
+        headers=auth_headers,
+        files={"file": ("front.jpg", JPEG_BYTES, "image/jpeg")},
+    )
+    assert upload.status_code == 201, upload.text
+    photo = upload.json()
+    assert photo["filename"] == "front.jpg"
+    assert photo["content_type"] == "image/jpeg"
+    assert photo["size_bytes"] == len(JPEG_BYTES)
+
+    listed = client.get(f"/api/v1/collateral-items/{item_id}/photos", headers=auth_headers)
+    assert listed.status_code == 200
+    assert [item["id"] for item in listed.json()] == [photo["id"]]
+
+    file_response = client.get(
+        f"/api/v1/collateral-items/{item_id}/photos/{photo['id']}/file", headers=auth_headers
+    )
+    assert file_response.status_code == 200
+    assert file_response.headers["content-type"] == "image/jpeg"
+    assert file_response.content == JPEG_BYTES
+
+    deleted = client.delete(
+        f"/api/v1/collateral-items/{item_id}/photos/{photo['id']}", headers=auth_headers
+    )
+    assert deleted.status_code == 204
+    assert client.get(f"/api/v1/collateral-items/{item_id}/photos", headers=auth_headers).json() == []
+
+
+def test_collateral_photo_rejects_non_image_upload(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    create_loan,
+) -> None:
+    loan = create_loan(principal=813)
+    item_response = client.post(
+        "/api/v1/collateral-items",
+        headers=auth_headers,
+        json={
+            "loan_id": loan["id"],
+            "description": "Invalid media test",
+            "appraised_value": 900,
+            "storage_location": "Vault Media",
+        },
+    )
+    item_id = item_response.json()["id"]
+
+    upload = client.post(
+        f"/api/v1/collateral-items/{item_id}/photos",
+        headers=auth_headers,
+        files={"file": ("not-a-photo.txt", b"plain text", "text/plain")},
+    )
+    assert upload.status_code == 415
 
 
 def test_create_collateral_rejects_closed_loan(

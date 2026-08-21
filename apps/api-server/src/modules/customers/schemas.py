@@ -40,3 +40,16 @@ class CustomerRead(CustomerBase):
     created_at: datetime
     updated_at: datetime
     created_by: UserSummary | None = None
+
+
+class CustomerIdentityDocumentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    customer_id: int
+    side: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
+    updated_at: datetime

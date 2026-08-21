@@ -109,6 +109,15 @@
                 </td>
                 <td class="text-center">
                   <button
+                    class="btn btn-secondary btn-icon"
+                    type="button"
+                    :title="t('media.collateralPhotos')"
+                    :aria-label="t('media.collateralPhotos')"
+                    @click="openPhotoModal(item)"
+                  >
+                    <Camera :size="16" />
+                  </button>
+                  <button
                     v-if="canHandBack(item)"
                     class="btn btn-secondary btn-icon"
                     type="button"
@@ -150,6 +159,15 @@
                 <td class="text-right" :data-label="t('collaterals.salePrice')">{{ item.sale_price ? formatCurrency(item.sale_price) : '-' }}</td>
                 <td :data-label="t('collaterals.saleDate')">{{ item.sold_at ? formatDateDMY(item.sold_at.split('T')[0]) : '-' }}</td>
                 <td class="text-center">
+                  <button
+                    class="btn btn-secondary btn-icon"
+                    type="button"
+                    :title="t('media.collateralPhotos')"
+                    :aria-label="t('media.collateralPhotos')"
+                    @click="openPhotoModal(item)"
+                  >
+                    <Camera :size="16" />
+                  </button>
                   <button 
                     v-if="item.status === 'for_sale'" 
                     class="btn btn-secondary btn-icon" 
@@ -215,6 +233,15 @@
         </div>
       </div>
     </div>
+
+    <CollateralPhotoModal
+      :open="showPhotoModal"
+      :item-id="photoItem?.id ?? null"
+      :item-description="photoItem?.description ?? ''"
+      :can-edit="hasRole([UserRole.Administrator, UserRole.LoanOfficer])"
+      @close="closePhotoModal"
+      @updated="loadItems"
+    />
   </section>
 </template>
 
@@ -226,16 +253,19 @@ import PageHeader from '../components/PageHeader.vue'
 import CustomSelect from '../components/CustomSelect.vue'
 import Pagination from '../components/Pagination.vue'
 import LoanStatusPill from '../components/LoanStatusPill.vue'
+import CollateralPhotoModal from '../components/CollateralPhotoModal.vue'
 import { useConfirmDialog } from '../composables/useConfirmDialog'
 import { usePageMessage } from '../composables/usePageMessage'
-import { Shield, DollarSign, X, AlertTriangle, PackageCheck } from 'lucide-vue-next'
+import { Shield, DollarSign, X, AlertTriangle, Camera, PackageCheck } from 'lucide-vue-next'
 import { formatCurrency } from '../utils/currency'
 import { formatDateDMY } from '../utils/date'
+import { useAuthState, UserRole } from '../modules/authentication/authState'
 
 const { t } = useI18n()
 const store = usePlatformStore()
 const { confirm } = useConfirmDialog()
 const { message, messageClass, notify, fail, clearMessage } = usePageMessage()
+const { hasRole } = useAuthState()
 
 const items = ref<any[]>([])
 const loading = ref(true)
@@ -252,6 +282,8 @@ const salePrice = ref<number | null>(null)
 const saleNotes = ref('')
 const isSubmitting = ref(false)
 const confirmStep = ref(1)
+const showPhotoModal = ref(false)
+const photoItem = ref<any>(null)
 
 watch(activeTab, () => {
   filterStatus.value = ''
@@ -405,6 +437,16 @@ const closeSellModal = () => {
   salePrice.value = null
   saleNotes.value = ''
   confirmStep.value = 1
+}
+
+const openPhotoModal = (item: any) => {
+  photoItem.value = item
+  showPhotoModal.value = true
+}
+
+const closePhotoModal = () => {
+  showPhotoModal.value = false
+  photoItem.value = null
 }
 
 const handleSell = async () => {

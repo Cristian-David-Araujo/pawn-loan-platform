@@ -50,3 +50,14 @@ class CollateralRead(BaseModel):
 class CollateralSell(BaseModel):
     sale_price: float
     notes: str | None = ""
+
+
+class CollateralPhotoRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    collateral_item_id: int
+    filename: str
+    content_type: str
+    size_bytes: int
+    created_at: datetime
