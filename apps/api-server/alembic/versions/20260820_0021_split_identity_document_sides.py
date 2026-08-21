@@ -41,7 +41,29 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     conn = op.get_bind()
-    conn.execute(text("DROP INDEX IF EXISTS uq_customer_identity_documents_customer_side"))
+    # On a fresh install, revision 0001 creates the current metadata and this name belongs
+    # to a UNIQUE constraint. On an upgrade from 0020 it is the explicit index made above.
+    # PostgreSQL will not drop an index that backs a constraint, so handle both origins.
+    conn.execute(
+        text(
+            """
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM pg_constraint
+                    WHERE conname = 'uq_customer_identity_documents_customer_side'
+                      AND conrelid = 'customer_identity_documents'::regclass
+                ) THEN
+                    ALTER TABLE customer_identity_documents
+                    DROP CONSTRAINT uq_customer_identity_documents_customer_side;
+                ELSE
+                    DROP INDEX IF EXISTS uq_customer_identity_documents_customer_side;
+                END IF;
+            END $$;
+            """
+        )
+    )
     # Downgrading can only keep one side because revision 0020 has a unique customer id.
     conn.execute(text("DELETE FROM customer_identity_documents WHERE side <> 'front'"))
     conn.execute(
