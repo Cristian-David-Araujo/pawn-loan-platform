@@ -10,8 +10,12 @@
 
     <input ref="fileInput" class="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" @change="selectImage" />
 
-    <div v-if="cameraActive" class="scanner-video-wrap">
-      <video ref="video" autoplay muted playsinline />
+    <div v-if="cameraActive || cameraStarting" class="scanner-video-wrap" data-testid="identity-camera-preview">
+      <video ref="video" autoplay muted playsinline :aria-label="t('media.cameraPreview')" />
+      <div v-if="cameraStarting" class="camera-loading" role="status">
+        <LoaderCircle :size="22" class="spin" aria-hidden="true" />
+        {{ t('media.cameraStarting') }}
+      </div>
       <div class="card-guide" aria-hidden="true"><span /></div>
       <svg
         v-if="liveDetection"
@@ -29,7 +33,7 @@
     <p v-if="message" class="scanner-message" :class="{ 'scanner-message-error': isError }" role="status">{{ message }}</p>
 
     <div class="scanner-actions">
-      <button v-if="!cameraActive" class="btn" type="button" :disabled="preparing" @click="startCamera">
+      <button v-if="!cameraActive && !cameraStarting" class="btn" type="button" :disabled="preparing" @click="startCamera">
         <Camera :size="16" aria-hidden="true" />
         {{ t('media.openCamera') }}
       </button>
@@ -41,7 +45,7 @@
         <VideoOff :size="16" aria-hidden="true" />
         {{ t('media.stopCamera') }}
       </button>
-      <button class="btn btn-secondary" type="button" :disabled="preparing" @click="fileInput?.click()">
+      <button class="btn btn-secondary" type="button" :disabled="preparing || cameraStarting" @click="fileInput?.click()">
         <Upload :size="16" aria-hidden="true" />
         {{ t('media.chooseFile') }}
       </button>
@@ -64,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Camera, LoaderCircle, ScanLine, Upload, VideoOff, X } from 'lucide-vue-next'
 
@@ -85,6 +89,7 @@ const { t } = useI18n()
 const video = ref<HTMLVideoElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const cameraActive = ref(false)
+const cameraStarting = ref(false)
 const preparing = ref(false)
 const detecting = ref(false)
 const liveDetection = ref<IdentityDocumentDetection | null>(null)
@@ -103,6 +108,7 @@ const pendingSide = computed<IdentityDocumentSide>(() => {
   return 'combined'
 })
 const scannerState = computed(() => {
+  if (cameraStarting.value) return t('media.cameraStarting')
   if (!cameraActive.value) return t('media.cameraInactive')
   return pendingSide.value === 'front' ? t('media.scanningFront') : t('media.scanningBack')
 })
@@ -223,12 +229,13 @@ const startCamera = async () => {
     isError.value = true
     return
   }
-  preparing.value = true
+  cameraStarting.value = true
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }
     })
+    await nextTick()
     if (!video.value) {
       stream.getTracks().forEach((track) => track.stop())
       stream = null
@@ -241,10 +248,11 @@ const startCamera = async () => {
     isError.value = false
     automaticTimer = window.setInterval(automaticCapture, 900)
   } catch {
+    stopCamera()
     message.value = t('media.cameraPermissionDenied')
     isError.value = true
   } finally {
-    preparing.value = false
+    cameraStarting.value = false
   }
 }
 
@@ -255,6 +263,7 @@ const stopCamera = () => {
   stream = null
   if (video.value) video.value.srcObject = null
   cameraActive.value = false
+  cameraStarting.value = false
   liveDetection.value = null
 }
 
@@ -304,6 +313,7 @@ onBeforeUnmount(() => {
 .scanner-state-ready { border-color: var(--accent-border); color: var(--accent); }
 .scanner-video-wrap { position: relative; overflow: hidden; margin-top: 0.85rem; border-radius: var(--radius-sm); background: var(--sidebar-bg); aspect-ratio: 16 / 10; }
 .scanner-video-wrap video { width: 100%; height: 100%; object-fit: contain; }
+.camera-loading { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; align-content: center; gap: 0.5rem; background: var(--sidebar-bg); color: var(--text-inverse); font-size: var(--fs-sm); }
 .card-guide { position: absolute; inset: 50% auto auto 50%; width: min(78%, 32rem); aspect-ratio: 1.586; border: 2px solid var(--text-inverse); border-radius: var(--radius-xs); box-shadow: 0 0 0 100vmax rgba(28, 26, 23, 0.42); transform: translate(-50%, -50%); }
 .card-guide span { position: absolute; inset: -3px; border: 1px solid rgba(255, 255, 255, 0.6); }
 .card-detection { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
